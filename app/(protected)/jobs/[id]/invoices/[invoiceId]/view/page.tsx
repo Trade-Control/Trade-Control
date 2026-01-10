@@ -1,50 +1,83 @@
-import { createClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { redirect, useParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default async function InvoiceViewPage({ 
-  params 
-}: { 
-  params: { id: string; invoiceId: string } 
-}) {
-  const supabase = await createClient();
+export default function InvoiceViewPage() {
+  const params = useParams();
+  const jobId = params.id as string;
+  const invoiceId = params.invoiceId as string;
+  const supabase = createClient();
   
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    redirect('/login');
+  const [invoice, setInvoice] = useState<any>(null);
+  const [lineItems, setLineItems] = useState<any[]>([]);
+  const [organization, setOrganization] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        redirect('/login');
+        return;
+      }
+
+      // Fetch invoice with line items
+      const { data: invoiceData } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          jobs (
+            *,
+            contacts (*)
+          )
+        `)
+        .eq('id', invoiceId)
+        .single();
+
+      if (!invoiceData) {
+        redirect(`/jobs/${jobId}/invoices`);
+        return;
+      }
+
+      setInvoice(invoiceData);
+
+      const { data: lineItemsData } = await supabase
+        .from('invoice_line_items')
+        .select('*')
+        .eq('invoice_id', invoiceId)
+        .order('sort_order');
+
+      if (lineItemsData) setLineItems(lineItemsData);
+
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', invoiceData.organization_id)
+        .single();
+
+      if (orgData) setOrganization(orgData);
+      
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [jobId, invoiceId, supabase]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-xl text-gray-600">Loading...</div>
+      </div>
+    );
   }
-
-  const { id: jobId, invoiceId } = params;
-
-  // Fetch invoice with line items
-  const { data: invoice } = await supabase
-    .from('invoices')
-    .select(`
-      *,
-      jobs (
-        *,
-        contacts (*)
-      )
-    `)
-    .eq('id', invoiceId)
-    .single();
 
   if (!invoice) {
-    redirect(`/jobs/${jobId}/invoices`);
+    return null;
   }
-
-  const { data: lineItems } = await supabase
-    .from('invoice_line_items')
-    .select('*')
-    .eq('invoice_id', invoiceId)
-    .order('sort_order');
-
-  const { data: organization } = await supabase
-    .from('organizations')
-    .select('*')
-    .eq('id', invoice.organization_id)
-    .single();
 
   const job = invoice.jobs as any;
   const contact = job?.contacts as any;

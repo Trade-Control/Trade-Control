@@ -1,50 +1,83 @@
-import { createClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { redirect, useParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default async function QuoteViewPage({ 
-  params 
-}: { 
-  params: { id: string; quoteId: string } 
-}) {
-  const supabase = await createClient();
+export default function QuoteViewPage() {
+  const params = useParams();
+  const jobId = params.id as string;
+  const quoteId = params.quoteId as string;
+  const supabase = createClient();
   
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    redirect('/login');
+  const [quote, setQuote] = useState<any>(null);
+  const [lineItems, setLineItems] = useState<any[]>([]);
+  const [organization, setOrganization] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        redirect('/login');
+        return;
+      }
+
+      // Fetch quote with line items
+      const { data: quoteData } = await supabase
+        .from('quotes')
+        .select(`
+          *,
+          jobs (
+            *,
+            contacts (*)
+          )
+        `)
+        .eq('id', quoteId)
+        .single();
+
+      if (!quoteData) {
+        redirect(`/jobs/${jobId}/quotes`);
+        return;
+      }
+
+      setQuote(quoteData);
+
+      const { data: lineItemsData } = await supabase
+        .from('quote_line_items')
+        .select('*')
+        .eq('quote_id', quoteId)
+        .order('sort_order');
+
+      if (lineItemsData) setLineItems(lineItemsData);
+
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', quoteData.organization_id)
+        .single();
+
+      if (orgData) setOrganization(orgData);
+      
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [jobId, quoteId, supabase]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-xl text-gray-600">Loading...</div>
+      </div>
+    );
   }
-
-  const { id: jobId, quoteId } = params;
-
-  // Fetch quote with line items
-  const { data: quote } = await supabase
-    .from('quotes')
-    .select(`
-      *,
-      jobs (
-        *,
-        contacts (*)
-      )
-    `)
-    .eq('id', quoteId)
-    .single();
 
   if (!quote) {
-    redirect(`/jobs/${jobId}/quotes`);
+    return null;
   }
-
-  const { data: lineItems } = await supabase
-    .from('quote_line_items')
-    .select('*')
-    .eq('quote_id', quoteId)
-    .order('sort_order');
-
-  const { data: organization } = await supabase
-    .from('organizations')
-    .select('*')
-    .eq('id', quote.organization_id)
-    .single();
 
   const job = quote.jobs as any;
   const contact = job?.contacts as any;

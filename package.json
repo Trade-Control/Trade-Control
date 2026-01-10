@@ -12,6 +12,7 @@
     "@googlemaps/js-api-loader": "^2.0.2",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
+    "nanoid": "^5.1.6",
     "next": "^15.5.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

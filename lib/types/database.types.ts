@@ -8,6 +8,9 @@ export type Organization = {
   postcode: string | null;
   phone: string | null;
   email: string | null;
+  subscription_id: string | null;
+  onboarding_completed: boolean;
+  onboarding_data: Record<string, any>;
   created_at: string;
   updated_at: string;
 };
@@ -18,6 +21,9 @@ export type Profile = {
   first_name: string | null;
   last_name: string | null;
   phone: string | null;
+  role: UserRole | null;
+  license_id: string | null;
+  assigned_job_ids: string[]; // Array of job IDs for field staff
   created_at: string;
   updated_at: string;
 };
@@ -212,4 +218,125 @@ export type TravelLog = {
   notes: string | null;
   created_at: string;
   updated_at: string;
+};
+
+// Subscription System Types
+export type SubscriptionTier = 'operations' | 'operations_pro';
+export type OperationsProLevel = 'scale' | 'unlimited';
+export type SubscriptionStatus = 'active' | 'cancelled' | 'past_due' | 'trialing';
+export type LicenseType = 'owner' | 'management' | 'field_staff';
+export type LicenseStatus = 'active' | 'inactive';
+export type ContractorStatus = 'active' | 'flagged' | 'blocked';
+export type AssignmentStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+export type SubmissionType = 'progress' | 'completion' | 'invoice';
+export type SubmissionStatus = 'pending_review' | 'accepted' | 'needs_changes' | 'rejected';
+export type EmailType = 'job_assignment' | 'quote' | 'invoice' | 'follow_up' | 'reminder' | 'notification';
+export type EmailStatus = 'sent' | 'delivered' | 'failed' | 'bounced';
+export type ActivityType = 'email_sent' | 'contractor_submission' | 'status_change' | 'quote_sent' | 'invoice_sent' | 'contractor_assigned' | 'field_staff_assigned' | 'document_uploaded' | 'note_added';
+export type ActorType = 'user' | 'contractor' | 'system';
+export type UserRole = 'owner' | 'management' | 'field_staff';
+
+export type Subscription = {
+  id: string;
+  organization_id: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  tier: SubscriptionTier;
+  operations_pro_level: OperationsProLevel | null;
+  status: SubscriptionStatus;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  base_price: number;
+  total_price: number;
+  trial_ends_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type License = {
+  id: string;
+  organization_id: string;
+  profile_id: string | null;
+  license_type: LicenseType;
+  stripe_subscription_item_id: string | null;
+  status: LicenseStatus;
+  monthly_cost: number;
+  assigned_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Contractor = {
+  id: string;
+  organization_id: string;
+  created_by: string;
+  contractor_name: string;
+  company_name: string | null;
+  email: string;
+  phone: string | null;
+  mobile: string | null;
+  abn: string | null;
+  insurance_expiry: string | null;
+  license_number: string | null;
+  license_expiry: string | null;
+  status: ContractorStatus;
+  compliance_notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ContractorJobAssignment = {
+  id: string;
+  organization_id: string;
+  job_id: string;
+  contractor_id: string;
+  assigned_by: string;
+  access_token: string;
+  token_expires_at: string;
+  status: AssignmentStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ContractorSubmission = {
+  id: string;
+  assignment_id: string;
+  submission_type: SubmissionType;
+  notes: string | null;
+  photos: string[]; // Array of URLs
+  invoice_amount: number | null;
+  invoice_file_url: string | null;
+  status: SubmissionStatus;
+  review_notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  submitted_at: string;
+  created_at: string;
+};
+
+export type EmailCommunication = {
+  id: string;
+  organization_id: string;
+  job_id: string | null;
+  contractor_id: string | null;
+  email_type: EmailType;
+  recipient_email: string;
+  subject: string;
+  body: string;
+  resend_message_id: string | null;
+  status: EmailStatus;
+  sent_at: string;
+  created_at: string;
+};
+
+export type ActivityFeed = {
+  id: string;
+  organization_id: string;
+  job_id: string;
+  activity_type: ActivityType;
+  actor_type: ActorType;
+  actor_id: string | null;
+  description: string;
+  metadata: Record<string, any>;
+  created_at: string;
 };
