@@ -37,17 +37,22 @@ export async function updateSession(request: NextRequest) {
 
   // Check if user is authenticated
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') || 
-                     request.nextUrl.pathname.startsWith('/signup');
+                     request.nextUrl.pathname.startsWith('/signup') ||
+                     request.nextUrl.pathname.startsWith('/subscribe') ||
+                     request.nextUrl.pathname.startsWith('/get-started');
   const isOrgSetup = request.nextUrl.pathname.startsWith('/organization-setup');
+  const isPublicRoute = request.nextUrl.pathname === '/' || 
+                        request.nextUrl.pathname.startsWith('/contractor-access');
 
-  if (!user && !isAuthPage) {
-    // Redirect to login if not authenticated
+  if (!user && !isAuthPage && !isPublicRoute) {
+    // Redirect to login if not authenticated (except for auth pages and public routes)
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  if (user && !isAuthPage && !isOrgSetup) {
+  // Only check organization for protected routes (not auth pages, org setup, or public routes)
+  if (user && !isAuthPage && !isOrgSetup && !isPublicRoute) {
     // Check if user has an organization
     const { data: profile } = await supabase
       .from('profiles')
@@ -56,18 +61,33 @@ export async function updateSession(request: NextRequest) {
       .single();
 
     if (!profile?.organization_id) {
-      // Redirect to organization setup if no organization
+      // Redirect to subscribe if no organization (for new signups)
       const url = request.nextUrl.clone();
-      url.pathname = '/organization-setup';
+      url.pathname = '/subscribe';
       return NextResponse.redirect(url);
     }
   }
 
-  if (user && isAuthPage) {
-    // Redirect authenticated users away from auth pages
-    const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
+  // Redirect authenticated users away from login/signup pages (but allow subscribe)
+  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
+    // Check if authenticated user has organization before redirecting
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.organization_id) {
+      // Has organization - redirect to dashboard
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    } else {
+      // No organization - redirect to subscribe
+      const url = request.nextUrl.clone();
+      url.pathname = '/subscribe';
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

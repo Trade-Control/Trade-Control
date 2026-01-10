@@ -36,7 +36,7 @@ export default function LoginPage() {
           .single();
 
         if (profile?.organization_id) {
-          // Has organization - let protected layout handle subscription checks
+          // Has organization - redirect to dashboard
           router.push('/dashboard');
         } else {
           // No organization - go to subscribe

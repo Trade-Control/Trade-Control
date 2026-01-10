@@ -140,26 +140,64 @@ export async function canUpdateJobProgress(jobId: string): Promise<boolean> {
  * Check if organization has Operations Pro subscription
  */
 export async function hasOperationsPro(): Promise<boolean> {
-  const supabase = createClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return false;
-  
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('organization_id')
-    .eq('id', user.id)
-    .single();
-  
-  if (!profile) return false;
-  
-  const { data: subscription } = await supabase
-    .from('subscriptions')
-    .select('tier, status')
-    .eq('organization_id', profile.organization_id)
-    .single();
-  
-  return subscription?.tier === 'operations_pro' && subscription?.status === 'active';
+  try {
+    const supabase = createClient();
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.log('hasOperationsPro: No user found');
+      return false;
+    }
+    
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single();
+    
+    if (profileError) {
+      console.error('hasOperationsPro: Profile error:', profileError);
+      return false;
+    }
+    
+    if (!profile?.organization_id) {
+      console.log('hasOperationsPro: No organization_id found');
+      return false;
+    }
+    
+    const { data: subscription, error: subError } = await supabase
+      .from('subscriptions')
+      .select('tier, status')
+      .eq('organization_id', profile.organization_id)
+      .single();
+    
+    if (subError) {
+      console.error('hasOperationsPro: Subscription error:', subError);
+      return false;
+    }
+    
+    if (!subscription) {
+      console.log('hasOperationsPro: No subscription found');
+      return false;
+    }
+    
+    // Allow both 'active' and 'trialing' statuses for Operations Pro access
+    const hasProTier = subscription.tier === 'operations_pro';
+    const isActiveOrTrialing = subscription.status === 'active' || subscription.status === 'trialing';
+    
+    console.log('hasOperationsPro check:', {
+      tier: subscription.tier,
+      status: subscription.status,
+      hasProTier,
+      isActiveOrTrialing,
+      result: hasProTier && isActiveOrTrialing,
+    });
+    
+    return hasProTier && isActiveOrTrialing;
+  } catch (error) {
+    console.error('hasOperationsPro: Unexpected error:', error);
+    return false;
+  }
 }
 
 /**

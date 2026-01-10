@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import QuoteForm from '@/components/jobs/QuoteForm';
+import { sendEmail, generateQuoteEmail } from '@/lib/services/resend-mock';
 
 export default function QuotesPage() {
   const params = useParams();
@@ -62,37 +63,89 @@ export default function QuotesPage() {
       return;
     }
 
-    const subject = `Quote ${quote.quote_number} - ${job?.title}`;
-    const body = `Dear ${contact.contact_name || contact.company_name},
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
 
-Please find below your quote for ${job?.title}.
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
 
-Quote Number: ${quote.quote_number}
-Quote Date: ${new Date(quote.quote_date).toLocaleDateString()}
-Valid Until: ${quote.valid_until ? new Date(quote.valid_until).toLocaleDateString() : 'N/A'}
+      if (!profile?.organization_id) throw new Error('Organization not found');
 
-Subtotal: $${quote.subtotal.toFixed(2)}
-GST (10%): $${quote.gst_amount.toFixed(2)}
-Total: $${quote.total_amount.toFixed(2)}
+      // Fetch organization details
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('name, email')
+        .eq('id', profile.organization_id)
+        .single();
 
-${quote.notes || ''}
+      // Generate email using Resend template
+      const viewUrl = `${window.location.origin}/jobs/${jobId}/quotes/${quote.id}/view`;
+      const emailTemplate = generateQuoteEmail({
+        clientName: contact.contact_name || contact.company_name || 'Valued Customer',
+        quoteNumber: quote.quote_number,
+        jobTitle: job.title,
+        subtotal: quote.subtotal,
+        gstAmount: quote.gst_amount,
+        totalAmount: quote.total_amount,
+        validUntil: quote.valid_until,
+        notes: quote.notes,
+        companyName: org?.name || 'Trade Control',
+        companyEmail: org?.email || 'noreply@tradecontrol.app',
+        viewUrl: viewUrl,
+      });
 
-To view the full quote details, please visit: ${window.location.origin}/jobs/${jobId}/quotes/${quote.id}/view
+      // Send email via Resend
+      const emailResult = await sendEmail({
+        to: contact.email,
+        subject: emailTemplate.subject,
+        html: emailTemplate.html,
+      });
 
-Thank you for your business!
+      // Log email to database
+      await supabase.from('email_communications').insert({
+        organization_id: profile.organization_id,
+        job_id: jobId,
+        contractor_id: null,
+        email_type: 'quote',
+        recipient_email: contact.email,
+        subject: emailTemplate.subject,
+        body: emailTemplate.html,
+        resend_message_id: emailResult.id,
+        status: 'sent',
+      });
 
-Best regards,
-${job?.organizations?.name || 'Trade Control'}`;
+      // Create activity feed entry
+      await supabase.from('activity_feed').insert({
+        organization_id: profile.organization_id,
+        job_id: jobId,
+        activity_type: 'quote_sent',
+        actor_type: 'user',
+        actor_id: user.id,
+        description: `Quote ${quote.quote_number} sent to ${contact.contact_name || contact.company_name}`,
+        metadata: {
+          quote_id: quote.id,
+          quote_number: quote.quote_number,
+          recipient_email: contact.email,
+          total_amount: quote.total_amount,
+        },
+      });
 
-    window.location.href = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
-    // Update quote status to sent
-    await supabase
-      .from('quotes')
-      .update({ status: 'sent' })
-      .eq('id', quote.id);
-    
-    fetchData();
+      // Update quote status to sent
+      await supabase
+        .from('quotes')
+        .update({ status: 'sent' })
+        .eq('id', quote.id);
+      
+      alert(`Quote sent successfully to ${contact.email}!`);
+      fetchData();
+    } catch (error) {
+      console.error('Error sending quote:', error);
+      alert('Failed to send quote email');
+    }
   };
 
   const handleAcceptQuote = async (quoteId: string) => {

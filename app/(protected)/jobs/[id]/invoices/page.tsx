@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import InvoiceGenerator from '@/components/jobs/InvoiceGenerator';
+import { sendEmail, generateInvoiceEmail } from '@/lib/services/resend-mock';
 
 export default function InvoicesPage() {
   const params = useParams();
@@ -71,36 +72,97 @@ export default function InvoicesPage() {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
-  const handleEmailInvoice = (invoice: any) => {
+  const handleEmailInvoice = async (invoice: any) => {
     const contact = job?.contacts;
     if (!contact?.email) {
       alert('Client email not found. Please add an email to the contact.');
       return;
     }
 
-    const subject = `Invoice ${invoice.invoice_number} - ${job?.title}`;
-    const body = `Dear ${contact.contact_name || contact.company_name},
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
 
-Please find your invoice for ${job?.title}.
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
 
-Invoice Number: ${invoice.invoice_number}
-Invoice Date: ${new Date(invoice.invoice_date).toLocaleDateString()}
-Due Date: ${invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : 'Upon receipt'}
+      if (!profile?.organization_id) throw new Error('Organization not found');
 
-Total Amount: $${invoice.total_amount.toFixed(2)}
-Amount Paid: $${invoice.amount_paid.toFixed(2)}
-Balance Due: $${(invoice.total_amount - invoice.amount_paid).toFixed(2)}
+      // Fetch organization details
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('name, email')
+        .eq('id', profile.organization_id)
+        .single();
 
-To view the full invoice, please visit: ${window.location.origin}/jobs/${jobId}/invoices/${invoice.id}/view
+      // Generate email using Resend template
+      const viewUrl = `${window.location.origin}/jobs/${jobId}/invoices/${invoice.id}/view`;
+      const emailTemplate = generateInvoiceEmail({
+        clientName: contact.contact_name || contact.company_name || 'Valued Customer',
+        invoiceNumber: invoice.invoice_number,
+        jobTitle: job.title,
+        subtotal: invoice.subtotal,
+        gstAmount: invoice.gst_amount,
+        totalAmount: invoice.total_amount,
+        amountPaid: invoice.amount_paid,
+        dueDate: invoice.due_date,
+        companyName: org?.name || 'Trade Control',
+        companyEmail: org?.email || 'noreply@tradecontrol.app',
+        viewUrl: viewUrl,
+      });
 
-Please remit payment at your earliest convenience.
+      // Send email via Resend
+      const emailResult = await sendEmail({
+        to: contact.email,
+        subject: emailTemplate.subject,
+        html: emailTemplate.html,
+      });
 
-Thank you for your business!
+      // Log email to database
+      await supabase.from('email_communications').insert({
+        organization_id: profile.organization_id,
+        job_id: jobId,
+        contractor_id: null,
+        email_type: 'invoice',
+        recipient_email: contact.email,
+        subject: emailTemplate.subject,
+        body: emailTemplate.html,
+        resend_message_id: emailResult.id,
+        status: 'sent',
+      });
 
-Best regards,
-${job?.organizations?.name || 'Trade Control'}`;
+      // Create activity feed entry
+      await supabase.from('activity_feed').insert({
+        organization_id: profile.organization_id,
+        job_id: jobId,
+        activity_type: 'invoice_sent',
+        actor_type: 'user',
+        actor_id: user.id,
+        description: `Invoice ${invoice.invoice_number} sent to ${contact.contact_name || contact.company_name}`,
+        metadata: {
+          invoice_id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          recipient_email: contact.email,
+          total_amount: invoice.total_amount,
+          balance_due: invoice.total_amount - invoice.amount_paid,
+        },
+      });
 
-    window.location.href = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      // Update invoice status to sent
+      await supabase
+        .from('invoices')
+        .update({ status: 'sent' })
+        .eq('id', invoice.id);
+
+      alert(`Invoice sent successfully to ${contact.email}!`);
+      fetchData();
+    } catch (error) {
+      console.error('Error sending invoice:', error);
+      alert('Failed to send invoice email');
+    }
   };
 
   if (loading) {

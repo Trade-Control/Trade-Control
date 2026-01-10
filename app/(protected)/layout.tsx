@@ -17,7 +17,7 @@ export default function ProtectedLayout({
 
   useEffect(() => {
     checkSubscriptionStatus();
-  }, []);
+  }, [pathname]);
 
   const checkSubscriptionStatus = async () => {
     try {
@@ -28,8 +28,10 @@ export default function ProtectedLayout({
         return;
       }
 
-      // Skip checks for onboarding and migration pages
-      if (pathname.startsWith('/onboarding') || pathname.startsWith('/migration')) {
+      // Skip checks for onboarding, migration, subscription management pages
+      if (pathname.startsWith('/onboarding') || 
+          pathname.startsWith('/migration') ||
+          pathname.startsWith('/subscription')) {
         setLoading(false);
         return;
       }
@@ -41,8 +43,12 @@ export default function ProtectedLayout({
         .single();
 
       if (!profile?.organization_id) {
-        // No organization - redirect to subscribe
-        router.push('/subscribe');
+        // No organization - redirect to subscribe (but avoid loop)
+        if (pathname !== '/subscribe') {
+          router.push('/subscribe');
+        } else {
+          setLoading(false);
+        }
         return;
       }
 

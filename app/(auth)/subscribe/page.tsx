@@ -85,39 +85,42 @@ export default function SubscribePage() {
       });
       console.log('✅ Customer created');
 
-      // Step 3: Create organization
+      // Step 3: Create organization via API route
+      // Note: We pass user_id explicitly to handle cases where email confirmation is required
+      // and no session is available yet
       console.log('Step 3: Creating organization...');
-      const { data: organization, error: orgError } = await supabase
-        .from('organizations')
-        .insert({
+      const orgResponse = await fetch('/api/organizations/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           name: businessName,
           onboarding_completed: false,
-        })
-        .select()
-        .single();
+          user_id: authData.user.id, // Pass user_id explicitly
+        }),
+      });
 
-      if (orgError) {
-        console.error('Organization error:', orgError);
-        throw new Error(`Failed to create organization: ${orgError.message}`);
+      if (!orgResponse.ok) {
+        const errorData = await orgResponse.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Organization creation failed:', {
+          status: orgResponse.status,
+          statusText: orgResponse.statusText,
+          errorData,
+        });
+        throw new Error(errorData.error || `Failed to create organization: ${orgResponse.statusText}`);
       }
-      if (!organization) throw new Error('Organization not created');
+
+      const responseData = await orgResponse.json();
+      const { organization } = responseData;
+      
+      if (!organization) {
+        console.error('❌ No organization in response:', responseData);
+        throw new Error('Organization creation succeeded but no organization data returned');
+      }
+      
       console.log('✅ Organization created:', organization.id);
-
-      // Step 4: Update profile with organization
-      console.log('Step 4: Updating profile...');
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          organization_id: organization.id,
-          role: 'owner', // First user is always owner
-        })
-        .eq('id', authData.user.id);
-
-      if (profileError) {
-        console.error('Profile error:', profileError);
-        throw new Error(`Failed to update profile: ${profileError.message}`);
-      }
-      console.log('✅ Profile updated');
+      // Note: Profile is already updated by the database function (organization_id and role set to 'owner')
 
       // Step 5: Create subscription (mock)
       console.log('Step 5: Creating Stripe subscription...');
