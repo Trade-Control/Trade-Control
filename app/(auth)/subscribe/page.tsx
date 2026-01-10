@@ -58,16 +58,24 @@ export default function SubscribePage() {
     setLoading(true);
 
     try {
+      console.log('🔵 Starting subscription flow...');
+      
       // Step 1: Create auth user
+      console.log('Step 1: Creating auth user...');
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw authError;
+      }
       if (!authData.user) throw new Error('Failed to create user');
+      console.log('✅ User created:', authData.user.id);
 
       // Step 2: Create Stripe customer (mock)
+      console.log('Step 2: Creating Stripe customer...');
       const customer = await createCustomer({
         email,
         name: businessName,
@@ -75,8 +83,10 @@ export default function SubscribePage() {
           user_id: authData.user.id,
         },
       });
+      console.log('✅ Customer created');
 
       // Step 3: Create organization
+      console.log('Step 3: Creating organization...');
       const { data: organization, error: orgError } = await supabase
         .from('organizations')
         .insert({
@@ -86,9 +96,15 @@ export default function SubscribePage() {
         .select()
         .single();
 
-      if (orgError) throw orgError;
+      if (orgError) {
+        console.error('Organization error:', orgError);
+        throw new Error(`Failed to create organization: ${orgError.message}`);
+      }
+      if (!organization) throw new Error('Organization not created');
+      console.log('✅ Organization created:', organization.id);
 
       // Step 4: Update profile with organization
+      console.log('Step 4: Updating profile...');
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -97,17 +113,24 @@ export default function SubscribePage() {
         })
         .eq('id', authData.user.id);
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile error:', profileError);
+        throw new Error(`Failed to update profile: ${profileError.message}`);
+      }
+      console.log('✅ Profile updated');
 
       // Step 5: Create subscription (mock)
+      console.log('Step 5: Creating Stripe subscription...');
       const subscription = await createSubscription({
         customerId: customer.id,
         tier,
         operationsProLevel: tier === 'operations_pro' ? operationsProLevel : undefined,
         trialDays: 14, // 14-day trial
       });
+      console.log('✅ Stripe subscription created');
 
       // Step 6: Save subscription to database
+      console.log('Step 6: Saving subscription to database...');
       const { data: dbSubscription, error: subError } = await supabase
         .from('subscriptions')
         .insert({
@@ -126,16 +149,29 @@ export default function SubscribePage() {
         .select()
         .single();
 
-      if (subError) throw subError;
+      if (subError) {
+        console.error('Subscription DB error:', subError);
+        throw new Error(`Failed to save subscription: ${subError.message}. Did you run the database migration?`);
+      }
+      if (!dbSubscription) throw new Error('Subscription not created in database');
+      console.log('✅ Subscription saved to database');
 
       // Step 7: Update organization with subscription_id
-      await supabase
+      console.log('Step 7: Linking subscription to organization...');
+      const { error: updateOrgError } = await supabase
         .from('organizations')
         .update({ subscription_id: dbSubscription.id })
         .eq('id', organization.id);
 
+      if (updateOrgError) {
+        console.error('Org update error:', updateOrgError);
+        throw new Error(`Failed to link subscription: ${updateOrgError.message}`);
+      }
+      console.log('✅ Organization updated');
+
       // Step 8: Create owner license
-      await supabase
+      console.log('Step 8: Creating owner license...');
+      const { error: licenseError } = await supabase
         .from('licenses')
         .insert({
           organization_id: organization.id,
@@ -146,11 +182,40 @@ export default function SubscribePage() {
           assigned_at: new Date().toISOString(),
         });
 
+      if (licenseError) {
+        console.error('License error:', licenseError);
+        throw new Error(`Failed to create license: ${licenseError.message}`);
+      }
+      console.log('✅ License created');
+
+      console.log('🎉 Subscription flow complete! Redirecting to onboarding...');
       // Redirect to onboarding
       router.push('/onboarding');
     } catch (err: any) {
-      console.error('Subscription error:', err);
-      setError(err.message || 'Failed to create subscription. Please try again.');
+      console.error('❌ Subscription error:', err);
+      console.error('Error details:', {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        hint: err?.hint,
+      });
+      
+      let errorMessage = 'Failed to create subscription. Please try again.';
+      
+      if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      // Check for common issues
+      if (err?.code === '42P01' || err?.message?.includes('relation') || err?.message?.includes('does not exist')) {
+        errorMessage = 'Database tables not found. Please run the migration SQL file first. See README.md for instructions.';
+      } else if (err?.code === '23505') {
+        errorMessage = 'This email is already registered. Please try logging in instead.';
+      } else if (err?.message?.includes('RLS')) {
+        errorMessage = 'Database permission error. Please check Row Level Security policies.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

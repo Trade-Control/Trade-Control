@@ -42,8 +42,8 @@ export default function SignupPage() {
       if (error) throw error;
 
       if (data.user) {
-        // Redirect to organisation setup after successful signup
-        router.push('/organization-setup');
+        // Redirect to subscription signup (new flow)
+        router.push('/subscribe');
       }
     } catch (error: any) {
       setError(error.message || 'Failed to create account');

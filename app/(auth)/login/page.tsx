@@ -36,9 +36,11 @@ export default function LoginPage() {
           .single();
 
         if (profile?.organization_id) {
+          // Has organization - let protected layout handle subscription checks
           router.push('/dashboard');
         } else {
-          router.push('/organization-setup');
+          // No organization - go to subscribe
+          router.push('/subscribe');
         }
       }
     } catch (error: any) {

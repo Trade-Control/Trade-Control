@@ -1,322 +1,424 @@
-# Trade Control
+# Trade Control - Subscription System Setup Guide
 
-A comprehensive business management web application designed specifically for Australian tradespeople to manage their business operations efficiently.
+## 🚀 Quick Start
 
-## Features
-
-- **User Authentication**: Secure signup and login with Supabase authentication
-- **Organisation Management**: Multi-user organisation setup with mandatory organisation association
-- **Dashboard**: Overview of business metrics and quick actions
-- **Jobs Management**: Create and manage jobs with detailed tracking and tabbed interface
-- **Contacts Management**: Full CRUD for customers and suppliers with search and filtering
-- **Job Codes Management**: Standardized job items with preset costs for quick quoting
-- **Inventory Management**: Track stock levels, set reorder points, and monitor inventory value
-- **Inventory Allocation**: Allocate inventory items to jobs with automatic stock updates
-- **Quotes**: Generate quotes with standardized job codes or manual line items
-- **Invoices**: Convert accepted quotes to invoices with print-friendly views
-- **Timesheets**: Track time with clock on/off functionality and manual entries
-- **Documents**: Upload and manage job-related files with Supabase Storage
-- **Travel Tracking**: Track travel distance and time with Google Maps integration
-- **Address Autocomplete**: Google Maps powered address suggestions for all address fields
-- **Mobile Optimized**: Fully responsive design for on-the-go access
-
-> 📖 **See [NEW_FEATURES_GUIDE.md](./NEW_FEATURES_GUIDE.md) for detailed information about the latest features!**
-
-## Tech Stack
-
-- **Framework**: Next.js 15 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
-- **Storage**: Supabase Storage
-- **Deployment Ready**: Vercel/Netlify compatible
+This guide will help you set up the complete subscription management system with role-based access control, contractor management, and email integration.
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
-- Node.js 18.x or higher
-- npm or yarn
-- A Supabase account (free tier works fine)
+- Node.js 18+ installed
+- Supabase account and project
+- Access to your Supabase SQL Editor
 
-## Getting Started
+## Installation Steps
 
-### 1. Clone or Setup the Project
-
-If you haven't already, ensure all project files are in place.
-
-### 2. Install Dependencies
+### 1. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 3. Set Up Supabase
+All required packages (`nanoid`, `@supabase/ssr`, etc.) are already in `package.json`.
 
-1. Create a new project at [supabase.com](https://supabase.com)
-2. Once your project is created, go to Project Settings → API
-3. Copy your project URL and anon/public key
+### 2. Set Up Environment Variables
 
-### 4. Run the Database Migrations
-
-1. In your Supabase project, go to the SQL Editor
-2. **CRITICAL**: Open and run `CRITICAL_FIX_RUN_THIS.sql` FIRST (if it exists)
-3. Then open `supabase/migrations/001_initial_schema.sql`
-4. Copy the entire contents and paste it into the SQL Editor
-5. Click "Run" to execute the migration
-6. **NEW**: Run `supabase/migrations/002_inventory_and_travel.sql` for new features
-7. This will create all necessary tables, policies, and triggers
-
-### 5. Configure Environment Variables
-
-Create a `.env.local` file in the root directory:
+Copy the template and fill in your values:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+# Create .env.local file
+cp ENV_TEMPLATE.md .env.local
 ```
 
-Replace the values with your actual credentials:
-- Supabase credentials from step 3
-- Google Maps API key from [Google Cloud Console](https://console.cloud.google.com/) (required for address autocomplete and travel tracking)
+Edit `.env.local` with your values:
 
-### 6. Run the Development Server
+```env
+# Supabase (REQUIRED)
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+# Application
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Stripe Mock (leave as-is for testing, replace for production)
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_mock
+STRIPE_SECRET_KEY=sk_test_mock
+STRIPE_WEBHOOK_SECRET=whsec_mock
+
+# Resend Mock (leave as-is for testing, replace for production)
+RESEND_API_KEY=re_mock_key
+RESEND_FROM_EMAIL=Trade Control <noreply@tradecontrol.app>
+
+# Subscription Pricing (in cents AUD)
+OPERATIONS_BASE_PRICE=4900
+MANAGEMENT_LICENSE_PRICE=3500
+FIELD_STAFF_LICENSE_PRICE=1500
+OPERATIONS_PRO_SCALE_PRICE=9900
+OPERATIONS_PRO_UNLIMITED_PRICE=19900
+
+# Google Maps (optional)
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-key
+```
+
+### 3. Run Database Migration
+
+1. Open your Supabase project dashboard
+2. Go to SQL Editor
+3. Copy the contents of `supabase/migrations/003_subscription_system.sql`
+4. Paste and run the entire SQL file
+
+This will create:
+- 7 new tables (subscriptions, licenses, contractors, etc.)
+- Row Level Security (RLS) policies
+- Helper functions
+- Indexes for performance
+- Storage bucket for contractor submissions
+
+### 4. Start Development Server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Visit `http://localhost:3000`
 
-## First Time Setup
+## 🎯 Testing the System
 
-### 1. Create Your Account
+### Testing Subscription Flow
 
-1. Navigate to the signup page
-2. Enter your email and password (minimum 6 characters)
-3. Click "Sign Up"
+1. **New User Signup**
+   - Visit `/get-started`
+   - Choose a plan (Operations or Operations Pro)
+   - Click "Choose Plan"
+   - Fill in account details
+   - Complete onboarding (mock payment)
 
-### 2. Set Up Your Organization
+2. **View Mock Logs**
+   - Open browser console
+   - Look for 🔵 (Stripe) and 📧 (Resend) emoji logs
+   - All operations are logged but no real API calls are made
 
-After signing up, you'll be redirected to the organization setup page:
+3. **Test Role-Based Access**
+   - As Owner: Access all features
+   - Add Management License: Test job management
+   - Add Field Staff License: Test limited access
 
-1. Enter your business name (required)
-2. Fill in optional details:
-   - ABN
-   - Business address
-   - Contact information
-3. Click "Complete Setup"
+### Testing Contractor Management (Operations Pro)
 
-### 3. Start Using Trade Control
+1. **Upgrade to Operations Pro**
+   - Go to Subscription page
+   - Click "Upgrade to Operations Pro"
 
-Once your organization is set up, you'll be redirected to the dashboard where you can:
-- Create your first job
-- Add contacts
-- Set up job codes for quick quoting
-- Manage inventory
+2. **Add Contractors**
+   - Go to Contractors page
+   - Add contractor with compliance info
+   - Set insurance/license expiry dates
 
-## Application Structure
+3. **Test Compliance Shield**
+   - Go to Compliance page
+   - View contractors expiring soon
+   - Send reminder emails (check console logs)
+
+4. **Assign Contractor to Job**
+   - Create or open a job
+   - Assign contractor
+   - Contractor receives email with token link
+
+5. **Test Contractor Access**
+   - Copy the token URL from logs
+   - Open in incognito window
+   - View job details
+   - Submit progress/completion
+
+## 📁 Project Structure
 
 ```
-trade-control/
+Trade Control/
 ├── app/
-│   ├── (auth)/              # Authentication pages (login, signup)
-│   ├── (protected)/         # Protected pages requiring authentication
-│   │   ├── dashboard/       # Main dashboard
-│   │   ├── jobs/           # Jobs management
-│   │   ├── contacts/       # Contacts (placeholder)
-│   │   ├── job-codes/      # Job codes (placeholder)
-│   │   └── inventory/      # Inventory (placeholder)
-│   ├── organization-setup/ # Organization setup flow
-│   └── layout.tsx          # Root layout
-├── components/
-│   ├── layout/             # Layout components (sidebar, dashboard)
-│   └── jobs/               # Jobs-related components
+│   ├── (auth)/
+│   │   ├── get-started/          # Landing page with plans
+│   │   ├── subscribe/             # Subscription signup
+│   │   ├── onboarding/            # Business onboarding
+│   │   ├── login/                 # Login page
+│   │   └── signup/                # Signup page
+│   ├── (protected)/
+│   │   ├── dashboard/             # Main dashboard
+│   │   ├── jobs/                  # Job management
+│   │   ├── licenses/              # License management (Owner)
+│   │   │   └── add/               # Add new license
+│   │   ├── subscription/
+│   │   │   └── manage/            # Subscription management (Owner)
+│   │   ├── contractors/           # Contractor management (Pro)
+│   │   ├── compliance/            # Compliance dashboard (Pro)
+│   │   ├── my-jobs/               # Field staff jobs
+│   │   ├── migration/             # Existing user migration
+│   │   └── ...                    # Other existing pages
+│   └── contractor-access/
+│       └── [token]/               # Public contractor access
+│           ├── page.tsx           # Job details
+│           └── submit/            # Submit progress
 ├── lib/
-│   ├── supabase/           # Supabase client utilities
-│   └── types/              # TypeScript type definitions
-├── supabase/
-│   └── migrations/         # Database migration files
-└── public/                 # Static assets
+│   ├── middleware/
+│   │   ├── role-check.ts          # Client-side RBAC
+│   │   └── role-check-server.ts  # Server-side RBAC
+│   ├── services/
+│   │   ├── stripe-mock.ts         # Stripe mock service
+│   │   └── resend-mock.ts         # Resend mock service
+│   ├── types/
+│   │   └── database.types.ts      # TypeScript types
+│   └── supabase/                  # Supabase clients
+├── components/
+│   └── layout/
+│       └── Sidebar.tsx            # Role-based navigation
+└── supabase/
+    └── migrations/
+        └── 003_subscription_system.sql  # Database schema
 ```
 
-## Key Features Explained
+## 🔐 Role-Based Access Control
 
-### Jobs Module
+### Owner / License Manager
+- **Full access** to all features
+- Manage licenses and subscriptions
+- View all jobs and data
+- Assign field staff to jobs
 
-The jobs module is the core of Trade Control:
+### Management Login ($35/mo)
+- Manage jobs, quotes, invoices
+- Assign contractors (if Operations Pro)
+- View all organization data
+- **Cannot** manage licenses or subscriptions
 
-1. **Create Jobs**: Add new jobs with client information, site details, and dates
-2. **Quotes**: 
-   - Pull from standardized job codes or create manual line items
-   - Automatic GST calculation (10%)
-   - Email quotes via default email client
-   - Accept quotes to convert to invoices
-3. **Invoices**:
-   - Auto-generated from accepted quotes
-   - Track payment status
-   - Print-friendly view for PDF generation
-   - Email invoices to clients
-4. **Timesheets**:
-   - Clock on/off for automatic time tracking
-   - Real-time timer display
-   - Manual time entry option
-   - Total hours summary per job
-5. **Documents**:
-   - Upload files related to jobs
-   - Secure storage with Supabase
-   - Download and delete functionality
+### Field Staff ($15/mo)
+- View **only assigned jobs**
+- Update job status and notes
+- Upload photos
+- **Cannot** access quotes, invoices, or other jobs
 
-### Authentication & Security
+### External Contractors (Operations Pro)
+- Access via token-based link
+- View specific job details
+- Submit progress and invoices
+- **No login required**
 
-- **Row Level Security (RLS)**: All data is automatically filtered by organization
-- **Multi-tenant Architecture**: Multiple organizations can use the app independently
-- **Secure Authentication**: Supabase handles all authentication securely
-- **Protected Routes**: Middleware ensures only authenticated users with organizations can access the app
+## 📊 Subscription Tiers
 
-### Email Integration
+### Operations ($49/mo)
+- Job management
+- Quotes & invoices
+- Timesheets & documents
+- Inventory & travel tracking
+- **Add-ons:**
+  - Management: $35/mo each
+  - Field Staff: $15/mo each
 
-Quotes and invoices use `mailto:` links to open the user's default email client with pre-filled content. This approach:
-- Works on all devices
-- Doesn't require email service configuration
-- Gives users full control over their emails
-- No additional costs for email services
+### Operations Pro ($49 + $99 or $199/mo)
+- **Everything in Operations, plus:**
+- Contractor management
+- Compliance Shield (auto-flagging)
+- Email job assignments
+- Token-based access
+- Activity feed
 
-## Database Schema
+**Pro Levels:**
+- Scale: Up to 50 contractors (+$99/mo)
+- Unlimited: Unlimited contractors (+$199/mo)
 
-The application uses a comprehensive database schema with the following key tables:
+## 🎨 Key Features
 
-- **organizations**: Business information
-- **profiles**: User profiles linked to organizations
-- **contacts**: Customers and suppliers
-- **job_codes**: Standardized job items with preset costs
-- **inventory**: Stock and materials tracking
-- **jobs**: Main job records
-- **quotes**: Quote generation
-- **quote_line_items**: Individual quote lines
-- **invoices**: Invoice records
-- **invoice_line_items**: Individual invoice lines
-- **timesheets**: Time tracking entries
-- **documents**: File metadata
+### 1. Subscription Management
+- ✅ 14-day free trial
+- ✅ Pro-rata billing for mid-cycle changes
+- ✅ Upgrade/downgrade anytime
+- ✅ Add/remove licenses dynamically
 
-All tables include:
-- `organization_id`: Links data to organizations
-- `created_by`: Tracks the user who created the record
-- `created_at` / `updated_at`: Audit timestamps
+### 2. License Management
+- ✅ Owner, Management, Field Staff types
+- ✅ Assign to existing or new users
+- ✅ Track monthly costs
+- ✅ Unassign and reassign
 
-## Styling & Theming
+### 3. Contractor Management (Pro)
+- ✅ Add contractors with compliance info
+- ✅ Track insurance/license expiry
+- ✅ Auto-flag expired credentials
+- ✅ Send reminder emails
+- ✅ Compliance dashboard
 
-The application uses a custom color scheme:
-- **Primary Color**: #2391cd (Trade Control Blue)
-- **Font Family**: Segoe UI, Tahoma, Geneva, Verdana, sans-serif
+### 4. Token-Based Access
+- ✅ Secure access for contractors
+- ✅ No login required
+- ✅ Time-limited tokens (30 days)
+- ✅ Submit progress and invoices
 
-Colors are defined in:
-- `tailwind.config.ts`: Tailwind theme configuration
-- `app/globals.css`: CSS variables for consistent theming
+### 5. Email Integration
+- ✅ Job assignment emails
+- ✅ Quote and invoice emails
+- ✅ Compliance reminders
+- ✅ Activity logging
 
-## Mobile Optimization
+### 6. Activity Feed
+- ✅ Chronological log
+- ✅ Email communications
+- ✅ Status changes
+- ✅ Contractor submissions
 
-Trade Control is fully mobile-responsive:
-- Collapsible sidebar navigation on mobile
-- Touch-friendly buttons and controls
-- Responsive tables and grids
-- Mobile-optimized forms
-- Print-friendly invoice and quote views
+## 🔄 Migration Path for Existing Users
 
-## Recent Updates ✨
+If you have existing users without subscriptions:
 
-**Latest Features (2025):**
-- ✅ Full Contacts Management (customers & suppliers)
-- ✅ Job Codes Management with categorization
-- ✅ Comprehensive Inventory Tracking with low stock alerts
-- ✅ Inventory Allocation to jobs
-- ✅ Tabbed job interface for better navigation
-- ✅ Google Maps Address Autocomplete
-- ✅ Travel Tracking with route calculation
-- ✅ Job-specific travel logs
+1. Users will be redirected to `/migration` on login
+2. They can choose a plan with a 14-day trial
+3. Existing users are automatically made "Owner"
+4. All data is preserved
 
-## Future Enhancements
+## 🚀 Going to Production
 
-Additional features that could be added:
+### Replace Mock Services
 
-1. **User Management**: Invite team members to organizations
-2. **Licensing System**: Job allocation across team members
-3. **Payment Integration**: Accept payments online
-4. **Reporting**: Business analytics and reports
-5. **Mobile App**: Native mobile applications
-6. **Export/Import**: CSV exports for contacts, inventory, etc.
-7. **Accounting Integration**: Connect with Xero, QuickBooks, etc.
+#### 1. Stripe Setup
+```bash
+# Get your Stripe keys from dashboard.stripe.com
+# Update .env.local:
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
 
-## Troubleshooting
+Create products in Stripe:
+- Operations Base: $49 AUD/month
+- Management License: $35 AUD/month
+- Field Staff License: $15 AUD/month
+- Operations Pro Scale: $99 AUD/month
+- Operations Pro Unlimited: $199 AUD/month
 
-### "Not authenticated" errors
-- Ensure you're logged in
-- Clear browser cache and cookies
-- Check that environment variables are set correctly
+#### 2. Resend Setup
+```bash
+# Get your Resend key from resend.com
+# Update .env.local:
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=Your Company <noreply@yourdomain.com>
+```
 
-### Database errors
-- Verify the migration was run successfully in Supabase
-- Check that RLS policies are enabled
-- Ensure your Supabase project is active
+Verify your domain in Resend dashboard.
 
-### File upload issues
-- Verify the storage bucket "job-documents" exists in Supabase
-- Check storage policies are correctly set
-- Ensure file size is within Supabase limits (default: 50MB)
+#### 3. Replace Mock Functions
 
-### Email links not working
-- Ensure the contact has an email address
-- Check that you have a default email client configured
-- Some web browsers may block mailto: links - try a different browser
+Option A: Update the existing mock files to call real APIs
+- Edit `lib/services/stripe-mock.ts` to use real Stripe SDK
+- Edit `lib/services/resend-mock.ts` to use real Resend SDK
 
-## Development
+Option B: Create new service files
+- Create `lib/services/stripe.ts` with real implementations
+- Create `lib/services/resend.ts` with real implementations
+- Update imports across the app
 
-### Available Scripts
+### Set Up Stripe Webhooks
 
-- `npm run dev`: Start development server
-- `npm run build`: Build for production
-- `npm start`: Start production server
-- `npm run lint`: Run ESLint
+1. In Stripe dashboard, add webhook endpoint:
+   ```
+   https://yourdomain.com/api/webhooks/stripe
+   ```
 
-### Adding New Features
+2. Create webhook handler: `app/api/webhooks/stripe/route.ts`
 
-1. Create components in `components/`
-2. Add pages in `app/(protected)/`
-3. Update database schema in Supabase
-4. Add TypeScript types in `lib/types/`
+3. Listen for events:
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+   - `invoice.payment_succeeded`
+   - `invoice.payment_failed`
 
-## Deployment
+## 🧪 Testing Checklist
 
-### Deploy to Vercel
+- [ ] New user signup with trial
+- [ ] Complete onboarding flow
+- [ ] Add management license
+- [ ] Add field staff license
+- [ ] Assign licenses to users
+- [ ] Test role-based navigation
+- [ ] Field staff sees only assigned jobs
+- [ ] Upgrade to Operations Pro
+- [ ] Add contractors
+- [ ] Assign contractor to job
+- [ ] Test contractor token access
+- [ ] Submit contractor progress
+- [ ] Review submissions
+- [ ] Check compliance dashboard
+- [ ] Send compliance reminders
+- [ ] View activity feed
+- [ ] Cancel subscription
+- [ ] Test existing user migration
 
-1. Push your code to GitHub
-2. Import project in Vercel
-3. Add environment variables in Vercel project settings
-4. Deploy
+## 📝 Database Schema Overview
 
-### Deploy to Netlify
+### Core Tables
+- `subscriptions` - Organization subscriptions
+- `licenses` - User licenses (owner, management, field_staff)
+- `contractors` - External contractors
+- `contractor_job_assignments` - Job assignments with tokens
+- `contractor_submissions` - Work submissions
+- `email_communications` - Email log
+- `activity_feed` - Activity timeline
 
-1. Push your code to GitHub
-2. Import project in Netlify
-3. Add environment variables in Netlify site settings
-4. Set build command: `npm run build`
-5. Set publish directory: `.next`
-6. Deploy
+### Modified Tables
+- `profiles` - Added role, license_id, assigned_job_ids
+- `organizations` - Added subscription_id, onboarding_completed
+
+## 🔒 Security Features
+
+- ✅ Row Level Security (RLS) on all tables
+- ✅ Role-based access enforcement
+- ✅ Secure token generation (32-char random)
+- ✅ Token expiry (30 days default)
+- ✅ Organization data isolation
+- ✅ Server-side permission checks
+
+## 🐛 Troubleshooting
+
+### "Event handlers cannot be passed to Client Component props"
+- Ensure client components have `'use client'` directive
+- Check imports don't mix server and client code
+- See fixed `role-check.ts` vs `role-check-server.ts`
+
+### Subscription not found
+- Run the database migration
+- Check organization has subscription_id set
+- Verify RLS policies are enabled
+
+### Contractor can't access job
+- Check token hasn't expired
+- Verify token_expires_at > NOW()
+- Check RLS policy allows anon access
+
+### Mock services not logging
+- Open browser console (F12)
+- Look for 🔵 (Stripe) and 📧 (Resend) emojis
+- Check network tab for errors
+
+## 📚 Additional Resources
+
+- [Next.js 15 App Router Docs](https://nextjs.org/docs)
+- [Supabase Docs](https://supabase.com/docs)
+- [Stripe API Docs](https://stripe.com/docs/api)
+- [Resend Docs](https://resend.com/docs)
+
+## 💡 Tips
+
+1. **Start with mock mode** - Test everything before adding real APIs
+2. **Check console logs** - All mock calls are logged
+3. **Use trial period** - Test subscription flow without charges
+4. **Test all roles** - Create test users for each role type
+5. **Review RLS policies** - Ensure data is properly isolated
+
+## 🎉 You're Ready!
+
+The subscription system is now fully integrated. Start by visiting `/get-started` and test the complete flow. All features work in mock mode, so you can develop and test without real API keys.
 
 ## Support
 
 For issues or questions:
-1. Check this README thoroughly
-2. Review the Supabase documentation
-3. Check Next.js documentation for framework-specific questions
+1. Check `IMPLEMENTATION_PROGRESS.md` for implementation status
+2. Review database migration for schema details
+3. Check console logs for mock service calls
+4. Verify environment variables are set correctly
 
-## License
-
-This project is provided as-is for business use.
-
-## Acknowledgments
-
-- Built with Next.js and Supabase
-- Designed for Australian tradespeople
-- Focused on simplicity and efficiency
+Happy building! 🚀

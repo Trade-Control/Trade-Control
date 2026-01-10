@@ -5,11 +5,11 @@
 -- contractor management, and email communication tracking.
 
 -- =====================================================
--- 1. CREATE NEW TABLES
+-- 1. CREATE NEW TABLES (IF NOT EXISTS)
 -- =====================================================
 
 -- Subscriptions table - Track organization subscriptions
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
   stripe_customer_id TEXT,
@@ -28,7 +28,7 @@ CREATE TABLE subscriptions (
 );
 
 -- Licenses table - Individual user licenses
-CREATE TABLE licenses (
+CREATE TABLE IF NOT EXISTS licenses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
   profile_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
@@ -42,7 +42,7 @@ CREATE TABLE licenses (
 );
 
 -- Contractors table - External contractors
-CREATE TABLE contractors (
+CREATE TABLE IF NOT EXISTS contractors (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
   created_by UUID REFERENCES profiles(id) NOT NULL,
@@ -62,7 +62,7 @@ CREATE TABLE contractors (
 );
 
 -- Contractor job assignments table
-CREATE TABLE contractor_job_assignments (
+CREATE TABLE IF NOT EXISTS contractor_job_assignments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
   job_id UUID REFERENCES jobs(id) ON DELETE CASCADE NOT NULL,
@@ -76,7 +76,7 @@ CREATE TABLE contractor_job_assignments (
 );
 
 -- Contractor submissions table
-CREATE TABLE contractor_submissions (
+CREATE TABLE IF NOT EXISTS contractor_submissions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   assignment_id UUID REFERENCES contractor_job_assignments(id) ON DELETE CASCADE NOT NULL,
   submission_type TEXT NOT NULL CHECK (submission_type IN ('progress', 'completion', 'invoice')),
@@ -93,7 +93,7 @@ CREATE TABLE contractor_submissions (
 );
 
 -- Email communications table
-CREATE TABLE email_communications (
+CREATE TABLE IF NOT EXISTS email_communications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
   job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
@@ -109,7 +109,7 @@ CREATE TABLE email_communications (
 );
 
 -- Activity feed table
-CREATE TABLE activity_feed (
+CREATE TABLE IF NOT EXISTS activity_feed (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
   job_id UUID REFERENCES jobs(id) ON DELETE CASCADE NOT NULL,
@@ -140,50 +140,50 @@ ALTER TABLE organizations ADD COLUMN IF NOT EXISTS onboarding_data JSONB DEFAULT
 -- =====================================================
 
 -- Subscriptions indexes
-CREATE INDEX idx_subscriptions_organization_id ON subscriptions(organization_id);
-CREATE INDEX idx_subscriptions_status ON subscriptions(status);
-CREATE INDEX idx_subscriptions_stripe_customer_id ON subscriptions(stripe_customer_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_organization_id ON subscriptions(organization_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_customer_id ON subscriptions(stripe_customer_id);
 
 -- Licenses indexes
-CREATE INDEX idx_licenses_organization_id ON licenses(organization_id);
-CREATE INDEX idx_licenses_profile_id ON licenses(profile_id);
-CREATE INDEX idx_licenses_status ON licenses(status);
-CREATE INDEX idx_licenses_type ON licenses(license_type);
+CREATE INDEX IF NOT EXISTS idx_licenses_organization_id ON licenses(organization_id);
+CREATE INDEX IF NOT EXISTS idx_licenses_profile_id ON licenses(profile_id);
+CREATE INDEX IF NOT EXISTS idx_licenses_status ON licenses(status);
+CREATE INDEX IF NOT EXISTS idx_licenses_type ON licenses(license_type);
 
 -- Contractors indexes
-CREATE INDEX idx_contractors_organization_id ON contractors(organization_id);
-CREATE INDEX idx_contractors_status ON contractors(status);
-CREATE INDEX idx_contractors_email ON contractors(email);
-CREATE INDEX idx_contractors_insurance_expiry ON contractors(insurance_expiry);
-CREATE INDEX idx_contractors_license_expiry ON contractors(license_expiry);
+CREATE INDEX IF NOT EXISTS idx_contractors_organization_id ON contractors(organization_id);
+CREATE INDEX IF NOT EXISTS idx_contractors_status ON contractors(status);
+CREATE INDEX IF NOT EXISTS idx_contractors_email ON contractors(email);
+CREATE INDEX IF NOT EXISTS idx_contractors_insurance_expiry ON contractors(insurance_expiry);
+CREATE INDEX IF NOT EXISTS idx_contractors_license_expiry ON contractors(license_expiry);
 
 -- Contractor job assignments indexes
-CREATE INDEX idx_contractor_assignments_organization_id ON contractor_job_assignments(organization_id);
-CREATE INDEX idx_contractor_assignments_job_id ON contractor_job_assignments(job_id);
-CREATE INDEX idx_contractor_assignments_contractor_id ON contractor_job_assignments(contractor_id);
-CREATE INDEX idx_contractor_assignments_token ON contractor_job_assignments(access_token);
-CREATE INDEX idx_contractor_assignments_status ON contractor_job_assignments(status);
+CREATE INDEX IF NOT EXISTS idx_contractor_assignments_organization_id ON contractor_job_assignments(organization_id);
+CREATE INDEX IF NOT EXISTS idx_contractor_assignments_job_id ON contractor_job_assignments(job_id);
+CREATE INDEX IF NOT EXISTS idx_contractor_assignments_contractor_id ON contractor_job_assignments(contractor_id);
+CREATE INDEX IF NOT EXISTS idx_contractor_assignments_token ON contractor_job_assignments(access_token);
+CREATE INDEX IF NOT EXISTS idx_contractor_assignments_status ON contractor_job_assignments(status);
 
 -- Contractor submissions indexes
-CREATE INDEX idx_contractor_submissions_assignment_id ON contractor_submissions(assignment_id);
-CREATE INDEX idx_contractor_submissions_status ON contractor_submissions(status);
-CREATE INDEX idx_contractor_submissions_submitted_at ON contractor_submissions(submitted_at);
+CREATE INDEX IF NOT EXISTS idx_contractor_submissions_assignment_id ON contractor_submissions(assignment_id);
+CREATE INDEX IF NOT EXISTS idx_contractor_submissions_status ON contractor_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_contractor_submissions_submitted_at ON contractor_submissions(submitted_at);
 
 -- Email communications indexes
-CREATE INDEX idx_email_communications_organization_id ON email_communications(organization_id);
-CREATE INDEX idx_email_communications_job_id ON email_communications(job_id);
-CREATE INDEX idx_email_communications_contractor_id ON email_communications(contractor_id);
-CREATE INDEX idx_email_communications_sent_at ON email_communications(sent_at);
+CREATE INDEX IF NOT EXISTS idx_email_communications_organization_id ON email_communications(organization_id);
+CREATE INDEX IF NOT EXISTS idx_email_communications_job_id ON email_communications(job_id);
+CREATE INDEX IF NOT EXISTS idx_email_communications_contractor_id ON email_communications(contractor_id);
+CREATE INDEX IF NOT EXISTS idx_email_communications_sent_at ON email_communications(sent_at);
 
 -- Activity feed indexes
-CREATE INDEX idx_activity_feed_organization_id ON activity_feed(organization_id);
-CREATE INDEX idx_activity_feed_job_id ON activity_feed(job_id);
-CREATE INDEX idx_activity_feed_created_at ON activity_feed(created_at);
-CREATE INDEX idx_activity_feed_activity_type ON activity_feed(activity_type);
+CREATE INDEX IF NOT EXISTS idx_activity_feed_organization_id ON activity_feed(organization_id);
+CREATE INDEX IF NOT EXISTS idx_activity_feed_job_id ON activity_feed(job_id);
+CREATE INDEX IF NOT EXISTS idx_activity_feed_created_at ON activity_feed(created_at);
+CREATE INDEX IF NOT EXISTS idx_activity_feed_activity_type ON activity_feed(activity_type);
 
 -- Profiles indexes for new columns
-CREATE INDEX idx_profiles_role ON profiles(role);
-CREATE INDEX idx_profiles_license_id ON profiles(license_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
+CREATE INDEX IF NOT EXISTS idx_profiles_license_id ON profiles(license_id);
 
 -- =====================================================
 -- 4. ENABLE ROW LEVEL SECURITY
@@ -198,14 +198,16 @@ ALTER TABLE email_communications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_feed ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
--- 5. CREATE RLS POLICIES
+-- 5. CREATE RLS POLICIES (DROP IF EXISTS FIRST)
 -- =====================================================
 
 -- Subscriptions policies
+DROP POLICY IF EXISTS "Users can view their organization's subscription" ON subscriptions;
 CREATE POLICY "Users can view their organization's subscription"
   ON subscriptions FOR SELECT
   USING (organization_id IN (SELECT organization_id FROM profiles WHERE id = auth.uid()));
 
+DROP POLICY IF EXISTS "Owners can update their organization's subscription" ON subscriptions;
 CREATE POLICY "Owners can update their organization's subscription"
   ON subscriptions FOR UPDATE
   USING (
@@ -215,15 +217,18 @@ CREATE POLICY "Owners can update their organization's subscription"
     )
   );
 
+DROP POLICY IF EXISTS "System can insert subscriptions" ON subscriptions;
 CREATE POLICY "System can insert subscriptions"
   ON subscriptions FOR INSERT
   WITH CHECK (true);
 
 -- Licenses policies
+DROP POLICY IF EXISTS "Users can view their organization's licenses" ON licenses;
 CREATE POLICY "Users can view their organization's licenses"
   ON licenses FOR SELECT
   USING (organization_id IN (SELECT organization_id FROM profiles WHERE id = auth.uid()));
 
+DROP POLICY IF EXISTS "Owners can manage licenses" ON licenses;
 CREATE POLICY "Owners can manage licenses"
   ON licenses FOR ALL
   USING (
@@ -234,6 +239,7 @@ CREATE POLICY "Owners can manage licenses"
   );
 
 -- Contractors policies
+DROP POLICY IF EXISTS "Users can view their organization's contractors" ON contractors;
 CREATE POLICY "Users can view their organization's contractors"
   ON contractors FOR SELECT
   USING (
@@ -243,6 +249,7 @@ CREATE POLICY "Users can view their organization's contractors"
     )
   );
 
+DROP POLICY IF EXISTS "Management and owners can manage contractors" ON contractors;
 CREATE POLICY "Management and owners can manage contractors"
   ON contractors FOR ALL
   USING (
@@ -256,10 +263,12 @@ CREATE POLICY "Management and owners can manage contractors"
   );
 
 -- Contractor job assignments policies
+DROP POLICY IF EXISTS "Users can view their organization's contractor assignments" ON contractor_job_assignments;
 CREATE POLICY "Users can view their organization's contractor assignments"
   ON contractor_job_assignments FOR SELECT
   USING (organization_id IN (SELECT organization_id FROM profiles WHERE id = auth.uid()));
 
+DROP POLICY IF EXISTS "Management and owners can manage contractor assignments" ON contractor_job_assignments;
 CREATE POLICY "Management and owners can manage contractor assignments"
   ON contractor_job_assignments FOR ALL
   USING (
@@ -270,6 +279,7 @@ CREATE POLICY "Management and owners can manage contractor assignments"
   );
 
 -- Public access policy for contractors using tokens
+DROP POLICY IF EXISTS "Contractors can view their assignments via token" ON contractor_job_assignments;
 CREATE POLICY "Contractors can view their assignments via token"
   ON contractor_job_assignments FOR SELECT
   TO anon
@@ -278,6 +288,7 @@ CREATE POLICY "Contractors can view their assignments via token"
   );
 
 -- Contractor submissions policies
+DROP POLICY IF EXISTS "Users can view submissions for their organization's assignments" ON contractor_submissions;
 CREATE POLICY "Users can view submissions for their organization's assignments"
   ON contractor_submissions FOR SELECT
   USING (
@@ -287,6 +298,7 @@ CREATE POLICY "Users can view submissions for their organization's assignments"
     )
   );
 
+DROP POLICY IF EXISTS "Management and owners can review submissions" ON contractor_submissions;
 CREATE POLICY "Management and owners can review submissions"
   ON contractor_submissions FOR UPDATE
   USING (
@@ -300,6 +312,7 @@ CREATE POLICY "Management and owners can review submissions"
   );
 
 -- Public access for contractors to submit
+DROP POLICY IF EXISTS "Contractors can create submissions via valid token" ON contractor_submissions;
 CREATE POLICY "Contractors can create submissions via valid token"
   ON contractor_submissions FOR INSERT
   TO anon
@@ -311,10 +324,12 @@ CREATE POLICY "Contractors can create submissions via valid token"
   );
 
 -- Email communications policies
+DROP POLICY IF EXISTS "Users can view their organization's email communications" ON email_communications;
 CREATE POLICY "Users can view their organization's email communications"
   ON email_communications FOR SELECT
   USING (organization_id IN (SELECT organization_id FROM profiles WHERE id = auth.uid()));
 
+DROP POLICY IF EXISTS "System can insert email communications" ON email_communications;
 CREATE POLICY "System can insert email communications"
   ON email_communications FOR INSERT
   WITH CHECK (
@@ -322,10 +337,12 @@ CREATE POLICY "System can insert email communications"
   );
 
 -- Activity feed policies
+DROP POLICY IF EXISTS "Users can view their organization's activity feed" ON activity_feed;
 CREATE POLICY "Users can view their organization's activity feed"
   ON activity_feed FOR SELECT
   USING (organization_id IN (SELECT organization_id FROM profiles WHERE id = auth.uid()));
 
+DROP POLICY IF EXISTS "System can insert activity feed entries" ON activity_feed;
 CREATE POLICY "System can insert activity feed entries"
   ON activity_feed FOR INSERT
   WITH CHECK (
@@ -356,6 +373,7 @@ CREATE POLICY "Users can view their org's jobs"
 
 -- Field staff cannot insert or delete jobs
 DROP POLICY IF EXISTS "Users can insert jobs for their org" ON jobs;
+DROP POLICY IF EXISTS "Owners and management can insert jobs" ON jobs;
 CREATE POLICY "Owners and management can insert jobs"
   ON jobs FOR INSERT
   WITH CHECK (
@@ -366,6 +384,7 @@ CREATE POLICY "Owners and management can insert jobs"
   );
 
 DROP POLICY IF EXISTS "Users can delete their org's jobs" ON jobs;
+DROP POLICY IF EXISTS "Owners and management can delete jobs" ON jobs;
 CREATE POLICY "Owners and management can delete jobs"
   ON jobs FOR DELETE
   USING (
@@ -377,6 +396,7 @@ CREATE POLICY "Owners and management can delete jobs"
 
 -- Field staff can only update specific fields
 DROP POLICY IF EXISTS "Users can update their org's jobs" ON jobs;
+DROP POLICY IF EXISTS "Owners and management can update jobs" ON jobs;
 CREATE POLICY "Owners and management can update jobs"
   ON jobs FOR UPDATE
   USING (
@@ -386,6 +406,7 @@ CREATE POLICY "Owners and management can update jobs"
     )
   );
 
+DROP POLICY IF EXISTS "Field staff can update assigned jobs status and notes" ON jobs;
 CREATE POLICY "Field staff can update assigned jobs status and notes"
   ON jobs FOR UPDATE
   USING (
@@ -400,6 +421,7 @@ CREATE POLICY "Field staff can update assigned jobs status and notes"
 
 -- Quotes and invoices - field staff should not access
 DROP POLICY IF EXISTS "Users can view their org's quotes" ON quotes;
+DROP POLICY IF EXISTS "Owners and management can view quotes" ON quotes;
 CREATE POLICY "Owners and management can view quotes"
   ON quotes FOR SELECT
   USING (
@@ -410,6 +432,7 @@ CREATE POLICY "Owners and management can view quotes"
   );
 
 DROP POLICY IF EXISTS "Users can insert quotes for their org" ON quotes;
+DROP POLICY IF EXISTS "Owners and management can insert quotes" ON quotes;
 CREATE POLICY "Owners and management can insert quotes"
   ON quotes FOR INSERT
   WITH CHECK (
@@ -420,6 +443,7 @@ CREATE POLICY "Owners and management can insert quotes"
   );
 
 DROP POLICY IF EXISTS "Users can update their org's quotes" ON quotes;
+DROP POLICY IF EXISTS "Owners and management can update quotes" ON quotes;
 CREATE POLICY "Owners and management can update quotes"
   ON quotes FOR UPDATE
   USING (
@@ -430,6 +454,7 @@ CREATE POLICY "Owners and management can update quotes"
   );
 
 DROP POLICY IF EXISTS "Users can delete their org's quotes" ON quotes;
+DROP POLICY IF EXISTS "Owners and management can delete quotes" ON quotes;
 CREATE POLICY "Owners and management can delete quotes"
   ON quotes FOR DELETE
   USING (
@@ -441,6 +466,7 @@ CREATE POLICY "Owners and management can delete quotes"
 
 -- Similar restrictions for invoices
 DROP POLICY IF EXISTS "Users can view their org's invoices" ON invoices;
+DROP POLICY IF EXISTS "Owners and management can view invoices" ON invoices;
 CREATE POLICY "Owners and management can view invoices"
   ON invoices FOR SELECT
   USING (
@@ -451,6 +477,7 @@ CREATE POLICY "Owners and management can view invoices"
   );
 
 DROP POLICY IF EXISTS "Users can insert invoices for their org" ON invoices;
+DROP POLICY IF EXISTS "Owners and management can insert invoices" ON invoices;
 CREATE POLICY "Owners and management can insert invoices"
   ON invoices FOR INSERT
   WITH CHECK (
@@ -461,6 +488,7 @@ CREATE POLICY "Owners and management can insert invoices"
   );
 
 DROP POLICY IF EXISTS "Users can update their org's invoices" ON invoices;
+DROP POLICY IF EXISTS "Owners and management can update invoices" ON invoices;
 CREATE POLICY "Owners and management can update invoices"
   ON invoices FOR UPDATE
   USING (
@@ -471,6 +499,7 @@ CREATE POLICY "Owners and management can update invoices"
   );
 
 DROP POLICY IF EXISTS "Users can delete their org's invoices" ON invoices;
+DROP POLICY IF EXISTS "Owners and management can delete invoices" ON invoices;
 CREATE POLICY "Owners and management can delete invoices"
   ON invoices FOR DELETE
   USING (
@@ -484,15 +513,19 @@ CREATE POLICY "Owners and management can delete invoices"
 -- 7. CREATE TRIGGERS FOR UPDATED_AT
 -- =====================================================
 
+DROP TRIGGER IF EXISTS update_subscriptions_updated_at ON subscriptions;
 CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON subscriptions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_licenses_updated_at ON licenses;
 CREATE TRIGGER update_licenses_updated_at BEFORE UPDATE ON licenses
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_contractors_updated_at ON contractors;
 CREATE TRIGGER update_contractors_updated_at BEFORE UPDATE ON contractors
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_contractor_job_assignments_updated_at ON contractor_job_assignments;
 CREATE TRIGGER update_contractor_job_assignments_updated_at BEFORE UPDATE ON contractor_job_assignments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -580,6 +613,7 @@ VALUES ('contractor-submissions', 'contractor-submissions', false)
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage policies for contractor submissions
+DROP POLICY IF EXISTS "Users can view their org's contractor submission files" ON storage.objects;
 CREATE POLICY "Users can view their org's contractor submission files"
   ON storage.objects FOR SELECT
   USING (
@@ -589,10 +623,12 @@ CREATE POLICY "Users can view their org's contractor submission files"
     )
   );
 
+DROP POLICY IF EXISTS "System can upload contractor submission files" ON storage.objects;
 CREATE POLICY "System can upload contractor submission files"
   ON storage.objects FOR INSERT
   WITH CHECK (bucket_id = 'contractor-submissions');
 
+DROP POLICY IF EXISTS "Users can delete their org's contractor submission files" ON storage.objects;
 CREATE POLICY "Users can delete their org's contractor submission files"
   ON storage.objects FOR DELETE
   USING (

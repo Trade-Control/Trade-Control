@@ -26,30 +26,93 @@ export default function LicensesPage() {
   const fetchLicenses = async () => {
     setLoading(true);
     
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('Auth error:', userError);
+        setLoading(false);
+        return;
+      }
+      
+      if (!user) {
+        console.log('No user found');
+        setLoading(false);
+        return;
+      }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('organization_id')
-      .eq('id', user.id)
-      .single();
+      console.log('🔵 Fetching profile for user:', user.id);
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('organization_id, role')
+        .eq('id', user.id)
+        .single();
 
-    if (!profile?.organization_id) return;
+      if (profileError) {
+        console.error('❌ Profile error:', profileError);
+        setLoading(false);
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from('licenses')
-      .select('*, profiles(*)')
-      .eq('organization_id', profile.organization_id)
-      .order('created_at', { ascending: false });
+      if (!profile?.organization_id) {
+        console.log('⚠️ No organization_id found for user');
+        setLoading(false);
+        return;
+      }
 
-    if (error) {
-      console.error('Error fetching licenses:', error);
-    } else {
-      setLicenses(data || []);
+      console.log('🔵 Fetching licenses for org:', profile.organization_id);
+      console.log('🔵 User role:', profile.role);
+      
+      // First try without the join to see if basic query works
+      const { data: licensesData, error: licensesError } = await supabase
+        .from('licenses')
+        .select('*')
+        .eq('organization_id', profile.organization_id)
+        .order('created_at', { ascending: false });
+
+      if (licensesError) {
+        console.error('❌ Error fetching licenses (basic query):', {
+          message: licensesError.message,
+          details: licensesError.details,
+          hint: licensesError.hint,
+          code: licensesError.code,
+        });
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Basic licenses query successful:', licensesData?.length || 0);
+
+      // Now try to fetch profile data for each license separately
+      const licensesWithProfiles = await Promise.all(
+        (licensesData || []).map(async (license) => {
+          if (license.profile_id) {
+            const { data: profileData, error: profileErr } = await supabase
+              .from('profiles')
+              .select('id, first_name, last_name, phone')
+              .eq('id', license.profile_id)
+              .single();
+            
+            if (profileErr) {
+              console.warn('⚠️ Could not fetch profile for license:', license.id, profileErr);
+            }
+            
+            return {
+              ...license,
+              profiles: profileData || null,
+            };
+          }
+          return { ...license, profiles: null };
+        })
+      );
+
+      console.log('✅ Licenses with profiles:', licensesWithProfiles.length);
+      setLicenses(licensesWithProfiles);
+    } catch (err: any) {
+      console.error('❌ Unexpected error:', err);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleRemoveLicense = async (license: License) => {
