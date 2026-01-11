@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { getUserPermissions } from '@/lib/middleware/role-check';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
+import Image from 'next/image';
 
 export default function OrganizationSettingsPage() {
   const [formData, setFormData] = useState({
@@ -33,6 +34,9 @@ export default function OrganizationSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [canManage, setCanManage] = useState(false);
   const [organizationId, setOrganizationId] = useState('');
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -105,12 +109,81 @@ export default function OrganizationSettingsPage() {
           invoice_prefix: org.invoice_prefix || 'INV',
           payment_details: org.payment_details || '',
         });
+        // Set logo preview if logo_url exists
+        if (org?.logo_url) {
+          setLogoPreview(org.logo_url);
+        }
       }
     } catch (err: any) {
       console.error('Error loading organization:', err);
       setError(err.message || 'Failed to load organization details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+      setError('Please upload a valid image file (JPEG, PNG, GIF, WebP, or SVG)');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Logo file must be less than 2MB');
+      return;
+    }
+
+    setUploadingLogo(true);
+    setError('');
+
+    try {
+      // Create a unique file name
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${organizationId}-logo-${Date.now()}.${fileExt}`;
+      const filePath = `logos/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('organization-assets')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('organization-assets')
+        .getPublicUrl(filePath);
+
+      // Update form data
+      setFormData({ ...formData, logo_url: publicUrl });
+      setLogoPreview(publicUrl);
+      setSuccess('Logo uploaded successfully!');
+      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      console.error('Logo upload error:', err);
+      setError(err.message || 'Failed to upload logo. Please try again.');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setFormData({ ...formData, logo_url: '' });
+    setLogoPreview(null);
+    if (logoInputRef.current) {
+      logoInputRef.current.value = '';
     }
   };
 
@@ -325,7 +398,7 @@ export default function OrganizationSettingsPage() {
 
               <div>
                 <label htmlFor="website_url" className="block text-sm font-medium text-gray-700 mb-2">
-                  Website URL <span className="text-red-500">*</span>
+                  Website URL
                 </label>
                 <input
                   id="website_url"
@@ -333,9 +406,8 @@ export default function OrganizationSettingsPage() {
                   type="url"
                   value={formData.website_url}
                   onChange={handleChange}
-                  required
                   className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="https://www.yourbusiness.com.au"
+                  placeholder="https://www.yourbusiness.com.au (optional)"
                 />
               </div>
             </div>
@@ -435,20 +507,74 @@ export default function OrganizationSettingsPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="logo_url" className="block text-sm font-medium text-gray-700 mb-2">
-                    Logo URL <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Business Logo
                   </label>
-                  <input
-                    id="logo_url"
-                    name="logo_url"
-                    type="url"
-                    value={formData.logo_url}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                    placeholder="https://example.com/logo.png"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Used on invoices and quotes</p>
+                  <div className="space-y-3">
+                    {/* Logo Preview */}
+                    {logoPreview && (
+                      <div className="relative inline-block">
+                        <div className="w-32 h-32 border border-gray-200 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center">
+                          <Image
+                            src={logoPreview}
+                            alt="Business Logo"
+                            width={128}
+                            height={128}
+                            className="object-contain w-full h-full"
+                            unoptimized
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveLogo}
+                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                          title="Remove logo"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Upload Button */}
+                    <div>
+                      <input
+                        ref={logoInputRef}
+                        id="logo_upload"
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="logo_upload"
+                        className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 transition-colors ${
+                          uploadingLogo ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {uploadingLogo ? (
+                          <>
+                            <svg className="animate-spin w-5 h-5 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            <span className="text-sm text-gray-600">Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-sm text-gray-600">
+                              {logoPreview ? 'Change Logo' : 'Upload Logo'}
+                            </span>
+                          </>
+                        )}
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-500">JPEG, PNG, GIF, WebP, or SVG. Max 2MB. Used on invoices and quotes.</p>
+                  </div>
                 </div>
 
                 <div>
