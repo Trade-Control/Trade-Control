@@ -136,10 +136,10 @@ NOT in:
    - Publishable key starts with `pk_test_` (this is WRONG for the secret)
 3. **Key not activated**: Some Stripe test keys need to be activated in dashboard
 
-### Issue 3: Works locally but fails on Vercel
+### Issue 3: Works locally but fails on Cloudflare Pages
 
-If deploying to Vercel:
-1. Go to your Vercel project → Settings → Environment Variables
+If deploying to Cloudflare Pages:
+1. Go to your Cloudflare Pages project → Settings → Environment Variables
 2. Add ALL variables from `.env.local`
 3. Set them for "Production", "Preview", AND "Development"
 4. **Redeploy** after adding variables

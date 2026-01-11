@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createCustomer } from '@/lib/services/stripe';
 
-// Force Node runtime and no caching so env vars are read at request time
-export const runtime = 'nodejs';
+// Cloudflare Pages Edge Runtime
+export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Access env var directly in Route Handler (Vercel recommended pattern)
+    // Access env var directly in Route Handler (Cloudflare Pages)
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
     console.log('[Create Customer] STRIPE_SECRET_KEY check:', { 
       hasKey: !!stripeSecretKey, 

@@ -2,7 +2,11 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Helper function to create admin client lazily (only when needed)
+// Cloudflare Pages Edge Runtime
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
+
+// Helper function to create admin client
 function getSupabaseAdmin() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

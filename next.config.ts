@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Cloudflare Pages configuration
+  output: 'standalone',
+  // Enable experimental features for Cloudflare Pages compatibility
+  experimental: {
+    // Cloudflare Pages works with standard Next.js output
+  },
 };
 
 export default nextConfig;
