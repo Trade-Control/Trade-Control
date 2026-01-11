@@ -6,9 +6,8 @@
  */
 
 import { createClient as createServerClient } from '../supabase/server';
-import { UserRole, UserPermissions } from './role-check';
-import { hasRole } from './role-check';
-import { isOwner, canManage } from './role-check';
+import { UserRole } from '../types/database.types';
+import { UserPermissions, hasRole, isOwner, canManage } from './role-check';
 
 /**
  * Get user permissions (server-side)
