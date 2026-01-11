@@ -10,7 +10,7 @@ import { SubscriptionTier, OperationsProLevel } from '../types/database.types';
 
 // Initialize Stripe client
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-11-20.acacia',
+  apiVersion: '2025-02-24.acacia',
 });
 
 // Pricing constants (in cents AUD) - should match your Stripe Price IDs
