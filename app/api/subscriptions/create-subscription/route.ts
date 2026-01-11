@@ -8,7 +8,12 @@ import { SubscriptionTier, OperationsProLevel } from '@/lib/types/database.types
  */
 export async function POST(request: NextRequest) {
   try {
+    // Debug: Log if key exists (not the actual key value for security)
+    const hasStripeKey = !!process.env.STRIPE_SECRET_KEY;
+    console.log('[Create Subscription] STRIPE_SECRET_KEY check:', { hasStripeKey });
+
     if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('[Create Subscription] STRIPE_SECRET_KEY is not set in environment');
       return NextResponse.json(
         { 
           error: 'STRIPE_SECRET_KEY is not configured. Please set it in your environment variables. See ROLLOUT_GUIDE.md for instructions.' 

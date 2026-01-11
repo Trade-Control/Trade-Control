@@ -7,7 +7,13 @@ import { createCustomer } from '@/lib/services/stripe';
  */
 export async function POST(request: NextRequest) {
   try {
+    // Debug: Log if key exists (not the actual key value for security)
+    const hasStripeKey = !!process.env.STRIPE_SECRET_KEY;
+    const keyPrefix = process.env.STRIPE_SECRET_KEY?.substring(0, 7) || 'missing';
+    console.log('[Create Customer] STRIPE_SECRET_KEY check:', { hasStripeKey, keyPrefix });
+
     if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('[Create Customer] STRIPE_SECRET_KEY is not set in environment');
       return NextResponse.json(
         { 
           error: 'STRIPE_SECRET_KEY is not configured. Please set it in your environment variables. See ROLLOUT_GUIDE.md for instructions.' 
