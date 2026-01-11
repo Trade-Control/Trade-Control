@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 
 type Step = 'business' | 'owner' | 'complete';
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   
   const [step, setStep] = useState<Step>('business');
   const [loading, setLoading] = useState(false);
@@ -46,10 +46,14 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     // Load existing organization data and pre-populate user info
-    loadOrganizationAndUserData();
-  }, []);
+    if (supabase) {
+      loadOrganizationAndUserData();
+    }
+  }, [supabase]);
 
   const loadOrganizationAndUserData = async () => {
+    if (!supabase) return;
+    
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.push('/login');

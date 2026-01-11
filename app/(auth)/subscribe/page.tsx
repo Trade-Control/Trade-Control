@@ -2,14 +2,14 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { PRICING, formatPrice, calculateSubscriptionPrice } from '@/lib/services/stripe';
 import { SubscriptionTier, OperationsProLevel } from '@/lib/types/database.types';
 
 function SubscribeForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const [tier, setTier] = useState<SubscriptionTier>((searchParams.get('tier') as SubscriptionTier) || 'operations');
   const [operationsProLevel, setOperationsProLevel] = useState<OperationsProLevel | undefined>('scale');
@@ -38,6 +38,11 @@ function SubscribeForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!supabase) {
+      setError('Configuration error. Please refresh the page.');
+      return;
+    }
 
     // Validation
     if (password !== confirmPassword) {

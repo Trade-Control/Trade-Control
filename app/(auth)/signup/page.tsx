@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -15,11 +15,16 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!supabase) {
+      setError('Configuration error. Please refresh the page.');
+      return;
+    }
 
     // Validate passwords match
     if (password !== confirmPassword) {
