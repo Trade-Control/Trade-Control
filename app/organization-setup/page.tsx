@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useState, useEffect } from 'react';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { useRouter } from 'next/navigation';
 
 export default function OrganizationSetupPage() {
@@ -19,17 +19,7 @@ export default function OrganizationSetupPage() {
   const [loading, setLoading] = useState(false);
   const [checkingOrg, setCheckingOrg] = useState(true);
   const router = useRouter();
-  
-  // Create Supabase client only in browser (not during build)
-  const supabase = useMemo(() => {
-    if (typeof window === 'undefined') return null;
-    try {
-      return createClient();
-    } catch (error) {
-      console.error('Failed to create Supabase client:', error);
-      return null;
-    }
-  }, []);
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
     if (!supabase) return;
