@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 
 export default function ContractorSubmitPage() {
   const params = useParams();
   const token = params.token as string;
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const [assignment, setAssignment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -22,10 +22,13 @@ export default function ContractorSubmitPage() {
   });
 
   useEffect(() => {
-    validateToken();
-  }, [token]);
+    if (supabase) {
+      validateToken();
+    }
+  }, [token, supabase]);
 
   const validateToken = async () => {
+    if (!supabase) return;
     const { data, error: fetchError } = await supabase
       .from('contractor_job_assignments')
       .select('*, jobs (*), contractors (*)')

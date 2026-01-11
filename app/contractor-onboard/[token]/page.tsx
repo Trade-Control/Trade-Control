@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 
@@ -39,7 +39,7 @@ const DOCUMENT_LABELS: Record<string, string> = {
 export default function ContractorOnboardingSubmitPage() {
   const params = useParams();
   const token = params.token as string;
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -54,10 +54,13 @@ export default function ContractorOnboardingSubmitPage() {
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, File | null>>({});
 
   useEffect(() => {
-    fetchRequest();
-  }, [token]);
+    if (supabase) {
+      fetchRequest();
+    }
+  }, [token, supabase]);
 
   const fetchRequest = async () => {
+    if (!supabase) return;
     setLoading(true);
 
     // Fetch the onboarding request by token

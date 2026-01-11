@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { ContractorJobAssignment } from '@/lib/types/database.types';
 
 export default function ContractorAccessPage() {
   const params = useParams();
   const token = params.token as string;
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   const router = useRouter();
 
   const [assignment, setAssignment] = useState<any>(null);
@@ -16,10 +16,13 @@ export default function ContractorAccessPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    validateToken();
-  }, [token]);
+    if (supabase) {
+      validateToken();
+    }
+  }, [token, supabase]);
 
   const validateToken = async () => {
+    if (!supabase) return;
     setLoading(true);
 
     // Public access - no auth required
