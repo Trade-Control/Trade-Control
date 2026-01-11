@@ -1,12 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Cloudflare Pages configuration
-  output: 'standalone',
-  // Enable experimental features for Cloudflare Pages compatibility
-  experimental: {
-    // Cloudflare Pages works with standard Next.js output
-  },
+  // Vercel handles deployment automatically
+  // No special configuration needed for standard Next.js
 };
 
 export default nextConfig;

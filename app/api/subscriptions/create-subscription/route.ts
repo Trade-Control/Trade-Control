@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSubscription } from '@/lib/services/stripe';
 import { SubscriptionTier, OperationsProLevel } from '@/lib/types/database.types';
 
-// Cloudflare Pages Edge Runtime
-export const runtime = 'edge';
+// Vercel Serverless Runtime
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -12,12 +12,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Access env var directly in Route Handler (Cloudflare Pages)
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-    console.log('[Create Subscription] STRIPE_SECRET_KEY check:', { 
-      hasKey: !!stripeSecretKey, 
-      keyLength: stripeSecretKey?.length || 0 
-    });
 
     if (!stripeSecretKey) {
       console.error('[Create Subscription] STRIPE_SECRET_KEY is not set in environment');

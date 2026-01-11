@@ -73,4 +73,4 @@ If you prefer to do it manually, update these files:
 
 3. Test locally before deploying
 
-4. Deploy to Cloudflare Pages (see CLOUDFLARE_DEPLOYMENT.md)
+4. Deploy to Vercel

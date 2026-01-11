@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Cloudflare Pages Edge Runtime
-export const runtime = 'edge';
+// Vercel Serverless Runtime
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // Helper function to create admin client

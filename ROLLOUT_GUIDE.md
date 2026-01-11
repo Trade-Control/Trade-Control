@@ -6,7 +6,7 @@ This guide will walk you through setting up Trade Control for production rollout
 
 - Stripe account (free to create)
 - Resend account (free tier: 100 emails/day)
-- Cloudflare account (for deployment)
+- Vercel account (for deployment)
 - Supabase project (already set up)
 
 ---
@@ -73,7 +73,7 @@ You need to create 5 products in Stripe that match your pricing:
 
 1. Go to **Developers** → **Webhooks**
 2. Click **Add endpoint**
-3. Endpoint URL: `https://your-app.pages.dev/api/webhooks/stripe`
+3. Endpoint URL: `https://your-app.vercel.app/api/webhooks/stripe`
 4. Events to listen to:
    - `customer.subscription.created`
    - `customer.subscription.updated`
@@ -162,11 +162,11 @@ OPERATIONS_PRO_SCALE_PRICE=9900
 OPERATIONS_PRO_UNLIMITED_PRICE=19900
 ```
 
-### 3.2 Cloudflare Pages Production
+### 3.2 Vercel Production
 
-1. Go to **Cloudflare Dashboard** → Pages → Your Project → **Settings** → **Environment Variables**
+1. Go to **Vercel Dashboard** → Your Project → **Settings** → **Environment Variables**
 2. Add all the variables from above, but:
-   - Use your **production Cloudflare Pages URL** for `NEXT_PUBLIC_APP_URL` (e.g., `https://your-app.pages.dev`)
+   - Use your **production Vercel URL** for `NEXT_PUBLIC_APP_URL` (e.g., `https://your-app.vercel.app`)
    - Use your **verified domain email** for `RESEND_FROM_EMAIL` (if domain verified)
 3. Set for: **Production**, **Preview**, and **Development** environments
 4. **Important**: After adding variables, trigger a new deployment
@@ -253,31 +253,31 @@ This will give you a webhook signing secret for local testing.
 
 ---
 
-## Step 7: Deploy to Cloudflare Pages
+## Step 7: Deploy to Vercel
 
 ### 7.1 Connect Repository
 
-1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. Navigate to **Pages** → **Create a project**
-3. Connect your Git repository (GitHub/GitLab/Bitbucket)
-4. Configure build settings:
-   - **Framework preset**: Next.js
-   - **Build command**: `npm run build`
-   - **Build output directory**: `.next`
-   - **Root directory**: `/` (or your project root)
+1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
+2. Click **Add New** → **Project**
+3. Import your Git repository (GitHub/GitLab/Bitbucket)
+4. Configure project settings:
+   - **Framework Preset**: Next.js (auto-detected)
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `.next` (default)
+   - **Install Command**: `npm install`
 
 ### 7.2 Add Environment Variables
 
-1. In your Cloudflare Pages project → **Settings** → **Environment Variables**
+1. In your Vercel project → **Settings** → **Environment Variables**
 2. Add all variables from Step 3.2
 3. Set for Production, Preview, and Development environments
 4. Save and trigger a new deployment
 
 ### 7.3 Verify Deployment
 
-1. Check Cloudflare Pages deployment logs for errors
-2. Test the production URL (e.g., `https://your-app.pages.dev`)
-3. Verify environment variables are accessible via `/api/test-env`
+1. Check Vercel deployment logs for build errors
+2. Test the production URL (e.g., `https://your-app.vercel.app`)
+3. Verify environment variables are accessible by testing signup flow
 4. Test Stripe webhook endpoint is accessible
 
 ---
@@ -299,8 +299,8 @@ This will give you a webhook signing secret for local testing.
 
 ### 8.3 Application Logs
 
-- Check Cloudflare Pages deployment logs for build errors
-- Monitor Cloudflare Workers logs for API route errors
+- Check Vercel deployment logs for build errors
+- Monitor Vercel Functions logs for API route errors
 - Monitor Supabase logs for database issues
 
 ---
@@ -332,7 +332,7 @@ This will give you a webhook signing secret for local testing.
 ### General Issues
 
 **Problem**: Environment variables not loading
-- **Solution**: Trigger a new Cloudflare Pages deployment after adding env vars
+- **Solution**: Trigger a new Vercel deployment after adding env vars
 - **Solution**: Verify variables are set for the correct environment (Production/Preview)
 
 **Problem**: Import errors after switching services
@@ -395,12 +395,12 @@ Once everything works in test mode:
 - [ ] Resend API key obtained
 - [ ] Resend domain verified (optional)
 - [ ] Environment variables set locally
-- [ ] Environment variables set in Cloudflare Pages
+- [ ] Environment variables set in Vercel
 - [ ] Code updated to use real services
 - [ ] Packages installed (`stripe`, `resend`)
 - [ ] Local testing completed
 - [ ] Webhook testing completed
-- [ ] Deployed to Cloudflare Pages
+- [ ] Deployed to Vercel
 - [ ] Production testing completed
 - [ ] Monitoring set up
 

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createCustomer } from '@/lib/services/stripe';
 
-// Cloudflare Pages Edge Runtime
-export const runtime = 'edge';
+// Vercel Serverless Runtime
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -11,12 +11,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Access env var directly in Route Handler (Cloudflare Pages)
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-    console.log('[Create Customer] STRIPE_SECRET_KEY check:', { 
-      hasKey: !!stripeSecretKey, 
-      keyLength: stripeSecretKey?.length || 0 
-    });
 
     if (!stripeSecretKey) {
       console.error('[Create Customer] STRIPE_SECRET_KEY is not set in environment');

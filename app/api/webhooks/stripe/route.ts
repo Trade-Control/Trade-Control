@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Stripe from 'stripe';
 
-// Cloudflare Pages Edge Runtime
-export const runtime = 'edge';
+// Vercel Serverless Runtime
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Helper function to create Stripe client (Cloudflare Pages)
+// Helper function to create Stripe client
 function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   
