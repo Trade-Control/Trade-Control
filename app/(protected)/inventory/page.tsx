@@ -267,7 +267,7 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      {/* Inventory Grid */}
+      {/* Inventory Table */}
       {filteredInventory.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-12 text-center">
           <div className="text-6xl mb-4">📦</div>
@@ -279,104 +279,133 @@ export default function InventoryPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredInventory.map((item) => (
-            <div 
-              key={item.id} 
-              className={`bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow ${
-                isLowStock(item) ? 'border-l-4 border-orange-500' : ''
-              }`}
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">{item.item_name}</h3>
-                  {item.sku && (
-                    <p className="text-sm text-gray-500">SKU: {item.sku}</p>
-                  )}
-                  {item.description && (
-                    <p className="text-sm text-gray-600 mt-2">{item.description}</p>
-                  )}
-                </div>
-                <div className="flex gap-2 ml-4">
-                  <button
-                    onClick={() => handleEdit(item)}
-                    className="text-primary hover:text-primary-hover text-sm font-medium"
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Item
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    SKU
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Quantity
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Unit Cost
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total Value
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredInventory.map((item) => (
+                  <tr 
+                    key={item.id} 
+                    className={`hover:bg-gray-50 ${
+                      isLowStock(item) ? 'bg-orange-50' : ''
+                    }`}
                   >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="text-red-600 hover:text-red-700 text-sm font-medium"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {/* Quantity */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Quantity:</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => adjustQuantity(item.id, item.quantity, -1)}
-                      className="w-7 h-7 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold flex items-center justify-center"
-                    >
-                      -
-                    </button>
-                    <span className={`font-bold min-w-[60px] text-center ${
-                      isLowStock(item) ? 'text-orange-600' : 'text-gray-900'
-                    }`}>
-                      {item.quantity} {item.unit}
-                    </span>
-                    <button
-                      onClick={() => adjustQuantity(item.id, item.quantity, 1)}
-                      className="w-7 h-7 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold flex items-center justify-center"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                {isLowStock(item) && (
-                  <div className="text-sm text-orange-600 font-medium">
-                    ⚠️ Low stock! Reorder at {item.reorder_level} {item.unit}
-                  </div>
-                )}
-
-                {item.unit_cost !== null && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Unit Cost:</span>
-                    <span className="font-medium text-gray-900">${item.unit_cost.toFixed(2)}</span>
-                  </div>
-                )}
-
-                {item.unit_cost !== null && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Total Value:</span>
-                    <span className="font-bold text-green-600">
-                      ${(item.quantity * item.unit_cost).toFixed(2)}
-                    </span>
-                  </div>
-                )}
-
-                {item.location && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-gray-500">📍</span>
-                    <span className="text-gray-700">{item.location}</span>
-                  </div>
-                )}
-
-                {item.category && (
-                  <div className="mt-2">
-                    <span className="px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800">
-                      {item.category}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {item.item_name}
+                            {isLowStock(item) && (
+                              <span className="ml-2 text-orange-600" title="Low stock">⚠️</span>
+                            )}
+                          </div>
+                          {item.description && (
+                            <div className="text-sm text-gray-500">{item.description}</div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{item.sku || '-'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {item.category ? (
+                        <span className="px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800">
+                          {item.category}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{item.location || '-'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => adjustQuantity(item.id, item.quantity, -1)}
+                          className="w-7 h-7 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold flex items-center justify-center"
+                        >
+                          -
+                        </button>
+                        <span className={`font-bold min-w-[80px] text-center ${
+                          isLowStock(item) ? 'text-orange-600' : 'text-gray-900'
+                        }`}>
+                          {item.quantity} {item.unit}
+                        </span>
+                        <button
+                          onClick={() => adjustQuantity(item.id, item.quantity, 1)}
+                          className="w-7 h-7 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold flex items-center justify-center"
+                        >
+                          +
+                        </button>
+                      </div>
+                      {isLowStock(item) && (
+                        <div className="text-xs text-orange-600 text-center mt-1">
+                          Reorder at {item.reorder_level}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="text-sm text-gray-900">
+                        {item.unit_cost !== null ? `$${item.unit_cost.toFixed(2)}` : '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="text-sm font-medium text-green-600">
+                        {item.unit_cost !== null 
+                          ? `$${(item.quantity * item.unit_cost).toFixed(2)}`
+                          : '-'
+                        }
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleEdit(item)}
+                        className="text-primary hover:text-primary-hover mr-4"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

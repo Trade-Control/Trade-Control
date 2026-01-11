@@ -20,6 +20,8 @@ export default function QuoteForm({ jobId, onSuccess }: QuoteFormProps) {
     { description: '', quantity: 1, unit_price: 0, line_total: 0, job_code_id: null }
   ]);
   const [jobCodes, setJobCodes] = useState<any[]>([]);
+  const [jobCodeSearch, setJobCodeSearch] = useState<{ [key: number]: string }>({});
+  const [showJobCodeDropdown, setShowJobCodeDropdown] = useState<{ [key: number]: boolean }>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const supabase = createClient();
@@ -83,6 +85,9 @@ export default function QuoteForm({ jobId, onSuccess }: QuoteFormProps) {
       if (jobCode) {
         updatedItems[index].description = jobCode.description;
         updatedItems[index].unit_price = jobCode.unit_price;
+        // Update search to show selected code
+        setJobCodeSearch({ ...jobCodeSearch, [index]: `${jobCode.code} - ${jobCode.description}` });
+        setShowJobCodeDropdown({ ...showJobCodeDropdown, [index]: false });
       }
     }
 
@@ -94,6 +99,36 @@ export default function QuoteForm({ jobId, onSuccess }: QuoteFormProps) {
     }
 
     setLineItems(updatedItems);
+  };
+
+  const handleJobCodeSearch = (index: number, searchValue: string) => {
+    setJobCodeSearch({ ...jobCodeSearch, [index]: searchValue });
+    setShowJobCodeDropdown({ ...showJobCodeDropdown, [index]: true });
+  };
+
+  const selectJobCode = (index: number, jobCode: any) => {
+    handleLineItemChange(index, 'job_code_id', jobCode.id);
+  };
+
+  const clearJobCodeSelection = (index: number) => {
+    const updatedItems = [...lineItems];
+    updatedItems[index].job_code_id = null;
+    updatedItems[index].description = '';
+    updatedItems[index].unit_price = 0;
+    updatedItems[index].line_total = 0;
+    setLineItems(updatedItems);
+    setJobCodeSearch({ ...jobCodeSearch, [index]: '' });
+  };
+
+  const getFilteredJobCodes = (index: number) => {
+    const search = jobCodeSearch[index]?.toLowerCase() || '';
+    if (!search) return jobCodes;
+    
+    return jobCodes.filter(jc => 
+      jc.code.toLowerCase().includes(search) ||
+      jc.description.toLowerCase().includes(search) ||
+      (jc.category && jc.category.toLowerCase().includes(search))
+    );
   };
 
   const addLineItem = () => {
@@ -246,18 +281,65 @@ export default function QuoteForm({ jobId, onSuccess }: QuoteFormProps) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Job Code (Optional)
                     </label>
-                    <select
-                      value={item.job_code_id || ''}
-                      onChange={(e) => handleLineItemChange(index, 'job_code_id', e.target.value || null)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-                    >
-                      <option value="">Manual Entry</option>
-                      {jobCodes.map((jc) => (
-                        <option key={jc.id} value={jc.id}>
-                          {jc.code} - {jc.description}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={jobCodeSearch[index] || ''}
+                        onChange={(e) => handleJobCodeSearch(index, e.target.value)}
+                        onFocus={() => setShowJobCodeDropdown({ ...showJobCodeDropdown, [index]: true })}
+                        placeholder="Search job codes or manual entry..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                      />
+                      {item.job_code_id && (
+                        <button
+                          type="button"
+                          onClick={() => clearJobCodeSelection(index)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          ✕
+                        </button>
+                      )}
+                      
+                      {showJobCodeDropdown[index] && !item.job_code_id && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                          {getFilteredJobCodes(index).length > 0 ? (
+                            <>
+                              <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 sticky top-0">
+                                Select a job code or continue with manual entry
+                              </div>
+                              {getFilteredJobCodes(index).map((jc) => (
+                                <button
+                                  key={jc.id}
+                                  type="button"
+                                  onClick={() => selectJobCode(index, jc)}
+                                  className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100"
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                      <div className="font-medium text-gray-900">{jc.code}</div>
+                                      <div className="text-sm text-gray-600">{jc.description}</div>
+                                      {jc.category && (
+                                        <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800">
+                                          {jc.category}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-right ml-2">
+                                      <div className="font-semibold text-primary">${jc.unit_price.toFixed(2)}</div>
+                                      <div className="text-xs text-gray-500">per {jc.unit}</div>
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                            </>
+                          ) : (
+                            <div className="px-3 py-4 text-sm text-gray-500 text-center">
+                              No matching job codes. Continue with manual entry.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="md:col-span-4">

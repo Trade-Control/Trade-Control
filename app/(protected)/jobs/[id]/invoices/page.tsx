@@ -39,6 +39,7 @@ export default function InvoicesPage() {
       .from('invoices')
       .select('*')
       .eq('job_id', jobId)
+      .is('deleted_at', null) // Exclude soft-deleted invoices
       .order('created_at', { ascending: false });
     
     if (invoicesData) setInvoices(invoicesData);
@@ -165,6 +166,71 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleMarkAsPaid = async (invoiceId: string) => {
+    const invoice = invoices.find(inv => inv.id === invoiceId);
+    if (!invoice) return;
+
+    const balanceDue = invoice.total_amount - invoice.amount_paid;
+    const paymentAmount = prompt(`Enter payment amount (Balance due: $${balanceDue.toFixed(2)}):`);
+    
+    if (!paymentAmount || isNaN(parseFloat(paymentAmount))) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.organization_id) throw new Error('Organization not found');
+
+      // Record payment
+      const { error: paymentError } = await supabase
+        .from('invoice_payments')
+        .insert({
+          invoice_id: invoiceId,
+          organization_id: profile.organization_id,
+          amount: parseFloat(paymentAmount),
+          payment_date: new Date().toISOString(),
+          payment_method: 'other',
+          recorded_by: user.id,
+        });
+
+      if (paymentError) throw paymentError;
+
+      alert('Payment recorded successfully!');
+      fetchData();
+    } catch (error) {
+      console.error('Error recording payment:', error);
+      alert('Failed to record payment');
+    }
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!confirm('Are you sure you want to delete this invoice? This cannot be undone.')) return;
+
+    try {
+      // Soft delete by setting deleted_at
+      await supabase
+        .from('invoices')
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          last_edited_by: (await supabase.auth.getUser()).data.user?.id,
+          last_edited_at: new Date().toISOString()
+        })
+        .eq('id', invoiceId);
+
+      alert('Invoice deleted successfully');
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      alert('Failed to delete invoice');
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-8">Loading...</div>;
   }
@@ -258,12 +324,30 @@ export default function InvoicesPage() {
                 >
                   View Details
                 </Link>
-                <button
-                  onClick={() => handleEmailInvoice(invoice)}
-                  className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-md text-sm font-medium transition-colors"
-                >
-                  📧 Email Invoice
-                </button>
+                {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+                  <>
+                    <button
+                      onClick={() => handleEmailInvoice(invoice)}
+                      className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-md text-sm font-medium transition-colors"
+                    >
+                      📧 {invoice.status === 'sent' ? 'Resend' : 'Email'} Invoice
+                    </button>
+                    <button
+                      onClick={() => handleMarkAsPaid(invoice.id)}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors"
+                    >
+                      💵 Record Payment
+                    </button>
+                  </>
+                )}
+                {invoice.status === 'draft' && (
+                  <button
+                    onClick={() => handleDeleteInvoice(invoice.id)}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium transition-colors"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           ))}

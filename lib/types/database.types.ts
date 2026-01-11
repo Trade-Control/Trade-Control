@@ -24,6 +24,8 @@ export type Profile = {
   role: UserRole | null;
   license_id: string | null;
   assigned_job_ids: string[]; // Array of job IDs for field staff
+  account_status: 'active' | 'suspended' | 'deactivated';
+  deactivated_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -114,6 +116,10 @@ export type Quote = {
   notes: string | null;
   terms: string | null;
   accepted_at: string | null;
+  deleted_at: string | null;
+  last_edited_by: string | null;
+  last_edited_at: string | null;
+  version: number;
   created_at: string;
   updated_at: string;
 };
@@ -144,9 +150,16 @@ export type Invoice = {
   gst_amount: number;
   total_amount: number;
   amount_paid: number;
+  deposit_amount: number;
+  deposit_paid: boolean;
+  deposit_paid_date: string | null;
   notes: string | null;
   terms: string | null;
   paid_at: string | null;
+  deleted_at: string | null;
+  last_edited_by: string | null;
+  last_edited_at: string | null;
+  version: number;
   created_at: string;
   updated_at: string;
 };
@@ -198,6 +211,9 @@ export type JobInventoryAllocation = {
   job_id: string;
   inventory_id: string;
   quantity_allocated: number;
+  quantity_used: number;
+  quantity_returned: number;
+  status: 'allocated' | 'used' | 'returned' | 'cancelled';
   notes: string | null;
   allocated_at: string;
   created_at: string;
@@ -249,6 +265,9 @@ export type Subscription = {
   base_price: number;
   total_price: number;
   trial_ends_at: string | null;
+  expired_at: string | null;
+  grace_period_ends: string | null;
+  read_only_mode: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -338,5 +357,43 @@ export type ActivityFeed = {
   actor_id: string | null;
   description: string;
   metadata: Record<string, any>;
+  created_at: string;
+};
+
+// New types for payment tracking
+export type InvoicePayment = {
+  id: string;
+  invoice_id: string;
+  organization_id: string;
+  payment_date: string;
+  amount: number;
+  payment_method: 'cash' | 'card' | 'bank_transfer' | 'check' | 'other';
+  reference_number: string | null;
+  notes: string | null;
+  recorded_by: string | null;
+  created_at: string;
+};
+
+export type AuditLog = {
+  id: string;
+  organization_id: string;
+  user_id: string | null;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  job_id: string | null;
+  description: string;
+  metadata: Record<string, any> | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+};
+
+export type ReportingSnapshot = {
+  id: string;
+  organization_id: string;
+  snapshot_date: string;
+  snapshot_type: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  data: Record<string, any>;
   created_at: string;
 };

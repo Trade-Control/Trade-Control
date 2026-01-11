@@ -15,6 +15,7 @@ export default function InvoiceGenerator({ jobId, acceptedQuotes, onSuccess }: I
     invoice_date: new Date().toISOString().split('T')[0],
     due_date: '',
     quote_id: '',
+    deposit_amount: '',
     notes: '',
     terms: 'Payment due within 30 days',
   });
@@ -121,6 +122,8 @@ export default function InvoiceGenerator({ jobId, acceptedQuotes, onSuccess }: I
           gst_amount,
           total_amount,
           amount_paid: 0,
+          deposit_amount: formData.deposit_amount ? parseFloat(formData.deposit_amount) : 0,
+          deposit_paid: false,
         }])
         .select()
         .single();
@@ -224,6 +227,25 @@ export default function InvoiceGenerator({ jobId, acceptedQuotes, onSuccess }: I
               onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Deposit Amount ($)
+            </label>
+            <input
+              name="deposit_amount"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.deposit_amount}
+              onChange={handleChange}
+              placeholder="Optional deposit required"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+            />
+            <p className="text-sm text-gray-500 mt-1">
+              If specified, this amount must be paid as a deposit before work begins
+            </p>
           </div>
         </div>
 

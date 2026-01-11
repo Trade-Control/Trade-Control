@@ -177,19 +177,20 @@ export default function AddLicensePage() {
         {/* Quantity */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Quantity
+            Quantity *
           </label>
-          <select
+          <input
+            type="number"
+            min="1"
+            max="100"
             value={quantity}
-            onChange={(e) => setQuantity(parseInt(e.target.value))}
+            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-          >
-            {[1, 2, 3, 4, 5, 10].map((num) => (
-              <option key={num} value={num}>
-                {num} {num === 1 ? 'License' : 'Licenses'}
-              </option>
-            ))}
-          </select>
+            placeholder="Enter number of licenses"
+          />
+          <p className="text-sm text-gray-500 mt-1">
+            Enter the number of licenses you need (1-100)
+          </p>
         </div>
 
         {/* Pro-Rata Pricing Info */}

@@ -38,6 +38,7 @@ export default function QuotesPage() {
       .from('quotes')
       .select('*')
       .eq('job_id', jobId)
+      .is('deleted_at', null) // Exclude soft-deleted quotes
       .order('created_at', { ascending: false });
     
     if (quotesData) setQuotes(quotesData);
@@ -175,6 +176,52 @@ export default function QuotesPage() {
     }
   };
 
+  const handleUnacceptQuote = async (quoteId: string) => {
+    if (!confirm('Unaccept this quote? This will revert it to "sent" status.')) return;
+
+    try {
+      await supabase
+        .from('quotes')
+        .update({ 
+          status: 'sent',
+          accepted_at: null
+        })
+        .eq('id', quoteId);
+
+      alert('Quote unaccepted successfully');
+      fetchData();
+    } catch (error) {
+      console.error('Error unaccepting quote:', error);
+      alert('Failed to unaccept quote');
+    }
+  };
+
+  const handleEditQuote = async (quoteId: string) => {
+    router.push(`/jobs/${jobId}/quotes/${quoteId}/edit`);
+  };
+
+  const handleDeleteQuote = async (quoteId: string) => {
+    if (!confirm('Are you sure you want to delete this quote? This cannot be undone.')) return;
+
+    try {
+      // Soft delete by setting deleted_at
+      await supabase
+        .from('quotes')
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          last_edited_by: (await supabase.auth.getUser()).data.user?.id,
+          last_edited_at: new Date().toISOString()
+        })
+        .eq('id', quoteId);
+
+      alert('Quote deleted successfully');
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting quote:', error);
+      alert('Failed to delete quote');
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-8">Loading...</div>;
   }
@@ -252,7 +299,7 @@ export default function QuotesPage() {
                 >
                   View Details
                 </Link>
-                {quote.status !== 'accepted' && (
+                {quote.status === 'draft' && (
                   <>
                     <button
                       onClick={() => handleEmailQuote(quote)}
@@ -261,12 +308,36 @@ export default function QuotesPage() {
                       📧 Email Quote
                     </button>
                     <button
+                      onClick={() => handleDeleteQuote(quote.id)}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+                {quote.status === 'sent' && (
+                  <>
+                    <button
+                      onClick={() => handleEmailQuote(quote)}
+                      className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-md text-sm font-medium transition-colors"
+                    >
+                      📧 Resend
+                    </button>
+                    <button
                       onClick={() => handleAcceptQuote(quote.id)}
                       className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors"
                     >
                       ✓ Accept Quote
                     </button>
                   </>
+                )}
+                {quote.status === 'accepted' && (
+                  <button
+                    onClick={() => handleUnacceptQuote(quote.id)}
+                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-md text-sm font-medium transition-colors"
+                  >
+                    Unaccept
+                  </button>
                 )}
               </div>
             </div>

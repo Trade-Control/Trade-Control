@@ -12,6 +12,8 @@ export default function JobInventoryAllocationPage() {
 
   const [allocations, setAllocations] = useState<any[]>([]);
   const [availableInventory, setAvailableInventory] = useState<Inventory[]>([]);
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [filteredInventory, setFilteredInventory] = useState<Inventory[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedInventory, setSelectedInventory] = useState('');
@@ -24,6 +26,23 @@ export default function JobInventoryAllocationPage() {
     fetchAllocations();
     fetchAvailableInventory();
   }, [jobId]);
+
+  useEffect(() => {
+    // Filter inventory based on search
+    if (inventorySearch) {
+      const search = inventorySearch.toLowerCase();
+      setFilteredInventory(
+        availableInventory.filter(item =>
+          item.item_name.toLowerCase().includes(search) ||
+          (item.sku && item.sku.toLowerCase().includes(search)) ||
+          (item.description && item.description.toLowerCase().includes(search)) ||
+          (item.category && item.category.toLowerCase().includes(search))
+        )
+      );
+    } else {
+      setFilteredInventory(availableInventory);
+    }
+  }, [inventorySearch, availableInventory]);
 
   const fetchAllocations = async () => {
     const { data, error } = await supabase
@@ -305,7 +324,20 @@ export default function JobInventoryAllocationPage() {
               <form onSubmit={handleAllocate} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Item *
+                    Search Inventory
+                  </label>
+                  <input
+                    type="text"
+                    value={inventorySearch}
+                    onChange={(e) => setInventorySearch(e.target.value)}
+                    placeholder="Search by name, SKU, description, or category..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Item * ({filteredInventory.length} items available)
                   </label>
                   <select
                     required
@@ -315,14 +347,26 @@ export default function JobInventoryAllocationPage() {
                       setQuantity('');
                     }}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    size={Math.min(filteredInventory.length + 1, 8)}
                   >
                     <option value="">Choose an item...</option>
-                    {availableInventory.map((item) => (
+                    {filteredInventory.map((item) => (
                       <option key={item.id} value={item.id}>
-                        {item.item_name} - Available: {item.quantity} {item.unit}
+                        {item.item_name} {item.sku && `(${item.sku})`} - Available: {item.quantity} {item.unit}
+                        {item.unit_cost && ` @ $${item.unit_cost.toFixed(2)}`}
                       </option>
                     ))}
                   </select>
+                  {filteredInventory.length === 0 && inventorySearch && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      No items match your search. Try a different search term.
+                    </p>
+                  )}
+                  {filteredInventory.length === 0 && !inventorySearch && (
+                    <p className="text-sm text-orange-600 mt-1">
+                      No inventory items with available stock.
+                    </p>
+                  )}
                 </div>
 
                 {selectedInventory && (

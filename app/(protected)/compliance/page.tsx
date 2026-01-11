@@ -242,9 +242,9 @@ export default function CompliancePage() {
                     <td className="px-6 py-4">
                       <Link
                         href={`/contractors/${contractor.id}`}
-                        className="text-primary hover:text-primary-hover font-medium"
+                        className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-md text-sm font-medium inline-block transition-colors"
                       >
-                        Update →
+                        Update
                       </Link>
                     </td>
                   </tr>
@@ -292,9 +292,9 @@ export default function CompliancePage() {
                       <td className="px-6 py-4">
                         <Link
                           href={`/contractors/${contractor.id}`}
-                          className="text-primary hover:text-primary-hover font-medium"
+                          className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-md text-sm font-medium inline-block transition-colors"
                         >
-                          Update →
+                          Update
                         </Link>
                       </td>
                     </tr>
