@@ -1,18 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createCustomer } from '@/lib/services/stripe';
 
+// Force Node runtime and no caching so env vars are read at request time
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 /**
  * API route to create a Stripe customer
  * This keeps the Stripe secret key on the server side
  */
 export async function POST(request: NextRequest) {
   try {
-    // Debug: Log if key exists (not the actual key value for security)
-    const hasStripeKey = !!process.env.STRIPE_SECRET_KEY;
-    const keyPrefix = process.env.STRIPE_SECRET_KEY?.substring(0, 7) || 'missing';
+    // Lazy-load env at request time
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    const hasStripeKey = !!stripeSecretKey;
+    const keyPrefix = stripeSecretKey?.substring(0, 7) || 'missing';
     console.log('[Create Customer] STRIPE_SECRET_KEY check:', { hasStripeKey, keyPrefix });
 
-    if (!process.env.STRIPE_SECRET_KEY) {
+    if (!stripeSecretKey) {
       console.error('[Create Customer] STRIPE_SECRET_KEY is not set in environment');
       return NextResponse.json(
         { 
@@ -32,10 +37,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Pass the key into createCustomer lazily
     const customer = await createCustomer({
       email,
       name,
       metadata,
+      secretKeyOverride: stripeSecretKey,
     });
 
     return NextResponse.json(customer, { status: 201 });

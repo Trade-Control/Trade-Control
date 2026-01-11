@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Force node runtime and no caching to read env at request time
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 /**
  * Test endpoint to verify environment variables are loaded
  * DELETE THIS FILE after testing - it exposes env var info

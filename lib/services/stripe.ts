@@ -9,8 +9,8 @@ import Stripe from 'stripe';
 import { SubscriptionTier, OperationsProLevel } from '../types/database.types';
 
 // Helper function to create Stripe client lazily (only when needed)
-function getStripeClient() {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
+function getStripeClient(secretKeyOverride?: string) {
+  const secretKey = secretKeyOverride || process.env.STRIPE_SECRET_KEY;
   
   // Debug logging
   console.log('[getStripeClient] Environment check:', {
@@ -62,6 +62,7 @@ export interface CreateCustomerParams {
   email: string;
   name: string;
   metadata?: Record<string, string>;
+  secretKeyOverride?: string;
 }
 
 export interface CreateSubscriptionParams {
@@ -69,12 +70,14 @@ export interface CreateSubscriptionParams {
   tier: SubscriptionTier;
   operationsProLevel?: OperationsProLevel;
   trialDays?: number;
+  secretKeyOverride?: string;
 }
 
 export interface AddLicenseParams {
   subscriptionId: string;
   licenseType: 'management' | 'field_staff';
   quantity?: number;
+  secretKeyOverride?: string;
 }
 
 export interface ProRataCalculation {
@@ -137,7 +140,7 @@ export function calculateSubscriptionPrice(
  * Create Stripe customer
  */
 export async function createCustomer(params: CreateCustomerParams) {
-  const stripe = getStripeClient();
+  const stripe = getStripeClient(params.secretKeyOverride);
   const customer = await stripe.customers.create({
     email: params.email,
     name: params.name,
@@ -156,7 +159,7 @@ export async function createCustomer(params: CreateCustomerParams) {
  * Create subscription
  */
 export async function createSubscription(params: CreateSubscriptionParams) {
-  const stripe = getStripeClient();
+  const stripe = getStripeClient(params.secretKeyOverride);
   const items: Stripe.SubscriptionCreateParams.Item[] = [];
 
   // Add base Operations plan
@@ -207,7 +210,7 @@ export async function createSubscription(params: CreateSubscriptionParams) {
  * Add license to subscription (creates subscription item)
  */
 export async function addLicense(params: AddLicenseParams) {
-  const stripe = getStripeClient();
+  const stripe = getStripeClient(params.secretKeyOverride);
   const priceId = params.licenseType === 'management' 
     ? STRIPE_PRICE_IDS.MANAGEMENT_LICENSE 
     : STRIPE_PRICE_IDS.FIELD_STAFF_LICENSE;
@@ -236,8 +239,8 @@ export async function addLicense(params: AddLicenseParams) {
 /**
  * Remove license from subscription
  */
-export async function removeLicense(subscriptionItemId: string) {
-  const stripe = getStripeClient();
+export async function removeLicense(subscriptionItemId: string, secretKeyOverride?: string) {
+  const stripe = getStripeClient(secretKeyOverride);
   await stripe.subscriptionItems.del(subscriptionItemId);
   return { success: true };
 }
@@ -250,9 +253,10 @@ export async function updateSubscription(
   updates: {
     tier?: SubscriptionTier;
     operationsProLevel?: OperationsProLevel;
-  }
+  },
+  secretKeyOverride?: string
 ) {
-  const stripe = getStripeClient();
+  const stripe = getStripeClient(secretKeyOverride);
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
   
   const items: Stripe.SubscriptionUpdateParams.Item[] = subscription.items.data.map(item => ({

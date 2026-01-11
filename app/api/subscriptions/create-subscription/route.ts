@@ -2,17 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSubscription } from '@/lib/services/stripe';
 import { SubscriptionTier, OperationsProLevel } from '@/lib/types/database.types';
 
+// Force Node runtime and no caching so env vars are read at request time
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 /**
  * API route to create a Stripe subscription
  * This keeps the Stripe secret key on the server side
  */
 export async function POST(request: NextRequest) {
   try {
-    // Debug: Log if key exists (not the actual key value for security)
-    const hasStripeKey = !!process.env.STRIPE_SECRET_KEY;
-    console.log('[Create Subscription] STRIPE_SECRET_KEY check:', { hasStripeKey });
+    // Lazy-load env at request time
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    console.log('[Create Subscription] STRIPE_SECRET_KEY check:', { hasStripeKey: !!stripeSecretKey });
 
-    if (!process.env.STRIPE_SECRET_KEY) {
+    if (!stripeSecretKey) {
       console.error('[Create Subscription] STRIPE_SECRET_KEY is not set in environment');
       return NextResponse.json(
         { 
@@ -37,6 +41,7 @@ export async function POST(request: NextRequest) {
       tier: tier as SubscriptionTier,
       operationsProLevel: operationsProLevel as OperationsProLevel | undefined,
       trialDays,
+      secretKeyOverride: stripeSecretKey,
     });
 
     return NextResponse.json(subscription, { status: 201 });
