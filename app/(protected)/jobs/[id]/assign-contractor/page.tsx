@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { Contractor } from '@/lib/types/database.types';
-import { sendEmail, generateJobAssignmentEmail } from '@/lib/services/resend';
+import { sendEmailClient, generateJobAssignmentEmail } from '@/lib/services/email-client';
 import { nanoid } from 'nanoid';
 
 export default function AssignContractorPage() {
@@ -170,19 +170,15 @@ export default function AssignContractorPage() {
         companyName: job.organizations?.name || 'Trade Control',
       });
 
-      let emailResult;
-      try {
-        emailResult = await sendEmail({
-          to: contractor.email,
-          subject: emailTemplate.subject,
-          html: emailTemplate.html,
-        });
-      } catch (emailError: any) {
-        // Check if it's a configuration error
-        if (emailError.message?.includes('RESEND_API_KEY')) {
-          throw new Error('Email service not configured. Please set RESEND_API_KEY in your environment variables or switch to mock email service for testing.');
-        }
-        throw emailError;
+      // Send email via API route (server-side where RESEND_API_KEY is available)
+      const emailResult = await sendEmailClient({
+        to: contractor.email,
+        subject: emailTemplate.subject,
+        html: emailTemplate.html,
+      });
+
+      if (!emailResult.success) {
+        throw new Error(emailResult.error || 'Failed to send email');
       }
 
       // Log email to database

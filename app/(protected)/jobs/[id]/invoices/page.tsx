@@ -5,7 +5,7 @@ import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import InvoiceGenerator from '@/components/jobs/InvoiceGenerator';
-import { sendEmail, generateInvoiceEmail } from '@/lib/services/resend';
+import { sendEmailClient, generateInvoiceEmail } from '@/lib/services/email-client';
 
 export default function InvoicesPage() {
   const params = useParams();
@@ -118,20 +118,15 @@ export default function InvoicesPage() {
         viewUrl: viewUrl,
       });
 
-      // Send email via Resend
-      let emailResult;
-      try {
-        emailResult = await sendEmail({
-          to: contact.email,
-          subject: emailTemplate.subject,
-          html: emailTemplate.html,
-        });
-      } catch (emailError: any) {
-        // Check if it's a configuration error
-        if (emailError.message?.includes('RESEND_API_KEY')) {
-          throw new Error('Email service not configured. Please set RESEND_API_KEY in your environment variables or switch to mock email service for testing.');
-        }
-        throw emailError;
+      // Send email via API route (server-side where RESEND_API_KEY is available)
+      const emailResult = await sendEmailClient({
+        to: contact.email,
+        subject: emailTemplate.subject,
+        html: emailTemplate.html,
+      });
+
+      if (!emailResult.success) {
+        throw new Error(emailResult.error || 'Failed to send email');
       }
 
       // Log email to database

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { Contractor } from '@/lib/types/database.types';
 import { hasOperationsPro } from '@/lib/middleware/role-check';
-import { sendEmail, generateComplianceReminderEmail } from '@/lib/services/resend';
+import { sendEmailClient, generateComplianceReminderEmail } from '@/lib/services/email-client';
 import Link from 'next/link';
 
 export default function CompliancePage() {
@@ -121,14 +121,15 @@ export default function CompliancePage() {
           expiringItems,
         });
 
-        try {
-          await sendEmail({
-            to: contractor.email,
-            subject: emailTemplate.subject,
-            html: emailTemplate.html,
-          });
-        } catch (emailError: any) {
-          console.error(`Failed to send email to ${contractor.email}:`, emailError);
+        // Send email via API route (server-side where RESEND_API_KEY is available)
+        const emailResult = await sendEmailClient({
+          to: contractor.email,
+          subject: emailTemplate.subject,
+          html: emailTemplate.html,
+        });
+
+        if (!emailResult.success) {
+          console.error(`Failed to send email to ${contractor.email}:`, emailResult.error);
           // Continue with other contractors even if one fails
           continue;
         }
