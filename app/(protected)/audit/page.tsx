@@ -39,7 +39,7 @@ export default function AuditTrailPage() {
   const checkPermissionsAndFetch = async () => {
     const permissions = await getUserPermissions();
     
-    if (!permissions) {
+    if (!permissions || !permissions.role) {
       setLoading(false);
       return;
     }
