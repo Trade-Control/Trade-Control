@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { addLicense, calculateProRata, formatPrice, PRICING } from '@/lib/services/stripe-mock';
+import { addLicense, calculateProRata, formatPrice, PRICING } from '@/lib/services/stripe';
 import { Subscription } from '@/lib/types/database.types';
 
 export default function AddLicensePage() {

@@ -15,7 +15,9 @@
     "nanoid": "^5.1.6",
     "next": "^15.5.9",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "resend": "^4.8.0",
+    "stripe": "^17.7.0"
   },
   "devDependencies": {
     "@types/google.maps": "^3.58.1",

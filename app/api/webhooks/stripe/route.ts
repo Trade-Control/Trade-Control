@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import Stripe from 'stripe';
 
-// In production, you would use the actual Stripe SDK
-// import Stripe from 'stripe';
-// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2023-10-16' });
+// Initialize Stripe for webhook verification
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2024-11-20.acacia',
+});
 
 /**
  * Stripe Webhook Handler
@@ -35,22 +37,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In production, verify the webhook signature
-    // const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-    // let event: Stripe.Event;
-    // 
-    // try {
-    //   event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    // } catch (err: any) {
-    //   console.error('[Stripe Webhook] Signature verification failed:', err.message);
-    //   return NextResponse.json(
-    //     { error: `Webhook signature verification failed: ${err.message}` },
-    //     { status: 400 }
-    //   );
-    // }
+    // Verify the webhook signature
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    
+    if (!webhookSecret) {
+      console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured');
+      return NextResponse.json(
+        { error: 'Webhook secret not configured' },
+        { status: 500 }
+      );
+    }
 
-    // For mock implementation, parse the body
-    const event = JSON.parse(body);
+    let event: Stripe.Event;
+    
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    } catch (err: any) {
+      console.error('[Stripe Webhook] Signature verification failed:', err.message);
+      return NextResponse.json(
+        { error: `Webhook signature verification failed: ${err.message}` },
+        { status: 400 }
+      );
+    }
 
     console.log('[Stripe Webhook] Received event:', event.type);
 

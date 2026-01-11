@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Subscription, License } from '@/lib/types/database.types';
 import { getUserPermissions } from '@/lib/middleware/role-check';
-import { formatPrice, PRICING, cancelSubscription, updateSubscription } from '@/lib/services/stripe-mock';
+import { formatPrice, PRICING, cancelSubscription, updateSubscription } from '@/lib/services/stripe';
 import Link from 'next/link';
 
 export default function ManageSubscriptionPage() {

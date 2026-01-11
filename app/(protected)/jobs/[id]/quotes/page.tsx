@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import QuoteForm from '@/components/jobs/QuoteForm';
-import { sendEmail, generateQuoteEmail } from '@/lib/services/resend-mock';
+import { sendEmail, generateQuoteEmail } from '@/lib/services/resend';
 
 export default function QuotesPage() {
   const params = useParams();

@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import InvoiceGenerator from '@/components/jobs/InvoiceGenerator';
-import { sendEmail, generateInvoiceEmail } from '@/lib/services/resend-mock';
+import { sendEmail, generateInvoiceEmail } from '@/lib/services/resend';
 
 export default function InvoicesPage() {
   const params = useParams();

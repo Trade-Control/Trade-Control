@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { createCustomer, createSubscription, PRICING, formatPrice } from '@/lib/services/stripe-mock';
+import { createCustomer, createSubscription, PRICING, formatPrice } from '@/lib/services/stripe';
 import { SubscriptionTier, OperationsProLevel } from '@/lib/types/database.types';
 
 export default function MigrationPage() {

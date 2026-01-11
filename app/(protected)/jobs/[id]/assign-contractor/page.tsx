@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Contractor } from '@/lib/types/database.types';
-import { sendEmail, generateJobAssignmentEmail } from '@/lib/services/resend-mock';
+import { sendEmail, generateJobAssignmentEmail } from '@/lib/services/resend';
 import { nanoid } from 'nanoid';
 
 export default function AssignContractorPage() {

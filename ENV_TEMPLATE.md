@@ -1,14 +1,22 @@
 # Environment Variables Template
 # Copy this file to .env.local and fill in your values
 
-# Stripe Configuration (Mock by default - replace with real keys for production)
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_mock
-STRIPE_SECRET_KEY=sk_test_mock
-STRIPE_WEBHOOK_SECRET=whsec_mock
+# Stripe Configuration (Test Mode for sandbox)
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_YOUR_KEY_HERE
+STRIPE_SECRET_KEY=sk_test_YOUR_KEY_HERE
+STRIPE_WEBHOOK_SECRET=whsec_YOUR_WEBHOOK_SECRET_HERE
 
-# Resend Email Configuration (Mock by default - replace with real key for production)
-RESEND_API_KEY=re_mock_key
-RESEND_FROM_EMAIL=Trade Control <noreply@tradecontrol.app>
+# Stripe Price IDs (create products in Stripe Dashboard and copy Price IDs)
+STRIPE_PRICE_ID_OPERATIONS_BASE=price_YOUR_PRICE_ID_HERE
+STRIPE_PRICE_ID_MANAGEMENT_LICENSE=price_YOUR_PRICE_ID_HERE
+STRIPE_PRICE_ID_FIELD_STAFF_LICENSE=price_YOUR_PRICE_ID_HERE
+STRIPE_PRICE_ID_OPERATIONS_PRO_SCALE=price_YOUR_PRICE_ID_HERE
+STRIPE_PRICE_ID_OPERATIONS_PRO_UNLIMITED=price_YOUR_PRICE_ID_HERE
+
+# Resend Email Configuration (Free tier: 100 emails/day)
+RESEND_API_KEY=re_YOUR_API_KEY_HERE
+RESEND_FROM_EMAIL=Trade Control <onboarding@resend.dev>
+# Note: For production, verify your domain and use: Trade Control <noreply@yourdomain.com>
 
 # Application URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000

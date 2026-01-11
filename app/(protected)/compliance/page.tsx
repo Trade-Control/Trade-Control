@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Contractor } from '@/lib/types/database.types';
 import { hasOperationsPro } from '@/lib/middleware/role-check';
-import { sendEmail, generateComplianceReminderEmail } from '@/lib/services/resend-mock';
+import { sendEmail, generateComplianceReminderEmail } from '@/lib/services/resend';
 import Link from 'next/link';
 
 export default function CompliancePage() {

@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { createCustomer, createSubscription, PRICING, formatPrice, calculateSubscriptionPrice } from '@/lib/services/stripe-mock';
+import { createCustomer, createSubscription, PRICING, formatPrice, calculateSubscriptionPrice } from '@/lib/services/stripe';
 import { SubscriptionTier, OperationsProLevel } from '@/lib/types/database.types';
 
 function SubscribeForm() {

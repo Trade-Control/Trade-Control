@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { License, Profile } from '@/lib/types/database.types';
 import { getUserPermissions } from '@/lib/middleware/role-check';
-import { formatPrice, getLicenseTypeName, getLicensePrice } from '@/lib/services/stripe-mock';
+import { formatPrice, getLicenseTypeName, getLicensePrice } from '@/lib/services/stripe';
 import Link from 'next/link';
 
 export default function LicensesPage() {
