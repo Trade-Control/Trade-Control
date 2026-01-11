@@ -140,9 +140,10 @@ export async function GET(request: NextRequest) {
     const customFromEmail = process.env.RESEND_FROM_EMAIL;
     
     // Determine actual FROM email that will be used
+    // Note: Resend requires "Name <email>" format for free tier
     const actualFromEmail = (isDomainVerified && customFromEmail) 
       ? customFromEmail 
-      : 'onboarding@resend.dev';
+      : 'Trade Control <onboarding@resend.dev>';
     
     debugInfo.resend.actualFromEmail = actualFromEmail;
     debugInfo.resend.isDomainVerified = isDomainVerified;

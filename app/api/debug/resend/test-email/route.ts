@@ -5,12 +5,12 @@ import { Resend } from 'resend';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// ALWAYS use Resend's free tier email for unverified domains
-const RESEND_FREE_TIER_EMAIL = 'onboarding@resend.dev';
+// Resend's free tier requires this exact format for the FROM address
+const RESEND_FREE_TIER_FROM = 'Trade Control <onboarding@resend.dev>';
 
 /**
  * Get the FROM email address
- * - Uses onboarding@resend.dev by default (works immediately, no verification needed)
+ * - Uses "Trade Control <onboarding@resend.dev>" by default (works immediately)
  * - Only uses custom RESEND_FROM_EMAIL if RESEND_DOMAIN_VERIFIED is set to 'true'
  */
 function getFromEmail(): string {
@@ -21,8 +21,8 @@ function getFromEmail(): string {
     return customFromEmail;
   }
   
-  // Default to Resend free tier email
-  return RESEND_FREE_TIER_EMAIL;
+  // Default to Resend free tier email with proper format
+  return RESEND_FREE_TIER_FROM;
 }
 
 /**

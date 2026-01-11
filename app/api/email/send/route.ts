@@ -6,13 +6,13 @@ import { createClient } from '@/lib/supabase/server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// ALWAYS use Resend's free tier email for unverified domains
-// Set RESEND_DOMAIN_VERIFIED=true in env vars ONLY after verifying a custom domain
-const RESEND_FREE_TIER_EMAIL = 'onboarding@resend.dev';
+// Resend's free tier requires this exact format for the FROM address
+// This is the ONLY email that works without domain verification
+const RESEND_FREE_TIER_FROM = 'Trade Control <onboarding@resend.dev>';
 
 /**
  * Get the FROM email address
- * - Uses onboarding@resend.dev by default (works immediately, no verification needed)
+ * - Uses "Trade Control <onboarding@resend.dev>" by default (works immediately)
  * - Only uses custom RESEND_FROM_EMAIL if RESEND_DOMAIN_VERIFIED is set to 'true'
  */
 function getFromEmail(): string {
@@ -23,8 +23,8 @@ function getFromEmail(): string {
     return customFromEmail;
   }
   
-  // Default to Resend free tier email
-  return RESEND_FREE_TIER_EMAIL;
+  // Default to Resend free tier email with proper format
+  return RESEND_FREE_TIER_FROM;
 }
 
 /**
@@ -83,21 +83,19 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      console.error('Resend email error:', error);
+      console.error('Resend email error:', JSON.stringify(error, null, 2));
       
-      // Provide helpful error messages
-      let errorMessage = error.message || 'Unknown error';
-      
-      if (error.message?.includes('domain') || error.message?.includes('not verified')) {
-        errorMessage = `Domain not verified: ${fromEmail}. Use onboarding@resend.dev for testing or verify your domain in Resend Dashboard.`;
-      } else if (error.message?.includes('Unauthorized') || error.message?.includes('401')) {
-        errorMessage = 'Resend API authentication failed. Check your RESEND_API_KEY.';
-      } else if (error.message?.includes('rate limit') || error.message?.includes('quota')) {
-        errorMessage = 'Resend rate limit exceeded. Free tier allows 100 emails/day.';
-      }
+      // Return the actual Resend error for debugging
+      // The error object from Resend contains: { name, message, statusCode }
+      const errorMessage = error.message || 'Unknown Resend error';
       
       return NextResponse.json(
-        { error: `Failed to send email: ${errorMessage}` },
+        { 
+          error: `Failed to send email: ${errorMessage}`,
+          resendError: error,
+          fromEmailUsed: fromEmail,
+          toEmail: to,
+        },
         { status: 400 }
       );
     }
