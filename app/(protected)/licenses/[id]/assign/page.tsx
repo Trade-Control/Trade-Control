@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { License } from '@/lib/types/database.types';
-import { sendEmail, generateUserInvitationEmail } from '@/lib/services/resend-mock';
 
 export default function AssignLicensePage() {
   const params = useParams();
@@ -46,143 +45,30 @@ export default function AssignLicensePage() {
     try {
       if (!license) throw new Error('License not found');
 
-      // Get the organization details for the invitation email
-      const { data: org } = await supabase
-        .from('organizations')
-        .select('name')
-        .eq('id', license.organization_id)
-        .single();
+      // Call the API route to handle license assignment
+      const response = await fetch('/api/licenses/assign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          licenseId: license.id,
+          email,
+          firstName,
+          lastName,
+          phone: phone || null,
+        }),
+      });
 
-      const companyName = org?.name || 'Your Organization';
+      const result = await response.json();
 
-      // Check if user already exists by looking for an auth user with this email
-      const { data: existingAuthUsers, error: searchError } = await supabase.rpc(
-        'get_user_by_email',
-        { user_email: email }
-      );
-
-      let userId: string;
-      let isNewUser = false;
-
-      // Check if a profile exists for this email
-      const { data: existingProfiles } = await supabase
-        .from('profiles')
-        .select('id, email')
-        .eq('email', email);
-
-      if (existingProfiles && existingProfiles.length > 0) {
-        // User exists, update their profile
-        userId = existingProfiles[0].id;
-        
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            first_name: firstName,
-            last_name: lastName,
-            phone: phone || null,
-            role: license.license_type as any,
-            license_id: license.id,
-            organization_id: license.organization_id,
-          })
-          .eq('id', userId);
-
-        if (updateError) throw updateError;
-      } else {
-        // User doesn't exist - create them via Supabase Auth
-        isNewUser = true;
-        
-        // Generate a temporary password (user will reset it via email link)
-        const tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12);
-        
-        // Create the auth user
-        const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-          email: email,
-          password: tempPassword,
-          email_confirm: true, // Auto-confirm email
-          user_metadata: {
-            first_name: firstName,
-            last_name: lastName,
-          },
-        });
-
-        if (createError) throw createError;
-        if (!newUser.user) throw new Error('Failed to create user');
-
-        userId = newUser.user.id;
-
-        // Create profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: userId,
-            first_name: firstName,
-            last_name: lastName,
-            phone: phone || null,
-            email: email,
-            role: license.license_type as any,
-            license_id: license.id,
-            organization_id: license.organization_id,
-          });
-
-        if (profileError) throw profileError;
-
-        // Generate password reset link
-        const { data: resetData, error: resetError } = await supabase.auth.admin.generateLink({
-          type: 'recovery',
-          email: email,
-        });
-
-        if (resetError) {
-          console.error('Failed to generate reset link:', resetError);
-        } else if (resetData.properties?.action_link) {
-          // Send invitation email with password reset link
-          const emailTemplate = generateUserInvitationEmail({
-            firstName,
-            lastName,
-            email,
-            companyName,
-            licenseType: license.license_type,
-            resetPasswordUrl: resetData.properties.action_link,
-          });
-
-          await sendEmail({
-            to: email,
-            subject: emailTemplate.subject,
-            html: emailTemplate.html,
-          });
-
-          // Log the email communication
-          await supabase.from('email_communications').insert({
-            organization_id: license.organization_id,
-            email_type: 'notification',
-            recipient_email: email,
-            subject: emailTemplate.subject,
-            body: emailTemplate.html,
-            status: 'sent',
-          });
-        }
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to assign license');
       }
 
-      // Assign license to user
-      const { error: licenseError } = await supabase
-        .from('licenses')
-        .update({
-          profile_id: userId,
-          assigned_at: new Date().toISOString(),
-        })
-        .eq('id', license.id);
-
-      if (licenseError) throw licenseError;
-
-      // Mark organization as onboarding completed (in case it wasn't)
-      await supabase
-        .from('organizations')
-        .update({ onboarding_completed: true })
-        .eq('id', license.organization_id);
-
-      if (isNewUser) {
+      if (result.isNewUser) {
         alert(
-          `License assigned successfully!\n\nAn invitation email has been sent to ${email} with instructions to set their password.\n\nThe user can start using the system once they set their password.`
+          `License assigned successfully!\n\nAn invitation has been set up for ${email}.\n\nThe user should use "Forgot Password" on the login page to set their password and gain access.`
         );
       } else {
         alert(`License assigned successfully! The user can now access the system with their assigned role.`);
@@ -257,7 +143,7 @@ export default function AssignLicensePage() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
               />
               <p className="text-sm text-gray-600 mt-1">
-                If the user doesn't have an account, we'll create one and send them an email to set their password.
+                If the user doesn't have an account, we'll create one. They'll need to use "Forgot Password" to set their password.
               </p>
           </div>
 
