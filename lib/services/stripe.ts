@@ -10,7 +10,7 @@ import { SubscriptionTier, OperationsProLevel } from '../types/database.types';
 
 // Helper function to create Stripe client lazily (only when needed)
 function getStripeClient(secretKeyOverride?: string) {
-  const secretKey = secretKeyOverride || process.env.STRIPE_SECRET_KEY;
+  const secretKey = secretKeyOverride || process.env.STRIPE_SECRET_KEY_V2;
   
   // Debug logging
   console.log('[getStripeClient] Environment check:', {
@@ -21,15 +21,15 @@ function getStripeClient(secretKeyOverride?: string) {
   });
   
   if (!secretKey) {
-    console.error('[getStripeClient] CRITICAL: STRIPE_SECRET_KEY is undefined');
+    console.error('[getStripeClient] CRITICAL: STRIPE_SECRET_KEY_V2 is undefined');
     console.error('[getStripeClient] Available STRIPE env vars:', 
       Object.keys(process.env)
         .filter(k => k.includes('STRIPE'))
         .map(k => `${k}=${process.env[k]?.substring(0, 10)}...`)
     );
     throw new Error(
-      'STRIPE_SECRET_KEY is not configured. ' +
-      'Please set STRIPE_SECRET_KEY in your environment variables. ' +
+      'STRIPE_SECRET_KEY_V2 is not configured. ' +
+      'Please set STRIPE_SECRET_KEY_V2 in your environment variables. ' +
       'See ROLLOUT_GUIDE.md for instructions on setting up Stripe.'
     );
   }

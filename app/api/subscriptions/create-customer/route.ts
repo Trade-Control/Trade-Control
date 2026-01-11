@@ -12,16 +12,16 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     // Lazy-load env at request time
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY_V2;
     const hasStripeKey = !!stripeSecretKey;
     const keyPrefix = stripeSecretKey?.substring(0, 7) || 'missing';
-    console.log('[Create Customer] STRIPE_SECRET_KEY check:', { hasStripeKey, keyPrefix });
+    console.log('[Create Customer] STRIPE_SECRET_KEY_V2 check:', { hasStripeKey, keyPrefix });
 
     if (!stripeSecretKey) {
-      console.error('[Create Customer] STRIPE_SECRET_KEY is not set in environment');
+      console.error('[Create Customer] STRIPE_SECRET_KEY_V2 is not set in environment');
       return NextResponse.json(
         { 
-          error: 'STRIPE_SECRET_KEY is not configured. Please set it in your environment variables. See ROLLOUT_GUIDE.md for instructions.' 
+          error: 'STRIPE_SECRET_KEY_V2 is not configured. Please set it in your environment variables. See ROLLOUT_GUIDE.md for instructions.' 
         },
         { status: 500 }
       );
