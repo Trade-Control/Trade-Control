@@ -19,7 +19,9 @@ function getResendClient() {
   return new Resend(apiKey);
 }
 
-const DEFAULT_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Trade Control <noreply@tradecontrol.app>';
+// Default FROM email - Resend free tier requires onboarding@resend.dev for unverified domains
+// For production, verify your domain in Resend Dashboard and use your verified domain
+const DEFAULT_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
 export interface SendEmailParams {
   to: string;
@@ -39,8 +41,15 @@ export interface EmailTemplate {
  */
 export async function sendEmail(params: SendEmailParams) {
   const resend = getResendClient();
+  
+  // Determine FROM email - use Resend test domain if custom domain not verified
+  let fromEmail = params.from || DEFAULT_FROM_EMAIL;
+  
+  // If using a custom domain format but it's not verified, Resend will reject it
+  // For now, we'll let Resend handle the error and provide a clear message
+  
   const { data, error } = await resend.emails.send({
-    from: params.from || DEFAULT_FROM_EMAIL,
+    from: fromEmail,
     to: params.to,
     subject: params.subject,
     html: params.html,
@@ -49,13 +58,25 @@ export async function sendEmail(params: SendEmailParams) {
 
   if (error) {
     console.error('Resend email error:', error);
-    throw new Error(`Failed to send email: ${error.message}`);
+    
+    // Provide more helpful error messages
+    let errorMessage = error.message || 'Unknown error';
+    
+    if (error.message?.includes('domain') || error.message?.includes('not verified')) {
+      errorMessage = `Domain not verified: ${fromEmail}. Use onboarding@resend.dev for testing or verify your domain in Resend Dashboard.`;
+    } else if (error.message?.includes('Unauthorized') || error.message?.includes('401')) {
+      errorMessage = 'Resend API authentication failed. Check your RESEND_API_KEY.';
+    } else if (error.message?.includes('rate limit') || error.message?.includes('quota')) {
+      errorMessage = 'Resend rate limit exceeded. Free tier allows 100 emails/day.';
+    }
+    
+    throw new Error(`Failed to send email: ${errorMessage}`);
   }
 
   return {
     id: data?.id || '',
     to: params.to,
-    from: params.from || DEFAULT_FROM_EMAIL,
+    from: fromEmail,
     subject: params.subject,
     status: 'sent',
   };

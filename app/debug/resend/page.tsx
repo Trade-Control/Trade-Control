@@ -46,6 +46,9 @@ export default function ResendDebugPage() {
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [testEmail, setTestEmail] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testResult, setTestResult] = useState<any>(null);
 
   useEffect(() => {
     fetchDebugInfo();
@@ -93,6 +96,36 @@ export default function ResendDebugPage() {
         return '❌';
       default:
         return '❓';
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!testEmail || !testEmail.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
+    setSendingTest(true);
+    setTestResult(null);
+
+    try {
+      const response = await fetch('/api/debug/resend/test-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ to: testEmail }),
+      });
+
+      const result = await response.json();
+      setTestResult(result);
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        error: err.message || 'Failed to send test email',
+      });
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -325,6 +358,82 @@ export default function ResendDebugPage() {
                 <span className="text-sm text-gray-700">{rec.replace(/^[✅❌⚠️📝]\s*/, '')}</span>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Test Email Section */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Test Email Sending</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Send test email to:
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+                <button
+                  onClick={handleSendTestEmail}
+                  disabled={sendingTest || !testEmail}
+                  className="px-6 py-2 bg-primary text-white rounded-md hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {sendingTest ? 'Sending...' : 'Send Test'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                This will send a test email to verify Resend is working correctly
+              </p>
+            </div>
+
+            {testResult && (
+              <div className={`rounded-lg p-4 ${
+                testResult.success 
+                  ? 'bg-green-50 border border-green-200' 
+                  : 'bg-red-50 border border-red-200'
+              }`}>
+                {testResult.success ? (
+                  <div>
+                    <div className="text-green-600 font-semibold mb-2">✅ Test Email Sent Successfully!</div>
+                    <div className="text-sm text-green-700 space-y-1">
+                      <p>Email ID: {testResult.emailId}</p>
+                      <p>From: {testResult.from}</p>
+                      <p>To: {testResult.to}</p>
+                      <p className="mt-2">Check your inbox (and spam folder) for the test email.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-red-600 font-semibold mb-2">❌ Failed to Send Test Email</div>
+                    <div className="text-sm text-red-700 mb-2">{testResult.error}</div>
+                    {testResult.recommendations && testResult.recommendations.length > 0 && (
+                      <div className="mt-3">
+                        <div className="font-medium mb-1">Recommendations:</div>
+                        <ul className="list-disc list-inside space-y-1">
+                          {testResult.recommendations.map((rec: string, idx: number) => (
+                            <li key={idx}>{rec}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="font-semibold text-blue-900 mb-2">📧 Important Notes:</h3>
+              <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                <li><strong>Free Tier:</strong> Use <code className="bg-blue-100 px-1 rounded">onboarding@resend.dev</code> as FROM email (100 emails/day limit)</li>
+                <li><strong>Production:</strong> Verify your domain in Resend Dashboard to use custom email addresses</li>
+                <li><strong>Domain Verification:</strong> Go to Resend Dashboard → Domains → Add Domain → Verify DNS records</li>
+                <li>If emails aren't sending, check the error message above for specific guidance</li>
+              </ul>
+            </div>
           </div>
         </div>
 
