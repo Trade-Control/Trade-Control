@@ -27,11 +27,32 @@ export default function InvoiceGenerator({ jobId, acceptedQuotes, onSuccess }: I
   }, []);
 
   const generateInvoiceNumber = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile?.organization_id) return;
+
+    // Get organization to use custom prefix
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('invoice_prefix')
+      .eq('id', profile.organization_id)
+      .single();
+
+    const prefix = org?.invoice_prefix || 'INV';
+
     const { count } = await supabase
       .from('invoices')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', profile.organization_id);
     
-    const invoiceNum = `INV-${String((count || 0) + 1).padStart(4, '0')}`;
+    const invoiceNum = `${prefix}-${String((count || 0) + 1).padStart(4, '0')}`;
     setFormData({ ...formData, invoice_number: invoiceNum });
   };
 

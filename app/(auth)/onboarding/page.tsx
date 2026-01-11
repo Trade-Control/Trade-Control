@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
 
 type Step = 'business' | 'owner' | 'complete';
 
@@ -17,13 +18,23 @@ export default function OnboardingPage() {
   // Business details
   const [businessData, setBusinessData] = useState({
     name: '',
+    trading_name: '',
     abn: '',
+    gst_registered: true,
     address: '',
     city: '',
     state: '',
     postcode: '',
     phone: '',
     email: '',
+    billing_email: '',
+    website_url: '',
+    logo_url: '',
+    brand_color: '#2563eb',
+    job_code_prefix: 'JOB',
+    quote_prefix: 'QT',
+    invoice_prefix: 'INV',
+    payment_details: '',
   });
   
   // Owner profile
@@ -34,41 +45,61 @@ export default function OnboardingPage() {
   });
 
   useEffect(() => {
-    // Load existing organization data
-    loadOrganizationData();
+    // Load existing organization data and pre-populate user info
+    loadOrganizationAndUserData();
   }, []);
 
-  const loadOrganizationData = async () => {
+  const loadOrganizationAndUserData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.push('/login');
       return;
     }
 
+    // Load profile data to pre-populate owner info
     const { data: profile } = await supabase
       .from('profiles')
-      .select('organization_id')
+      .select('first_name, last_name, phone, organization_id')
       .eq('id', user.id)
       .single();
 
-    if (profile?.organization_id) {
-      const { data: org } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('id', profile.organization_id)
-        .single();
+    if (profile) {
+      // Pre-populate owner data from profile
+      setOwnerData({
+        firstName: profile.first_name || '',
+        lastName: profile.last_name || '',
+        phone: profile.phone || '',
+      });
 
-      if (org) {
-        setBusinessData({
-          name: org.name || '',
-          abn: org.abn || '',
-          address: org.address || '',
-          city: org.city || '',
-          state: org.state || '',
-          postcode: org.postcode || '',
-          phone: org.phone || '',
-          email: org.email || '',
-        });
+      if (profile.organization_id) {
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', profile.organization_id)
+          .single();
+
+        if (org) {
+          setBusinessData({
+            name: org.name || '',
+            trading_name: org.trading_name || '',
+            abn: org.abn || '',
+            gst_registered: org.gst_registered ?? true,
+            address: org.address || '',
+            city: org.city || '',
+            state: org.state || '',
+            postcode: org.postcode || '',
+            phone: org.phone || '',
+            email: org.email || '',
+            billing_email: org.billing_email || '',
+            website_url: org.website_url || '',
+            logo_url: org.logo_url || '',
+            brand_color: org.brand_color || '#2563eb',
+            job_code_prefix: org.job_code_prefix || 'JOB',
+            quote_prefix: org.quote_prefix || 'QT',
+            invoice_prefix: org.invoice_prefix || 'INV',
+            payment_details: org.payment_details || '',
+          });
+        }
       }
     }
   };
@@ -201,7 +232,7 @@ export default function OnboardingPage() {
             <form onSubmit={handleBusinessSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Business Name *
+                  Business Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -209,66 +240,139 @@ export default function OnboardingPage() {
                   value={businessData.name}
                   onChange={(e) => setBusinessData({ ...businessData, name: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="Your Business Pty Ltd"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Trading Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={businessData.trading_name}
+                  onChange={(e) => setBusinessData({ ...businessData, trading_name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="Your Trading Name"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    ABN
+                    ABN <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
+                    required
                     value={businessData.abn}
                     onChange={(e) => setBusinessData({ ...businessData, abn: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder="12 345 678 901"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone
+                    GST Status <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={businessData.gst_registered ? 'true' : 'false'}
+                    onChange={(e) => setBusinessData({ ...businessData, gst_registered: e.target.value === 'true' })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="true">GST Registered</option>
+                    <option value="false">Not GST Registered</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Business Phone <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
+                    required
                     value={businessData.phone}
                     onChange={(e) => setBusinessData({ ...businessData, phone: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder="+61 2 1234 5678"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Business Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={businessData.email}
+                    onChange={(e) => setBusinessData({ ...businessData, email: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder="info@business.com.au"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
+                  Billing Email Address <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
-                  value={businessData.email}
-                  onChange={(e) => setBusinessData({ ...businessData, email: e.target.value })}
+                  required
+                  value={businessData.billing_email}
+                  onChange={(e) => setBusinessData({ ...businessData, billing_email: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="billing@business.com.au"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Address
+                  Website URL <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="text"
-                  value={businessData.address}
-                  onChange={(e) => setBusinessData({ ...businessData, address: e.target.value })}
+                  type="url"
+                  required
+                  value={businessData.website_url}
+                  onChange={(e) => setBusinessData({ ...businessData, website_url: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="https://www.yourbusiness.com.au"
                 />
               </div>
+
+              <AddressAutocomplete
+                label="Business Physical/Registered Address"
+                required
+                value={businessData.address}
+                onChange={(value) => setBusinessData({ ...businessData, address: value })}
+                onAddressSelect={(components) => {
+                  setBusinessData({
+                    ...businessData,
+                    address: components.address,
+                    city: components.city,
+                    state: components.state,
+                    postcode: components.postcode,
+                  });
+                }}
+                placeholder="Start typing your address..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+              />
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    City
+                    City <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
+                    required
                     value={businessData.city}
                     onChange={(e) => setBusinessData({ ...businessData, city: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
@@ -277,9 +381,10 @@ export default function OnboardingPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    State
+                    State <span className="text-red-500">*</span>
                   </label>
                   <select
+                    required
                     value={businessData.state}
                     onChange={(e) => setBusinessData({ ...businessData, state: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
@@ -298,15 +403,120 @@ export default function OnboardingPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Postcode
+                    Postcode <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
+                    required
                     value={businessData.postcode}
                     onChange={(e) => setBusinessData({ ...businessData, postcode: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                   />
                 </div>
+              </div>
+
+              <div className="border-t pt-4 mt-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Branding & Prefixes</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Logo URL <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="url"
+                      required
+                      value={businessData.logo_url}
+                      onChange={(e) => setBusinessData({ ...businessData, logo_url: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                      placeholder="https://example.com/logo.png"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">This will appear on invoices and quotes</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Brand Colour <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        required
+                        value={businessData.brand_color}
+                        onChange={(e) => setBusinessData({ ...businessData, brand_color: e.target.value })}
+                        className="h-10 w-20 border border-gray-300 rounded-md cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        required
+                        value={businessData.brand_color}
+                        onChange={(e) => setBusinessData({ ...businessData, brand_color: e.target.value })}
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                        placeholder="#2563eb"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Used for invoices and quotes</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Job Code Prefix <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={businessData.job_code_prefix}
+                      onChange={(e) => setBusinessData({ ...businessData, job_code_prefix: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                      placeholder="JOB"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Quote Prefix <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={businessData.quote_prefix}
+                      onChange={(e) => setBusinessData({ ...businessData, quote_prefix: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                      placeholder="QT"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Invoice Prefix <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={businessData.invoice_prefix}
+                      onChange={(e) => setBusinessData({ ...businessData, invoice_prefix: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                      placeholder="INV"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Payment Details <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  required
+                  value={businessData.payment_details}
+                  onChange={(e) => setBusinessData({ ...businessData, payment_details: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  rows={3}
+                  placeholder="BSB: 123-456&#10;Account: 12345678&#10;Account Name: Your Business Pty Ltd"
+                />
+                <p className="text-xs text-gray-500 mt-1">This will appear on invoices</p>
               </div>
 
               {error && (
@@ -330,13 +540,13 @@ export default function OnboardingPage() {
         {step === 'owner' && (
           <div className="bg-white rounded-lg shadow-xl p-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Profile</h2>
-            <p className="text-gray-600 mb-6">Tell us about yourself</p>
+            <p className="text-gray-600 mb-6">Confirm your personal details</p>
 
             <form onSubmit={handleOwnerSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    First Name *
+                    First Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -349,7 +559,7 @@ export default function OnboardingPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Last Name *
+                    Last Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -363,13 +573,15 @@ export default function OnboardingPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone
+                  Phone <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
+                  required
                   value={ownerData.phone}
                   onChange={(e) => setOwnerData({ ...ownerData, phone: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="+61 400 000 000"
                 />
               </div>
 

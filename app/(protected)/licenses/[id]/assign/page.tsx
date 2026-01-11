@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { License } from '@/lib/types/database.types';
+import { sendEmail, generateUserInvitationEmail } from '@/lib/services/resend-mock';
 
 export default function AssignLicensePage() {
   const params = useParams();
@@ -45,20 +46,34 @@ export default function AssignLicensePage() {
     try {
       if (!license) throw new Error('License not found');
 
-      // Check if user already exists
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id, organization_id')
-        .eq('id', (await supabase.auth.admin.getUserByEmail(email)).data?.user?.id || '')
+      // Get the organization details for the invitation email
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('name')
+        .eq('id', license.organization_id)
         .single();
 
-      let userId: string;
+      const companyName = org?.name || 'Your Organization';
 
-      if (existingProfile) {
-        // User exists, just update their profile
-        userId = existingProfile.id;
+      // Check if user already exists by looking for an auth user with this email
+      const { data: existingAuthUsers, error: searchError } = await supabase.rpc(
+        'get_user_by_email',
+        { user_email: email }
+      );
+
+      let userId: string;
+      let isNewUser = false;
+
+      // Check if a profile exists for this email
+      const { data: existingProfiles } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .eq('email', email);
+
+      if (existingProfiles && existingProfiles.length > 0) {
+        // User exists, update their profile
+        userId = existingProfiles[0].id;
         
-        // Update profile with license info
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -73,14 +88,79 @@ export default function AssignLicensePage() {
 
         if (updateError) throw updateError;
       } else {
-        // Create new user invitation
-        // Note: In a real implementation, you would send an invitation email
-        // For now, we'll create a placeholder profile
+        // User doesn't exist - create them via Supabase Auth
+        isNewUser = true;
         
-        // This is a simplified version - in production, use Supabase Auth invite or similar
-        alert(`To assign this license, please have the user create an account with email: ${email}\nOnce they sign up, you can assign the license to them.`);
-        router.push('/licenses');
-        return;
+        // Generate a temporary password (user will reset it via email link)
+        const tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12);
+        
+        // Create the auth user
+        const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+          email: email,
+          password: tempPassword,
+          email_confirm: true, // Auto-confirm email
+          user_metadata: {
+            first_name: firstName,
+            last_name: lastName,
+          },
+        });
+
+        if (createError) throw createError;
+        if (!newUser.user) throw new Error('Failed to create user');
+
+        userId = newUser.user.id;
+
+        // Create profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            first_name: firstName,
+            last_name: lastName,
+            phone: phone || null,
+            email: email,
+            role: license.license_type as any,
+            license_id: license.id,
+            organization_id: license.organization_id,
+          });
+
+        if (profileError) throw profileError;
+
+        // Generate password reset link
+        const { data: resetData, error: resetError } = await supabase.auth.admin.generateLink({
+          type: 'recovery',
+          email: email,
+        });
+
+        if (resetError) {
+          console.error('Failed to generate reset link:', resetError);
+        } else if (resetData.properties?.action_link) {
+          // Send invitation email with password reset link
+          const emailTemplate = generateUserInvitationEmail({
+            firstName,
+            lastName,
+            email,
+            companyName,
+            licenseType: license.license_type,
+            resetPasswordUrl: resetData.properties.action_link,
+          });
+
+          await sendEmail({
+            to: email,
+            subject: emailTemplate.subject,
+            html: emailTemplate.html,
+          });
+
+          // Log the email communication
+          await supabase.from('email_communications').insert({
+            organization_id: license.organization_id,
+            email_type: 'notification',
+            recipient_email: email,
+            subject: emailTemplate.subject,
+            body: emailTemplate.html,
+            status: 'sent',
+          });
+        }
       }
 
       // Assign license to user
@@ -94,14 +174,20 @@ export default function AssignLicensePage() {
 
       if (licenseError) throw licenseError;
 
-      // IMPORTANT: Skip onboarding for license assigned users
-      // Mark organization as onboarding_completed so user doesn't get redirected
+      // Mark organization as onboarding completed (in case it wasn't)
       await supabase
         .from('organizations')
         .update({ onboarding_completed: true })
         .eq('id', license.organization_id);
 
-      alert('License assigned successfully! The user can now access the system with their assigned role.');
+      if (isNewUser) {
+        alert(
+          `License assigned successfully!\n\nAn invitation email has been sent to ${email} with instructions to set their password.\n\nThe user can start using the system once they set their password.`
+        );
+      } else {
+        alert(`License assigned successfully! The user can now access the system with their assigned role.`);
+      }
+      
       router.push('/licenses');
     } catch (err: any) {
       console.error('Assignment error:', err);
@@ -162,17 +248,17 @@ export default function AssignLicensePage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Email Address *
             </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="user@example.com"
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-            />
-            <p className="text-sm text-gray-600 mt-1">
-              The user must already have an account or will need to create one.
-            </p>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="user@example.com"
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+              />
+              <p className="text-sm text-gray-600 mt-1">
+                If the user doesn't have an account, we'll create one and send them an email to set their password.
+              </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

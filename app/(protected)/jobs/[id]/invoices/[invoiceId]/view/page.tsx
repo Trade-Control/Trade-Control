@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { redirect, useParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function InvoiceViewPage() {
   const params = useParams();
@@ -101,10 +102,10 @@ export default function InvoiceViewPage() {
           </button>
         </div>
 
-        {/* Header */}
-        <div className="flex justify-between items-start mb-8 pb-6 border-b-2 border-gray-200">
+        {/* Header with Logo */}
+        <div className="flex justify-between items-start mb-8 pb-6 border-b-2" style={{ borderColor: organization?.brand_color || '#2563eb' }}>
           <div>
-            <h1 className="text-4xl font-bold text-primary mb-2">INVOICE</h1>
+            <h1 className="text-4xl font-bold mb-2" style={{ color: organization?.brand_color || '#2563eb' }}>INVOICE</h1>
             <p className="text-gray-600">Invoice #: {invoice.invoice_number}</p>
             <p className="text-gray-600">Date: {new Date(invoice.invoice_date).toLocaleDateString()}</p>
             {invoice.due_date && (
@@ -112,6 +113,18 @@ export default function InvoiceViewPage() {
             )}
           </div>
           <div className="text-right">
+            {organization?.logo_url && (
+              <div className="mb-4">
+                <Image 
+                  src={organization.logo_url} 
+                  alt={organization.name || 'Company Logo'} 
+                  width={150} 
+                  height={60}
+                  className="ml-auto"
+                  style={{ maxHeight: '80px', width: 'auto' }}
+                />
+              </div>
+            )}
             <h2 className="text-xl font-bold text-gray-900 mb-2">{organization?.name}</h2>
             {organization?.abn && <p className="text-sm text-gray-600">ABN: {organization.abn}</p>}
             {organization?.address && <p className="text-sm text-gray-600">{organization.address}</p>}
@@ -122,6 +135,7 @@ export default function InvoiceViewPage() {
             )}
             {organization?.phone && <p className="text-sm text-gray-600">Ph: {organization.phone}</p>}
             {organization?.email && <p className="text-sm text-gray-600">{organization.email}</p>}
+            {organization?.website_url && <p className="text-sm text-gray-600">{organization.website_url}</p>}
           </div>
         </div>
 
@@ -163,7 +177,7 @@ export default function InvoiceViewPage() {
         <div className="mb-8">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-100 border-b-2 border-gray-300">
+              <tr className="border-b-2" style={{ backgroundColor: `${organization?.brand_color || '#2563eb'}15`, borderColor: organization?.brand_color || '#2563eb' }}>
                 <th className="text-left py-3 px-4 font-bold text-gray-900">Description</th>
                 <th className="text-right py-3 px-4 font-bold text-gray-900">Quantity</th>
                 <th className="text-right py-3 px-4 font-bold text-gray-900">Unit Price</th>
@@ -204,22 +218,30 @@ export default function InvoiceViewPage() {
                   <span className="text-gray-600">Amount Paid:</span>
                   <span className="font-medium text-green-600">-${invoice.amount_paid.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between py-3 border-t-2 border-gray-300">
+                <div className="flex justify-between py-3 border-t-2" style={{ borderColor: organization?.brand_color || '#2563eb' }}>
                   <span className="text-lg font-bold text-gray-900">Balance Due:</span>
-                  <span className="text-lg font-bold text-primary">
+                  <span className="text-lg font-bold" style={{ color: organization?.brand_color || '#2563eb' }}>
                     ${(invoice.total_amount - invoice.amount_paid).toFixed(2)}
                   </span>
                 </div>
               </>
             )}
             {invoice.amount_paid === 0 && (
-              <div className="flex justify-between py-3 border-t-2 border-gray-300">
+              <div className="flex justify-between py-3 border-t-2" style={{ borderColor: organization?.brand_color || '#2563eb' }}>
                 <span className="text-lg font-bold text-gray-900">Amount Due:</span>
-                <span className="text-lg font-bold text-primary">${invoice.total_amount.toFixed(2)}</span>
+                <span className="text-lg font-bold" style={{ color: organization?.brand_color || '#2563eb' }}>${invoice.total_amount.toFixed(2)}</span>
               </div>
             )}
           </div>
         </div>
+
+        {/* Payment Details */}
+        {organization?.payment_details && (
+          <div className="mb-6 bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Payment Details:</h3>
+            <p className="text-gray-600 whitespace-pre-line">{organization.payment_details}</p>
+          </div>
+        )}
 
         {/* Notes and Terms */}
         {invoice.notes && (
@@ -239,7 +261,6 @@ export default function InvoiceViewPage() {
         {/* Footer */}
         <div className="mt-12 pt-6 border-t border-gray-200 text-center text-sm text-gray-600">
           <p>Thank you for your business!</p>
-          <p className="mt-2">Please remit payment to the above address</p>
         </div>
       </div>
     </div>

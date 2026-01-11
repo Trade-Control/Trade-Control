@@ -40,11 +40,32 @@ export default function QuoteForm({ jobId, onSuccess }: QuoteFormProps) {
   };
 
   const generateQuoteNumber = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile?.organization_id) return;
+
+    // Get organization to use custom prefix
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('quote_prefix')
+      .eq('id', profile.organization_id)
+      .single();
+
+    const prefix = org?.quote_prefix || 'QT';
+
     const { count } = await supabase
       .from('quotes')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', profile.organization_id);
     
-    const quoteNum = `QT-${String((count || 0) + 1).padStart(4, '0')}`;
+    const quoteNum = `${prefix}-${String((count || 0) + 1).padStart(4, '0')}`;
     setFormData({ ...formData, quote_number: quoteNum });
   };
 

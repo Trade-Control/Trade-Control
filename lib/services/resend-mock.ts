@@ -383,6 +383,92 @@ export function generateComplianceReminderEmail(data: {
 }
 
 /**
+ * Generate user invitation email with password reset link
+ */
+export function generateUserInvitationEmail(data: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  companyName: string;
+  licenseType: string;
+  resetPasswordUrl: string;
+}): EmailTemplate {
+  const roleNames: Record<string, string> = {
+    owner: 'Owner / License Manager',
+    management: 'Management Login',
+    field_staff: 'Field Staff Login',
+  };
+  
+  const roleName = roleNames[data.licenseType] || data.licenseType;
+  
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Trade Control</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+    .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+    .button { display: inline-block; background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 20px 0; }
+    .button:hover { background: #5568d3; }
+    .info-box { background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0; }
+    .info-label { font-weight: 600; color: #4b5563; }
+    .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin: 0;">Welcome to Trade Control!</h1>
+    </div>
+    
+    <div class="content">
+      <p>Hi ${data.firstName} ${data.lastName},</p>
+      
+      <p>You've been added as a team member to <strong>${data.companyName}</strong> on Trade Control.</p>
+      
+      <div class="info-box">
+        <p style="margin: 5px 0;"><span class="info-label">Email:</span> ${data.email}</p>
+        <p style="margin: 5px 0;"><span class="info-label">Role:</span> ${roleName}</p>
+        <p style="margin: 5px 0;"><span class="info-label">Organization:</span> ${data.companyName}</p>
+      </div>
+      
+      <p>To get started, you'll need to set up your password. Click the button below to create your password:</p>
+      
+      <div style="text-align: center;">
+        <a href="${data.resetPasswordUrl}" class="button">Set Your Password</a>
+      </div>
+      
+      <p>If the button doesn't work, copy and paste this URL into your browser:</p>
+      <p style="word-break: break-all; color: #667eea;">${data.resetPasswordUrl}</p>
+      
+      <p>Once you've set your password, you can log in to Trade Control and start managing jobs with your team.</p>
+      
+      <p>If you have any questions, please contact your organization administrator.</p>
+      
+      <p>Best regards,<br>The Trade Control Team</p>
+    </div>
+    
+    <div class="footer">
+      <p>This is an automated email from Trade Control.</p>
+      <p>If you didn't expect this email, please contact support.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+  
+  return {
+    subject: `Welcome to ${data.companyName} - Set Your Password`,
+    html,
+  };
+}
+
+/**
  * Mock: Get email status (for tracking)
  */
 export async function getEmailStatus(messageId: string) {

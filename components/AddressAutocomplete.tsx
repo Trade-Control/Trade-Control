@@ -114,7 +114,7 @@ export default function AddressAutocomplete({
     if (!isLoaded || !inputRef.current) return;
 
     try {
-      // Initialize autocomplete
+      // Initialize autocomplete with Australia restriction
       autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
         types: ['address'],
         componentRestrictions: { country: 'au' }, // Restrict to Australia

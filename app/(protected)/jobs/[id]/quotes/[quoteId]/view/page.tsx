@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { redirect, useParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function QuoteViewPage() {
   const params = useParams();
@@ -101,10 +102,10 @@ export default function QuoteViewPage() {
           </button>
         </div>
 
-        {/* Header */}
-        <div className="flex justify-between items-start mb-8 pb-6 border-b-2 border-gray-200">
+        {/* Header with Logo */}
+        <div className="flex justify-between items-start mb-8 pb-6 border-b-2" style={{ borderColor: organization?.brand_color || '#2563eb' }}>
           <div>
-            <h1 className="text-4xl font-bold text-primary mb-2">QUOTE</h1>
+            <h1 className="text-4xl font-bold mb-2" style={{ color: organization?.brand_color || '#2563eb' }}>QUOTE</h1>
             <p className="text-gray-600">Quote #: {quote.quote_number}</p>
             <p className="text-gray-600">Date: {new Date(quote.quote_date).toLocaleDateString()}</p>
             {quote.valid_until && (
@@ -112,6 +113,18 @@ export default function QuoteViewPage() {
             )}
           </div>
           <div className="text-right">
+            {organization?.logo_url && (
+              <div className="mb-4">
+                <Image 
+                  src={organization.logo_url} 
+                  alt={organization.name || 'Company Logo'} 
+                  width={150} 
+                  height={60}
+                  className="ml-auto"
+                  style={{ maxHeight: '80px', width: 'auto' }}
+                />
+              </div>
+            )}
             <h2 className="text-xl font-bold text-gray-900 mb-2">{organization?.name}</h2>
             {organization?.abn && <p className="text-sm text-gray-600">ABN: {organization.abn}</p>}
             {organization?.address && <p className="text-sm text-gray-600">{organization.address}</p>}
@@ -122,6 +135,7 @@ export default function QuoteViewPage() {
             )}
             {organization?.phone && <p className="text-sm text-gray-600">Ph: {organization.phone}</p>}
             {organization?.email && <p className="text-sm text-gray-600">{organization.email}</p>}
+            {organization?.website_url && <p className="text-sm text-gray-600">{organization.website_url}</p>}
           </div>
         </div>
 
@@ -163,7 +177,7 @@ export default function QuoteViewPage() {
         <div className="mb-8">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-100 border-b-2 border-gray-300">
+              <tr className="border-b-2" style={{ backgroundColor: `${organization?.brand_color || '#2563eb'}15`, borderColor: organization?.brand_color || '#2563eb' }}>
                 <th className="text-left py-3 px-4 font-bold text-gray-900">Description</th>
                 <th className="text-right py-3 px-4 font-bold text-gray-900">Quantity</th>
                 <th className="text-right py-3 px-4 font-bold text-gray-900">Unit Price</th>
@@ -194,9 +208,9 @@ export default function QuoteViewPage() {
               <span className="text-gray-600">GST (10%):</span>
               <span className="font-medium text-gray-900">${quote.gst_amount.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between py-3 border-t-2 border-gray-300">
+            <div className="flex justify-between py-3 border-t-2" style={{ borderColor: organization?.brand_color || '#2563eb' }}>
               <span className="text-lg font-bold text-gray-900">Total:</span>
-              <span className="text-lg font-bold text-primary">${quote.total_amount.toFixed(2)}</span>
+              <span className="text-lg font-bold" style={{ color: organization?.brand_color || '#2563eb' }}>${quote.total_amount.toFixed(2)}</span>
             </div>
           </div>
         </div>

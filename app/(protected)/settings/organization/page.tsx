@@ -4,17 +4,28 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { getUserPermissions } from '@/lib/middleware/role-check';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
 
 export default function OrganizationSettingsPage() {
   const [formData, setFormData] = useState({
     name: '',
+    trading_name: '',
     abn: '',
+    gst_registered: true,
     address: '',
     city: '',
     state: '',
     postcode: '',
     phone: '',
     email: '',
+    billing_email: '',
+    website_url: '',
+    logo_url: '',
+    brand_color: '#2563eb',
+    job_code_prefix: 'JOB',
+    quote_prefix: 'QT',
+    invoice_prefix: 'INV',
+    payment_details: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -76,13 +87,23 @@ export default function OrganizationSettingsPage() {
       } else if (org) {
         setFormData({
           name: org.name || '',
+          trading_name: org.trading_name || '',
           abn: org.abn || '',
+          gst_registered: org.gst_registered ?? true,
           address: org.address || '',
           city: org.city || '',
           state: org.state || '',
           postcode: org.postcode || '',
           phone: org.phone || '',
           email: org.email || '',
+          billing_email: org.billing_email || '',
+          website_url: org.website_url || '',
+          logo_url: org.logo_url || '',
+          brand_color: org.brand_color || '#2563eb',
+          job_code_prefix: org.job_code_prefix || 'JOB',
+          quote_prefix: org.quote_prefix || 'QT',
+          invoice_prefix: org.invoice_prefix || 'INV',
+          payment_details: org.payment_details || '',
         });
       }
     } catch (err: any) {
@@ -93,10 +114,11 @@ export default function OrganizationSettingsPage() {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
     });
     setSuccess(''); // Clear success message when user edits
   };
@@ -112,13 +134,23 @@ export default function OrganizationSettingsPage() {
         .from('organizations')
         .update({
           name: formData.name,
-          abn: formData.abn || null,
-          address: formData.address || null,
-          city: formData.city || null,
-          state: formData.state || null,
-          postcode: formData.postcode || null,
-          phone: formData.phone || null,
-          email: formData.email || null,
+          trading_name: formData.trading_name,
+          abn: formData.abn,
+          gst_registered: formData.gst_registered,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          postcode: formData.postcode,
+          phone: formData.phone,
+          email: formData.email,
+          billing_email: formData.billing_email,
+          website_url: formData.website_url,
+          logo_url: formData.logo_url,
+          brand_color: formData.brand_color,
+          job_code_prefix: formData.job_code_prefix,
+          quote_prefix: formData.quote_prefix,
+          invoice_prefix: formData.invoice_prefix,
+          payment_details: formData.payment_details,
           updated_at: new Date().toISOString(),
         })
         .eq('id', organizationId);
@@ -190,10 +222,26 @@ export default function OrganizationSettingsPage() {
                 />
               </div>
 
+              <div>
+                <label htmlFor="trading_name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Trading Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="trading_name"
+                  name="trading_name"
+                  type="text"
+                  value={formData.trading_name}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="Trading name"
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="abn" className="block text-sm font-medium text-gray-700 mb-2">
-                    ABN
+                    ABN <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="abn"
@@ -201,14 +249,34 @@ export default function OrganizationSettingsPage() {
                     type="text"
                     value={formData.abn}
                     onChange={handleChange}
+                    required
                     className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="12 345 678 901"
                   />
                 </div>
 
                 <div>
+                  <label htmlFor="gst_registered" className="block text-sm font-medium text-gray-700 mb-2">
+                    GST Status <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="gst_registered"
+                    name="gst_registered"
+                    value={formData.gst_registered ? 'true' : 'false'}
+                    onChange={(e) => setFormData({ ...formData, gst_registered: e.target.value === 'true' })}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="true">GST Registered</option>
+                    <option value="false">Not GST Registered</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                   <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number
+                    Business Phone <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="phone"
@@ -216,24 +284,58 @@ export default function OrganizationSettingsPage() {
                     type="tel"
                     value={formData.phone}
                     onChange={handleChange}
+                    required
                     className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="+61 400 000 000"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Business Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder="business@example.com"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
+                <label htmlFor="billing_email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Billing Email Address <span className="text-red-500">*</span>
                 </label>
                 <input
-                  id="email"
-                  name="email"
+                  id="billing_email"
+                  name="billing_email"
                   type="email"
-                  value={formData.email}
+                  value={formData.billing_email}
                   onChange={handleChange}
+                  required
                   className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="business@example.com"
+                  placeholder="billing@example.com"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="website_url" className="block text-sm font-medium text-gray-700 mb-2">
+                  Website URL <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="website_url"
+                  name="website_url"
+                  type="url"
+                  value={formData.website_url}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="https://www.yourbusiness.com.au"
                 />
               </div>
             </div>
@@ -246,25 +348,28 @@ export default function OrganizationSettingsPage() {
             </h2>
             
             <div className="space-y-4">
-              <div>
-                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
-                  Street Address
-                </label>
-                <input
-                  id="address"
-                  name="address"
-                  type="text"
-                  value={formData.address}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="123 Main Street"
-                />
-              </div>
+              <AddressAutocomplete
+                label="Business Physical/Registered Address"
+                required
+                value={formData.address}
+                onChange={(value) => setFormData({ ...formData, address: value })}
+                onAddressSelect={(components) => {
+                  setFormData({
+                    ...formData,
+                    address: components.address,
+                    city: components.city,
+                    state: components.state,
+                    postcode: components.postcode,
+                  });
+                }}
+                placeholder="Start typing your address..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+              />
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
-                    City/Suburb
+                    City/Suburb <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="city"
@@ -272,6 +377,7 @@ export default function OrganizationSettingsPage() {
                     type="text"
                     value={formData.city}
                     onChange={handleChange}
+                    required
                     className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="Sydney"
                   />
@@ -279,22 +385,31 @@ export default function OrganizationSettingsPage() {
 
                 <div>
                   <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
-                    State
+                    State <span className="text-red-500">*</span>
                   </label>
-                  <input
+                  <select
                     id="state"
                     name="state"
-                    type="text"
                     value={formData.state}
                     onChange={handleChange}
+                    required
                     className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                    placeholder="NSW"
-                  />
+                  >
+                    <option value="">Select</option>
+                    <option value="NSW">NSW</option>
+                    <option value="VIC">VIC</option>
+                    <option value="QLD">QLD</option>
+                    <option value="WA">WA</option>
+                    <option value="SA">SA</option>
+                    <option value="TAS">TAS</option>
+                    <option value="ACT">ACT</option>
+                    <option value="NT">NT</option>
+                  </select>
                 </div>
 
                 <div>
                   <label htmlFor="postcode" className="block text-sm font-medium text-gray-700 mb-2">
-                    Postcode
+                    Postcode <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="postcode"
@@ -302,10 +417,131 @@ export default function OrganizationSettingsPage() {
                     type="text"
                     value={formData.postcode}
                     onChange={handleChange}
+                    required
                     className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="2000"
                   />
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Branding & Document Settings */}
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">
+              Branding & Document Settings
+            </h2>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="logo_url" className="block text-sm font-medium text-gray-700 mb-2">
+                    Logo URL <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="logo_url"
+                    name="logo_url"
+                    type="url"
+                    value={formData.logo_url}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder="https://example.com/logo.png"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Used on invoices and quotes</p>
+                </div>
+
+                <div>
+                  <label htmlFor="brand_color" className="block text-sm font-medium text-gray-700 mb-2">
+                    Brand Colour <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={formData.brand_color}
+                      onChange={(e) => setFormData({ ...formData, brand_color: e.target.value })}
+                      className="h-12 w-20 border border-gray-300 rounded-md cursor-pointer"
+                    />
+                    <input
+                      id="brand_color"
+                      name="brand_color"
+                      type="text"
+                      value={formData.brand_color}
+                      onChange={handleChange}
+                      required
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                      placeholder="#2563eb"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Used on invoices and quotes</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="job_code_prefix" className="block text-sm font-medium text-gray-700 mb-2">
+                    Job Code Prefix <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="job_code_prefix"
+                    name="job_code_prefix"
+                    type="text"
+                    value={formData.job_code_prefix}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder="JOB"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="quote_prefix" className="block text-sm font-medium text-gray-700 mb-2">
+                    Quote Prefix <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="quote_prefix"
+                    name="quote_prefix"
+                    type="text"
+                    value={formData.quote_prefix}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder="QT"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="invoice_prefix" className="block text-sm font-medium text-gray-700 mb-2">
+                    Invoice Prefix <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="invoice_prefix"
+                    name="invoice_prefix"
+                    type="text"
+                    value={formData.invoice_prefix}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder="INV"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="payment_details" className="block text-sm font-medium text-gray-700 mb-2">
+                  Payment Details <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  id="payment_details"
+                  name="payment_details"
+                  value={formData.payment_details}
+                  onChange={handleChange}
+                  required
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="BSB: 123-456&#10;Account: 12345678&#10;Account Name: Your Business Pty Ltd"
+                />
+                <p className="text-xs text-gray-500 mt-1">This will appear on invoices</p>
               </div>
             </div>
           </div>
