@@ -5,6 +5,26 @@ import { Resend } from 'resend';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// ALWAYS use Resend's free tier email for unverified domains
+const RESEND_FREE_TIER_EMAIL = 'onboarding@resend.dev';
+
+/**
+ * Get the FROM email address
+ * - Uses onboarding@resend.dev by default (works immediately, no verification needed)
+ * - Only uses custom RESEND_FROM_EMAIL if RESEND_DOMAIN_VERIFIED is set to 'true'
+ */
+function getFromEmail(): string {
+  const isDomainVerified = process.env.RESEND_DOMAIN_VERIFIED === 'true';
+  const customFromEmail = process.env.RESEND_FROM_EMAIL;
+  
+  if (isDomainVerified && customFromEmail) {
+    return customFromEmail;
+  }
+  
+  // Default to Resend free tier email
+  return RESEND_FREE_TIER_EMAIL;
+}
+
 /**
  * Resend Test Email API Route
  * 
@@ -13,7 +33,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { to, from } = await request.json();
+    const { to } = await request.json();
 
     if (!to) {
       return NextResponse.json(
@@ -32,16 +52,8 @@ export async function POST(request: NextRequest) {
 
     const resend = new Resend(apiKey);
 
-    // Determine FROM email
-    // Resend free tier allows: onboarding@resend.dev
-    // For production, you need a verified domain
-    let fromEmail = from || process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-    
-    // If using custom domain format, extract email or use Resend test domain
-    if (fromEmail.includes('@') && !fromEmail.includes('resend.dev') && !fromEmail.includes('onboarding@resend.dev')) {
-      // Check if domain is verified - if not, fall back to Resend test domain
-      fromEmail = 'onboarding@resend.dev';
-    }
+    // Always use the safe FROM email (either verified custom or Resend free tier)
+    const fromEmail = getFromEmail();
 
     // Send test email
     const { data, error } = await resend.emails.send({

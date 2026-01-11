@@ -6,8 +6,26 @@ import { createClient } from '@/lib/supabase/server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Default FROM email - Resend free tier requires onboarding@resend.dev for unverified domains
-const DEFAULT_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+// ALWAYS use Resend's free tier email for unverified domains
+// Set RESEND_DOMAIN_VERIFIED=true in env vars ONLY after verifying a custom domain
+const RESEND_FREE_TIER_EMAIL = 'onboarding@resend.dev';
+
+/**
+ * Get the FROM email address
+ * - Uses onboarding@resend.dev by default (works immediately, no verification needed)
+ * - Only uses custom RESEND_FROM_EMAIL if RESEND_DOMAIN_VERIFIED is set to 'true'
+ */
+function getFromEmail(): string {
+  const isDomainVerified = process.env.RESEND_DOMAIN_VERIFIED === 'true';
+  const customFromEmail = process.env.RESEND_FROM_EMAIL;
+  
+  if (isDomainVerified && customFromEmail) {
+    return customFromEmail;
+  }
+  
+  // Default to Resend free tier email
+  return RESEND_FREE_TIER_EMAIL;
+}
 
 /**
  * Email Send API Route
@@ -30,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json();
-    const { to, subject, html, from, replyTo } = body;
+    const { to, subject, html, replyTo } = body;
 
     // Validate required fields
     if (!to || !subject || !html) {
@@ -52,7 +70,9 @@ export async function POST(request: NextRequest) {
 
     // Create Resend client and send email
     const resend = new Resend(apiKey);
-    const fromEmail = from || DEFAULT_FROM_EMAIL;
+    
+    // Always use the safe FROM email (either verified custom or Resend free tier)
+    const fromEmail = getFromEmail();
 
     const { data, error } = await resend.emails.send({
       from: fromEmail,

@@ -135,47 +135,45 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Check From Email
-    const fromEmail = process.env.RESEND_FROM_EMAIL;
-    if (!fromEmail) {
+    // Check domain verification status
+    const isDomainVerified = process.env.RESEND_DOMAIN_VERIFIED === 'true';
+    const customFromEmail = process.env.RESEND_FROM_EMAIL;
+    
+    // Determine actual FROM email that will be used
+    const actualFromEmail = (isDomainVerified && customFromEmail) 
+      ? customFromEmail 
+      : 'onboarding@resend.dev';
+    
+    debugInfo.resend.actualFromEmail = actualFromEmail;
+    debugInfo.resend.isDomainVerified = isDomainVerified;
+    debugInfo.resend.customFromEmail = customFromEmail || 'NOT_SET';
+    debugInfo.resend.isUsingFreeTier = !isDomainVerified || !customFromEmail;
+
+    // Recommendations based on configuration
+    if (!isDomainVerified) {
       debugInfo.recommendations.push(
-        '✅ RESEND_FROM_EMAIL is not set. Using default: onboarding@resend.dev (works immediately for testing)'
+        '✅ Using Resend free tier email: onboarding@resend.dev (works immediately, no setup needed)'
       );
-      debugInfo.recommendations.push(
-        '📝 Set RESEND_FROM_EMAIL in Vercel to use a custom email address (requires domain verification)'
-      );
-    } else {
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      const emailMatch = fromEmail.match(/<(.+)>/);
-      const emailAddress = emailMatch ? emailMatch[1] : fromEmail;
-      
-      if (!emailRegex.test(emailAddress)) {
+      if (customFromEmail) {
         debugInfo.recommendations.push(
-          '⚠️ RESEND_FROM_EMAIL format appears invalid. Use format: "Name <email@domain.com>" or "email@domain.com"'
+          `📝 RESEND_FROM_EMAIL is set to "${customFromEmail}" but will NOT be used until domain is verified`
         );
-      } else {
-        debugInfo.recommendations.push('✅ RESEND_FROM_EMAIL is configured correctly');
+        debugInfo.recommendations.push(
+          '📝 To use your custom domain: 1) Verify domain in Resend Dashboard, 2) Set RESEND_DOMAIN_VERIFIED=true in env vars'
+        );
       }
+    } else {
+      debugInfo.recommendations.push(
+        `✅ Domain verified! Using custom email: ${actualFromEmail}`
+      );
     }
 
     // Vercel-specific recommendations
     if (process.env.VERCEL) {
       debugInfo.recommendations.push(
-        '📝 Vercel detected. Make sure environment variables are set in Vercel Dashboard > Settings > Environment Variables'
-      );
-      debugInfo.recommendations.push(
-        '📝 After adding env vars in Vercel, redeploy your application for changes to take effect'
-      );
-      debugInfo.recommendations.push(
-        '📝 Check that environment variables are set for the correct environment (Production, Preview, Development)'
+        '📝 After adding/changing env vars in Vercel, redeploy for changes to take effect'
       );
     }
-
-    // Show actual FROM email being used
-    const actualFromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-    debugInfo.resend.actualFromEmail = actualFromEmail;
-    debugInfo.resend.isUsingDefault = !process.env.RESEND_FROM_EMAIL;
 
     // Overall status
     const hasApiKey = !!apiKey && apiKey.startsWith('re_');
@@ -185,8 +183,9 @@ export async function GET(request: NextRequest) {
     debugInfo.summary = {
       hasApiKey,
       apiWorking,
-      hasFromEmail: !!fromEmail,
+      isDomainVerified,
       actualFromEmail: actualFromEmail,
+      usingFreeTier: !isDomainVerified || !customFromEmail,
     };
 
     return NextResponse.json(debugInfo, { status: 200 });

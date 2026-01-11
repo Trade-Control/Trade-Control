@@ -3,10 +3,19 @@
  * 
  * This is the production-ready Resend integration.
  * Uses Resend free tier (100 emails/day).
+ * 
+ * IMPORTANT: By default, uses onboarding@resend.dev which works immediately.
+ * To use a custom domain:
+ * 1. Verify your domain in Resend Dashboard > Domains
+ * 2. Set RESEND_FROM_EMAIL to your verified email
+ * 3. Set RESEND_DOMAIN_VERIFIED=true in environment variables
  */
 
 import { Resend } from 'resend';
 import { EmailType } from '../types/database.types';
+
+// ALWAYS use Resend's free tier email for unverified domains
+const RESEND_FREE_TIER_EMAIL = 'onboarding@resend.dev';
 
 // Helper function to create Resend client lazily (only when needed)
 function getResendClient() {
@@ -19,9 +28,22 @@ function getResendClient() {
   return new Resend(apiKey);
 }
 
-// Default FROM email - Resend free tier requires onboarding@resend.dev for unverified domains
-// For production, verify your domain in Resend Dashboard and use your verified domain
-const DEFAULT_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+/**
+ * Get the FROM email address
+ * - Uses onboarding@resend.dev by default (works immediately, no verification needed)
+ * - Only uses custom RESEND_FROM_EMAIL if RESEND_DOMAIN_VERIFIED is set to 'true'
+ */
+function getFromEmail(): string {
+  const isDomainVerified = process.env.RESEND_DOMAIN_VERIFIED === 'true';
+  const customFromEmail = process.env.RESEND_FROM_EMAIL;
+  
+  if (isDomainVerified && customFromEmail) {
+    return customFromEmail;
+  }
+  
+  // Default to Resend free tier email
+  return RESEND_FREE_TIER_EMAIL;
+}
 
 export interface SendEmailParams {
   to: string;
@@ -42,11 +64,8 @@ export interface EmailTemplate {
 export async function sendEmail(params: SendEmailParams) {
   const resend = getResendClient();
   
-  // Determine FROM email - use Resend test domain if custom domain not verified
-  let fromEmail = params.from || DEFAULT_FROM_EMAIL;
-  
-  // If using a custom domain format but it's not verified, Resend will reject it
-  // For now, we'll let Resend handle the error and provide a clear message
+  // Always use the safe FROM email (either verified custom or Resend free tier)
+  const fromEmail = getFromEmail();
   
   const { data, error } = await resend.emails.send({
     from: fromEmail,
