@@ -171,13 +171,13 @@ export default function ReportsPage() {
 
     // Calculate job metrics
     const totalJobs = jobs.length;
-    const completedJobs = jobs.filter(j => j.status === 'completed').length;
-    const activeJobs = jobs.filter(j => j.status === 'in_progress').length;
-    const quotedJobs = jobs.filter(j => j.status === 'quoted').length;
+    const completedJobs = jobs.filter((j: any) => j.status === 'completed').length;
+    const activeJobs = jobs.filter((j: any) => j.status === 'in_progress').length;
+    const quotedJobs = jobs.filter((j: any) => j.status === 'quoted').length;
 
-    const jobsWithDates = jobs.filter(j => j.start_date && j.completed_at);
+    const jobsWithDates = jobs.filter((j: any) => j.start_date && j.completed_at);
     const avgCompletionDays = jobsWithDates.length > 0
-      ? jobsWithDates.reduce((sum, j) => {
+      ? jobsWithDates.reduce((sum: number, j: any) => {
           const start = new Date(j.start_date!);
           const end = new Date(j.completed_at!);
           return sum + Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
@@ -185,7 +185,7 @@ export default function ReportsPage() {
       : 0;
 
     // Calculate timesheet metrics
-    const totalHours = timesheets.reduce((sum, t) => {
+    const totalHours = timesheets.reduce((sum: number, t: any) => {
       if (t.clock_in && t.clock_out) {
         const clockIn = new Date(t.clock_in);
         const clockOut = new Date(t.clock_out);
@@ -277,32 +277,32 @@ export default function ReportsPage() {
 
     // Calculate metrics
     const totalJobs = jobs.length;
-    const completedJobs = jobs.filter(j => j.status === 'completed').length;
-    const activeJobs = jobs.filter(j => j.status === 'in_progress').length;
-    const quotedJobs = jobs.filter(j => j.status === 'quoted').length;
+    const completedJobs = jobs.filter((j: any) => j.status === 'completed').length;
+    const activeJobs = jobs.filter((j: any) => j.status === 'in_progress').length;
+    const quotedJobs = jobs.filter((j: any) => j.status === 'quoted').length;
 
-    const totalQuoted = quotes.reduce((sum, q) => sum + (q.total_amount || 0), 0);
-    const acceptedQuotes = quotes.filter(q => q.status === 'accepted');
-    const totalAcceptedQuotes = acceptedQuotes.reduce((sum, q) => sum + (q.total_amount || 0), 0);
+    const totalQuoted = quotes.reduce((sum: number, q: any) => sum + (q.total_amount || 0), 0);
+    const acceptedQuotes = quotes.filter((q: any) => q.status === 'accepted');
+    const totalAcceptedQuotes = acceptedQuotes.reduce((sum: number, q: any) => sum + (q.total_amount || 0), 0);
     const quoteAcceptanceRate = quotes.length > 0 ? (acceptedQuotes.length / quotes.length * 100) : 0;
 
-    const totalInvoiced = invoices.reduce((sum, i) => sum + (i.total_amount || 0), 0);
-    const totalPaid = invoices.reduce((sum, i) => sum + (i.amount_paid || 0), 0);
+    const totalInvoiced = invoices.reduce((sum: number, i: any) => sum + (i.total_amount || 0), 0);
+    const totalPaid = invoices.reduce((sum: number, i: any) => sum + (i.amount_paid || 0), 0);
     const totalOutstanding = totalInvoiced - totalPaid;
-    const paidInvoices = invoices.filter(i => i.status === 'paid').length;
-    const overdueInvoices = invoices.filter(i => i.status === 'overdue').length;
+    const paidInvoices = invoices.filter((i: any) => i.status === 'paid').length;
+    const overdueInvoices = invoices.filter((i: any) => i.status === 'overdue').length;
 
-    const totalPayments = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const totalPayments = payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
     const avgPaymentSize = payments.length > 0 ? totalPayments / payments.length : 0;
 
     const avgJobValue = paidInvoices > 0
-      ? invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + (i.total_amount || 0), 0) / paidInvoices
+      ? invoices.filter((i: any) => i.status === 'paid').reduce((sum: number, i: any) => sum + (i.total_amount || 0), 0) / paidInvoices
       : 0;
 
     // Job completion rate
-    const jobsWithDates = jobs.filter(j => j.start_date && j.completed_at);
+    const jobsWithDates = jobs.filter((j: any) => j.start_date && j.completed_at);
     const avgCompletionDays = jobsWithDates.length > 0
-      ? jobsWithDates.reduce((sum, j) => {
+      ? jobsWithDates.reduce((sum: number, j: any) => {
           const start = new Date(j.start_date!);
           const end = new Date(j.completed_at!);
           return sum + Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
@@ -310,7 +310,7 @@ export default function ReportsPage() {
       : 0;
 
     // Contractor compliance
-    const compliantContractors = contractors.filter(c => {
+    const compliantContractors = contractors.filter((c: any) => {
       if (c.status === 'blocked') return false;
       if (c.insurance_expiry && new Date(c.insurance_expiry) < new Date()) return false;
       if (c.license_expiry && new Date(c.license_expiry) < new Date()) return false;
@@ -322,24 +322,24 @@ export default function ReportsPage() {
       : 100;
 
     // Inventory value
-    const totalInventoryValue = inventory.reduce((sum, item) => {
+    const totalInventoryValue = inventory.reduce((sum: number, item: any) => {
       return sum + ((item.quantity || 0) * (item.unit_cost || 0));
     }, 0);
 
-    const lowStockItems = inventory.filter(item => {
+    const lowStockItems = inventory.filter((item: any) => {
       return item.reorder_level !== null && item.quantity <= item.reorder_level;
     }).length;
 
     // Revenue by status
     const revenueByStatus = {
-      draft: invoices.filter(i => i.status === 'draft').reduce((s, i) => s + (i.total_amount || 0), 0),
-      sent: invoices.filter(i => i.status === 'sent').reduce((s, i) => s + (i.total_amount || 0), 0),
-      paid: invoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.total_amount || 0), 0),
-      overdue: invoices.filter(i => i.status === 'overdue').reduce((s, i) => s + (i.total_amount || 0), 0),
+      draft: invoices.filter((i: any) => i.status === 'draft').reduce((s: number, i: any) => s + (i.total_amount || 0), 0),
+      sent: invoices.filter((i: any) => i.status === 'sent').reduce((s: number, i: any) => s + (i.total_amount || 0), 0),
+      paid: invoices.filter((i: any) => i.status === 'paid').reduce((s: number, i: any) => s + (i.total_amount || 0), 0),
+      overdue: invoices.filter((i: any) => i.status === 'overdue').reduce((s: number, i: any) => s + (i.total_amount || 0), 0),
     };
 
     // Timesheet metrics
-    const totalHours = timesheets.reduce((sum, t) => {
+    const totalHours = timesheets.reduce((sum: number, t: any) => {
       if (t.clock_in && t.clock_out) {
         const clockIn = new Date(t.clock_in);
         const clockOut = new Date(t.clock_out);

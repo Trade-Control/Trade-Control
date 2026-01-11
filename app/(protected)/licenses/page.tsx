@@ -88,7 +88,7 @@ export default function LicensesPage() {
 
       // Now try to fetch profile data for each license separately
       const licensesWithProfiles = await Promise.all(
-        (licensesData || []).map(async (license) => {
+        (licensesData || []).map(async (license: License) => {
           if (license.profile_id) {
             const { data: profileData, error: profileErr } = await supabase
               .from('profiles')

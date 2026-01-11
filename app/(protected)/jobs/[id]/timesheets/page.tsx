@@ -46,7 +46,7 @@ export default function TimesheetsPage() {
     if (timesheetsData) {
       setTimesheets(timesheetsData);
       // Find active timesheet (clocked on but not off)
-      const active = timesheetsData.find(t => t.clock_on && !t.clock_off);
+      const active = timesheetsData.find((t: any) => t.clock_on && !t.clock_off);
       setActiveTimesheet(active);
     }
     
