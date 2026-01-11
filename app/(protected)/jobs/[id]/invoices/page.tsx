@@ -57,7 +57,7 @@ export default function InvoicesPage() {
     if (quotesData) {
       // Filter out quotes that already have invoices
       const quotesWithoutInvoices = quotesData.filter(
-        q => !invoicesData?.some(inv => inv.quote_id === q.id)
+        (q: any) => !invoicesData?.some((inv: any) => inv.quote_id === q.id)
       );
       setAcceptedQuotes(quotesWithoutInvoices);
     }
