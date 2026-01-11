@@ -75,14 +75,16 @@ export default function SignupPage() {
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary to-[#1a7aad] items-center justify-center p-12">
         <div className="text-white text-center max-w-md">
           <div className="mb-8 bg-white/95 rounded-xl p-6 shadow-lg">
-            <Image 
-              src="/logo.png" 
-              alt="Trade Control" 
-              width={280} 
-              height={93} 
-              className="mx-auto"
-              priority
-            />
+            <Link href="/" className="block hover:opacity-90 transition-opacity">
+              <Image 
+                src="/logo.png" 
+                alt="Trade Control" 
+                width={280} 
+                height={93} 
+                className="mx-auto"
+                priority
+              />
+            </Link>
           </div>
           <h2 className="text-3xl font-bold mb-4">Start Managing Your Business Today</h2>
           <p className="text-lg text-white/90">
@@ -96,14 +98,16 @@ export default function SignupPage() {
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden mb-8 text-center">
-            <Image 
-              src="/logo.png" 
-              alt="Trade Control" 
-              width={200} 
-              height={67} 
-              className="mx-auto"
-              priority
-            />
+            <Link href="/" className="inline-block hover:opacity-90 transition-opacity">
+              <Image 
+                src="/logo.png" 
+                alt="Trade Control" 
+                width={200} 
+                height={67} 
+                className="mx-auto"
+                priority
+              />
+            </Link>
           </div>
 
           <div className="mb-8">

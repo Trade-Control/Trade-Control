@@ -171,14 +171,14 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-white/80 backdrop-blur-lg border-b border-gray-100" />
         <div className="relative max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+            <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
               <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-hover rounded-xl flex items-center justify-center shadow-lg shadow-primary/30">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
               <span className="text-xl font-bold text-gray-900">Trade Control</span>
-            </div>
+            </Link>
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-gray-600 hover:text-primary transition-colors font-medium">Features</a>
               <a href="#pricing" className="text-gray-600 hover:text-primary transition-colors font-medium">Pricing</a>
@@ -573,14 +573,14 @@ export default function HomePage() {
       <footer className="bg-gray-900 text-white py-16 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-2 mb-6 md:mb-0">
+            <Link href="/" className="flex items-center space-x-2 mb-6 md:mb-0 hover:opacity-80 transition-opacity">
               <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-hover rounded-xl flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
               <span className="text-xl font-bold">Trade Control</span>
-            </div>
+            </Link>
             <div className="flex items-center space-x-8 text-gray-400">
               <a href="#features" className="hover:text-white transition-colors">Features</a>
               <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
