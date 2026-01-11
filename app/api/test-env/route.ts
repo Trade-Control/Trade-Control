@@ -9,15 +9,11 @@ export const dynamic = 'force-dynamic';
  * Following Vercel's recommended pattern for App Router Route Handlers
  */
 export async function GET() {
-  const stripeKey = process.env.STRIPE_SECRET_KEY;
-  
   return Response.json({ 
-    hasKey: !!stripeKey, 
-    keyLength: stripeKey?.length || 0,
-    keyPrefix: stripeKey?.substring(0, 10) || 'MISSING',
-    startsWithSkTest: stripeKey?.startsWith('sk_test_') || false,
-    nodeEnv: process.env.NODE_ENV,
-    vercelEnv: process.env.VERCEL_ENV,
-    vercelUrl: process.env.VERCEL_URL,
+    testVar: process.env.TEST_VARIABLE,
+    stripeKey: process.env.STRIPE_SECRET_KEY,
+    allEnvKeys: Object.keys(process.env).filter(k => 
+      k.includes('STRIPE') || k.includes('TEST')
+    )
   });
 }
