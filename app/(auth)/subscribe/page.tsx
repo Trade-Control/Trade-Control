@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { createCustomer, createSubscription, PRICING, formatPrice, calculateSubscriptionPrice } from '@/lib/services/stripe-mock';
 import { SubscriptionTier, OperationsProLevel } from '@/lib/types/database.types';
 
-export default function SubscribePage() {
+function SubscribeForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -525,5 +525,24 @@ export default function SubscribePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SubscribeLoading() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function SubscribePage() {
+  return (
+    <Suspense fallback={<SubscribeLoading />}>
+      <SubscribeForm />
+    </Suspense>
   );
 }
