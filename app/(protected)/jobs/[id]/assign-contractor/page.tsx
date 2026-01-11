@@ -170,11 +170,20 @@ export default function AssignContractorPage() {
         companyName: job.organizations?.name || 'Trade Control',
       });
 
-      const emailResult = await sendEmail({
-        to: contractor.email,
-        subject: emailTemplate.subject,
-        html: emailTemplate.html,
-      });
+      let emailResult;
+      try {
+        emailResult = await sendEmail({
+          to: contractor.email,
+          subject: emailTemplate.subject,
+          html: emailTemplate.html,
+        });
+      } catch (emailError: any) {
+        // Check if it's a configuration error
+        if (emailError.message?.includes('RESEND_API_KEY')) {
+          throw new Error('Email service not configured. Please set RESEND_API_KEY in your environment variables or switch to mock email service for testing.');
+        }
+        throw emailError;
+      }
 
       // Log email to database
       await supabase.from('email_communications').insert({

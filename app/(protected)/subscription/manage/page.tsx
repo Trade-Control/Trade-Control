@@ -88,9 +88,21 @@ export default function ManageSubscriptionPage() {
   const handleUpgradeToPro = async () => {
     if (!subscription || subscription.tier === 'operations_pro') return;
 
+    // Check if subscription is in trial
+    if (subscription.status === 'trialing') {
+      alert('Cannot upgrade during trial period. Please add a payment method first or wait until trial ends.');
+      return;
+    }
+
+    // Check if Stripe subscription ID exists
+    if (!subscription.stripe_subscription_id) {
+      alert('Stripe subscription not found. Please contact support.');
+      return;
+    }
+
     if (confirm('Upgrade to Operations Pro? This will add contractor management features.')) {
       try {
-        await updateSubscription(subscription.stripe_subscription_id!, {
+        await updateSubscription(subscription.stripe_subscription_id, {
           tier: 'operations_pro',
           operationsProLevel: 'scale',
         });
@@ -106,8 +118,9 @@ export default function ManageSubscriptionPage() {
 
         alert('Upgraded to Operations Pro!');
         fetchData();
-      } catch (err) {
-        alert('Error upgrading subscription');
+      } catch (err: any) {
+        console.error('Upgrade error:', err);
+        alert('Error upgrading subscription: ' + (err.message || 'Unknown error'));
       }
     }
   };
@@ -253,7 +266,7 @@ export default function ManageSubscriptionPage() {
           <span className="text-primary font-medium">Manage Licenses →</span>
         </Link>
 
-        {subscription.tier === 'operations' && (
+        {subscription.tier === 'operations' && subscription.status !== 'trialing' && (
           <button
             onClick={handleUpgradeToPro}
             className="bg-purple-600 hover:bg-purple-700 rounded-lg shadow p-6 text-white transition-all"
@@ -263,6 +276,19 @@ export default function ManageSubscriptionPage() {
             <p className="text-sm mb-4 opacity-90">Add contractor management and compliance tracking</p>
             <span className="font-medium">Upgrade Now →</span>
           </button>
+        )}
+        
+        {subscription.tier === 'operations' && subscription.status === 'trialing' && (
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg shadow p-6">
+            <div className="text-4xl mb-3">⚡</div>
+            <h3 className="font-semibold text-yellow-900 mb-2">Upgrade to Operations Pro</h3>
+            <p className="text-sm text-yellow-700 mb-4">
+              Upgrade available after your free trial ends on {subscription.trial_ends_at ? new Date(subscription.trial_ends_at).toLocaleDateString() : 'trial end date'}.
+            </p>
+            <p className="text-xs text-yellow-600">
+              During the trial period, subscription modifications are limited. You can upgrade once the trial ends or by adding a payment method in Stripe.
+            </p>
+          </div>
         )}
       </div>
 

@@ -103,11 +103,20 @@ export default function QuotesPage() {
       });
 
       // Send email via Resend
-      const emailResult = await sendEmail({
-        to: contact.email,
-        subject: emailTemplate.subject,
-        html: emailTemplate.html,
-      });
+      let emailResult;
+      try {
+        emailResult = await sendEmail({
+          to: contact.email,
+          subject: emailTemplate.subject,
+          html: emailTemplate.html,
+        });
+      } catch (emailError: any) {
+        // Check if it's a configuration error
+        if (emailError.message?.includes('RESEND_API_KEY')) {
+          throw new Error('Email service not configured. Please set RESEND_API_KEY in your environment variables or switch to mock email service for testing.');
+        }
+        throw emailError;
+      }
 
       // Log email to database
       await supabase.from('email_communications').insert({
@@ -146,9 +155,9 @@ export default function QuotesPage() {
       
       alert(`Quote sent successfully to ${contact.email}!`);
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending quote:', error);
-      alert('Failed to send quote email');
+      alert('Failed to send quote email: ' + (error.message || 'Unknown error'));
     }
   };
 

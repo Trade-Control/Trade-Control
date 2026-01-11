@@ -80,9 +80,19 @@ export default function AddLicensePage() {
       if (!profile?.organization_id) throw new Error('Organization not found');
       if (!subscription) throw new Error('Subscription not found');
 
-      // Add license via Stripe mock
+      // Check if subscription is in trial
+      if (subscription.status === 'trialing') {
+        throw new Error('Cannot add licenses during trial period. Please wait until trial ends or add a payment method first.');
+      }
+
+      // Check if Stripe subscription ID exists
+      if (!subscription.stripe_subscription_id) {
+        throw new Error('Stripe subscription not found. Please contact support.');
+      }
+
+      // Add license via Stripe
       const stripeItem = await addLicense({
-        subscriptionId: subscription.stripe_subscription_id!,
+        subscriptionId: subscription.stripe_subscription_id,
         licenseType,
         quantity,
       });
@@ -124,6 +134,25 @@ export default function AddLicensePage() {
         <h1 className="text-3xl font-bold text-gray-900">Add New License</h1>
         <p className="text-gray-600 mt-2">Add management or field staff licenses to your team</p>
       </div>
+
+      {subscription?.status === 'trialing' && (
+        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6 mb-6">
+          <div className="flex items-start gap-3">
+            <svg className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <h3 className="font-semibold text-yellow-900 mb-1">Trial Period Active</h3>
+              <p className="text-sm text-yellow-700">
+                You cannot add licenses during the free trial period. You can add licenses after your trial ends on {subscription.trial_ends_at ? new Date(subscription.trial_ends_at).toLocaleDateString() : 'trial end date'}.
+              </p>
+              <p className="text-xs text-yellow-600 mt-2">
+                Alternatively, you can add a payment method in Stripe to enable license management during the trial.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8 space-y-6">
         {/* License Type Selection */}
@@ -247,10 +276,10 @@ export default function AddLicensePage() {
           </button>
           <button
             type="submit"
-            disabled={loading || !subscription}
+            disabled={loading || !subscription || subscription.status === 'trialing'}
             className="flex-1 bg-primary hover:bg-primary-hover text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
           >
-            {loading ? 'Adding...' : `Add ${quantity === 1 ? 'License' : `${quantity} Licenses`}`}
+            {loading ? 'Adding...' : subscription?.status === 'trialing' ? 'Not Available During Trial' : `Add ${quantity === 1 ? 'License' : `${quantity} Licenses`}`}
           </button>
         </div>
       </form>

@@ -78,25 +78,26 @@ export default function CompliancePage() {
   const handleSendReminders = async () => {
     setSendingReminders(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('organization_id')
-      .eq('id', user.id)
-      .single();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
 
-    if (!profile?.organization_id) return;
+      if (!profile?.organization_id) return;
 
-    const { data: org } = await supabase
-      .from('organizations')
-      .select('name')
-      .eq('id', profile.organization_id)
-      .single();
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('name')
+        .eq('id', profile.organization_id)
+        .single();
 
-    // Send reminders to contractors expiring in next 30 days
-    for (const contractor of expiringSoon30) {
+      // Send reminders to contractors expiring in next 30 days
+      for (const contractor of expiringSoon30) {
       const expiringItems = [];
       
       if (isExpiringSoon(contractor.insurance_expiry, 30)) {
@@ -120,11 +121,17 @@ export default function CompliancePage() {
           expiringItems,
         });
 
-        await sendEmail({
-          to: contractor.email,
-          subject: emailTemplate.subject,
-          html: emailTemplate.html,
-        });
+        try {
+          await sendEmail({
+            to: contractor.email,
+            subject: emailTemplate.subject,
+            html: emailTemplate.html,
+          });
+        } catch (emailError: any) {
+          console.error(`Failed to send email to ${contractor.email}:`, emailError);
+          // Continue with other contractors even if one fails
+          continue;
+        }
 
         // Log email
         await supabase.from('email_communications').insert({
@@ -137,10 +144,19 @@ export default function CompliancePage() {
           status: 'sent',
         });
       }
-    }
+      }
 
-    setSendingReminders(false);
-    alert(`Sent compliance reminders to ${expiringSoon30.length} contractors`);
+      setSendingReminders(false);
+      alert(`Sent compliance reminders to ${expiringSoon30.length} contractors`);
+    } catch (error: any) {
+      console.error('Error sending reminders:', error);
+      setSendingReminders(false);
+      if (error.message?.includes('RESEND_API_KEY')) {
+        alert('Email service not configured. Please set RESEND_API_KEY in your environment variables or switch to mock email service for testing.');
+      } else {
+        alert('Failed to send reminders: ' + (error.message || 'Unknown error'));
+      }
+    }
   };
 
   if (!hasProAccess) {
