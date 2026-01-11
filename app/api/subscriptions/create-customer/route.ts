@@ -11,11 +11,12 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Lazy-load env at request time
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
-    const hasStripeKey = !!stripeSecretKey;
-    const keyPrefix = stripeSecretKey?.substring(0, 7) || 'missing';
-    console.log('[Create Customer] STRIPE_SECRET_KEY check:', { hasStripeKey, keyPrefix });
+    // Access env var directly in Route Handler (Vercel recommended pattern)
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    console.log('[Create Customer] STRIPE_SECRET_KEY check:', { 
+      hasKey: !!stripeSecretKey, 
+      keyLength: stripeSecretKey?.length || 0 
+    });
 
     if (!stripeSecretKey) {
       console.error('[Create Customer] STRIPE_SECRET_KEY is not set in environment');

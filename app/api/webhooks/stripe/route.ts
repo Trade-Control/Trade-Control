@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Stripe from 'stripe';
 
-// Helper function to create Stripe client lazily (only when needed)
+// Helper function to create Stripe client (Vercel recommended pattern)
 function getStripeClient() {
-  const secretKey = process.env.STRIPE_SECRET_KEY || '';
+  const secretKey = process.env.STRIPE_SECRET_KEY;
   
   if (!secretKey) {
     throw new Error('STRIPE_SECRET_KEY is not configured');
