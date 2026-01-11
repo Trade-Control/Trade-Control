@@ -1,6 +1,13 @@
 import { createBrowserClient } from '@supabase/ssr';
 
 export function createClient() {
+  // Skip client creation during prerendering
+  if (typeof window === 'undefined') {
+    // Return a mock client during build/prerender to prevent errors
+    // This will never be used at runtime since client components only run in browser
+    return null as any;
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { useRouter } from 'next/navigation';
 
 export default function NewJobPage() {
@@ -36,10 +36,11 @@ export default function NewJobPage() {
   const [loading, setLoading] = useState(false);
   const [selectedContact, setSelectedContact] = useState<any>(null);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
     const fetchContacts = async () => {
+      if (!supabase) return;
       const { data } = await supabase
         .from('contacts')
         .select('id, contact_name, company_name, address, city, state, postcode, email, phone')
