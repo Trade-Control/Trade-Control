@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
 export default function ProtectedLayout({
@@ -12,14 +12,17 @@ export default function ProtectedLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkSubscriptionStatus();
-  }, [pathname]);
+    if (supabase) {
+      checkSubscriptionStatus();
+    }
+  }, [pathname, supabase]);
 
   const checkSubscriptionStatus = async () => {
+    if (!supabase) return;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       

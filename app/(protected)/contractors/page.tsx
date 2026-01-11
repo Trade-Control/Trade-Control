@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { Contractor } from '@/lib/types/database.types';
 import { hasOperationsPro } from '@/lib/middleware/role-check';
 import Link from 'next/link';
 
 export default function ContractorsPage() {
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [accessChecked, setAccessChecked] = useState(false);
@@ -31,10 +31,13 @@ export default function ContractorsPage() {
   });
 
   useEffect(() => {
-    initializePage();
-  }, []);
+    if (supabase) {
+      initializePage();
+    }
+  }, [supabase]);
 
   const initializePage = async () => {
+    if (!supabase) return;
     setLoading(true);
     // Check access first, then fetch data
     const hasPro = await hasOperationsPro();

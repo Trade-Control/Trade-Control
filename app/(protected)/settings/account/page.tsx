@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { useRouter } from 'next/navigation';
 
 export default function AccountSettingsPage() {
@@ -11,13 +11,18 @@ export default function AccountSettingsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   const router = useRouter();
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    if (!supabase) {
+      setError('Configuration error. Please refresh the page.');
+      return;
+    }
 
     // Validate passwords match
     if (newPassword !== confirmPassword) {

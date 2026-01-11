@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -12,13 +12,16 @@ export default function JobActivityPage() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'create' | 'update' | 'delete'>('all');
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
-    fetchData();
-  }, [jobId, filter]);
+    if (supabase) {
+      fetchData();
+    }
+  }, [jobId, filter, supabase]);
 
   const fetchData = async () => {
+    if (!supabase) return;
     setLoading(true);
 
     // Fetch job details

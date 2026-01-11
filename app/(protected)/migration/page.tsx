@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { PRICING, formatPrice } from '@/lib/services/stripe';
 import { SubscriptionTier, OperationsProLevel } from '@/lib/types/database.types';
 
 export default function MigrationPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const [tier, setTier] = useState<SubscriptionTier>('operations');
   const [operationsProLevel, setOperationsProLevel] = useState<OperationsProLevel>('scale');
@@ -17,10 +17,13 @@ export default function MigrationPage() {
   const [organizationId, setOrganizationId] = useState('');
 
   useEffect(() => {
-    checkMigrationStatus();
-  }, []);
+    if (supabase) {
+      checkMigrationStatus();
+    }
+  }, [supabase]);
 
   const checkMigrationStatus = async () => {
+    if (!supabase) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.push('/login');

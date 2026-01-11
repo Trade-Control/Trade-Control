@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { redirect, useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getUserPermissions } from '@/lib/middleware/role-check';
@@ -23,10 +23,12 @@ export default function JobDetailPage() {
   const [canManageContractors, setCanManageContractors] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
-    fetchJob();
+    if (supabase) {
+      fetchJob();
+    }
     checkPermissions();
   }, [jobId]);
   
@@ -55,6 +57,7 @@ export default function JobDetailPage() {
   };
 
   const fetchJob = async () => {
+    if (!supabase) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('jobs')

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import DocumentUpload from '@/components/jobs/DocumentUpload';
@@ -12,13 +12,16 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
-    fetchData();
-  }, [jobId]);
+    if (supabase) {
+      fetchData();
+    }
+  }, [jobId, supabase]);
 
   const fetchData = async () => {
+    if (!supabase) return;
     setLoading(true);
     
     // Fetch job details

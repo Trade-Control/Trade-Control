@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import Link from 'next/link';
 
 export default function SchedulingPage() {
@@ -21,13 +21,16 @@ export default function SchedulingPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
-    fetchData();
-  }, [selectedDate]);
+    if (supabase) {
+      fetchData();
+    }
+  }, [selectedDate, supabase]);
 
   const fetchData = async () => {
+    if (!supabase) return;
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();

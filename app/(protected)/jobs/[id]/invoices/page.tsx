@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import InvoiceGenerator from '@/components/jobs/InvoiceGenerator';
@@ -16,13 +16,16 @@ export default function InvoicesPage() {
   const [showForm, setShowForm] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
-    fetchData();
-  }, [jobId]);
+    if (supabase) {
+      fetchData();
+    }
+  }, [jobId, supabase]);
 
   const fetchData = async () => {
+    if (!supabase) return;
     setLoading(true);
     
     // Fetch job details

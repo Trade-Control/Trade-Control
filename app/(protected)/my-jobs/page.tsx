@@ -1,21 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import Link from 'next/link';
 
 export default function MyJobsPage() {
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [assignments, setAssignments] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchAssignedJobs();
-  }, [selectedDate]);
+    if (supabase) {
+      fetchAssignedJobs();
+    }
+  }, [selectedDate, supabase]);
 
   const fetchAssignedJobs = async () => {
+    if (!supabase) return;
     setLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();

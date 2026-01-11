@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { Inventory } from '@/lib/types/database.types';
 
 export default function InventoryPage() {
@@ -13,7 +13,7 @@ export default function InventoryPage() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterLowStock, setFilterLowStock] = useState(false);
 
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const [formData, setFormData] = useState({
     item_name: '',
@@ -28,10 +28,13 @@ export default function InventoryPage() {
   });
 
   useEffect(() => {
-    fetchInventory();
-  }, []);
+    if (supabase) {
+      fetchInventory();
+    }
+  }, [supabase]);
 
   const fetchInventory = async () => {
+    if (!supabase) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('inventory')

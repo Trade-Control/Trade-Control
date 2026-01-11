@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 
 interface InvoiceGeneratorProps {
   jobId: string;
@@ -21,13 +21,16 @@ export default function InvoiceGenerator({ jobId, acceptedQuotes, onSuccess }: I
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
-    generateInvoiceNumber();
-  }, []);
+    if (supabase) {
+      generateInvoiceNumber();
+    }
+  }, [supabase]);
 
   const generateInvoiceNumber = async () => {
+    if (!supabase) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 

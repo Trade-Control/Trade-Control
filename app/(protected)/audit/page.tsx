@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { getUserPermissions } from '@/lib/middleware/role-check';
 
 interface AuditLog {
@@ -22,7 +22,7 @@ interface AuditLog {
 }
 
 export default function AuditTrailPage() {
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -33,10 +33,13 @@ export default function AuditTrailPage() {
   const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
-    checkPermissionsAndFetch();
-  }, []);
+    if (supabase) {
+      checkPermissionsAndFetch();
+    }
+  }, [supabase]);
 
   const checkPermissionsAndFetch = async () => {
+    if (!supabase) return;
     const permissions = await getUserPermissions();
     
     if (!permissions || !permissions.role) {

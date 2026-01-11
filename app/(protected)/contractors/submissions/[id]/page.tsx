@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import Link from 'next/link';
 
 export default function SubmissionDetailPage() {
   const params = useParams();
   const submissionId = params.id as string;
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const [submission, setSubmission] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -18,10 +18,13 @@ export default function SubmissionDetailPage() {
   const [reviewNotes, setReviewNotes] = useState('');
 
   useEffect(() => {
-    fetchSubmission();
-  }, [submissionId]);
+    if (supabase) {
+      fetchSubmission();
+    }
+  }, [submissionId, supabase]);
 
   const fetchSubmission = async () => {
+    if (!supabase) return;
     setLoading(true);
 
     const { data } = await supabase

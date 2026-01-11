@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { getUserPermissions } from '@/lib/middleware/role-check';
@@ -11,7 +11,7 @@ import { UserPermissions } from '@/lib/middleware/role-check';
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   const [loggingOut, setLoggingOut] = useState(false);
   const [permissions, setPermissions] = useState<UserPermissions | null>(null);
 

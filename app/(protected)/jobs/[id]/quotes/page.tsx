@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import QuoteForm from '@/components/jobs/QuoteForm';
@@ -14,14 +14,17 @@ export default function QuotesPage() {
   const [job, setJob] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   const router = useRouter();
 
   useEffect(() => {
-    fetchData();
-  }, [jobId]);
+    if (supabase) {
+      fetchData();
+    }
+  }, [jobId, supabase]);
 
   const fetchData = async () => {
+    if (!supabase) return;
     setLoading(true);
     
     // Fetch job details

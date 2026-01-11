@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { Contact } from '@/lib/types/database.types';
 
 export default function ContactsPage() {
@@ -12,7 +12,7 @@ export default function ContactsPage() {
   const [filterType, setFilterType] = useState<'all' | 'customer' | 'supplier'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const [formData, setFormData] = useState({
     type: 'customer' as 'customer' | 'supplier',
@@ -30,10 +30,13 @@ export default function ContactsPage() {
   });
 
   useEffect(() => {
-    fetchContacts();
-  }, []);
+    if (supabase) {
+      fetchContacts();
+    }
+  }, [supabase]);
 
   const fetchContacts = async () => {
+    if (!supabase) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('contacts')

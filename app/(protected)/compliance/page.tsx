@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { Contractor } from '@/lib/types/database.types';
 import { hasOperationsPro } from '@/lib/middleware/role-check';
 import { sendEmail, generateComplianceReminderEmail } from '@/lib/services/resend';
 import Link from 'next/link';
 
 export default function CompliancePage() {
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasProAccess, setHasProAccess] = useState(false);
@@ -16,8 +16,10 @@ export default function CompliancePage() {
 
   useEffect(() => {
     checkAccess();
-    fetchContractors();
-  }, []);
+    if (supabase) {
+      fetchContractors();
+    }
+  }, [supabase]);
 
   const checkAccess = async () => {
     const hasPro = await hasOperationsPro();
@@ -25,6 +27,7 @@ export default function CompliancePage() {
   };
 
   const fetchContractors = async () => {
+    if (!supabase) return;
     setLoading(true);
 
     const { data, error } = await supabase

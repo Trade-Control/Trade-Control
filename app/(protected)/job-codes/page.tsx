@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { JobCode } from '@/lib/types/database.types';
 
 export default function JobCodesPage() {
@@ -12,7 +12,7 @@ export default function JobCodesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
 
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const [formData, setFormData] = useState({
     code: '',
@@ -24,10 +24,13 @@ export default function JobCodesPage() {
   });
 
   useEffect(() => {
-    fetchJobCodes();
-  }, []);
+    if (supabase) {
+      fetchJobCodes();
+    }
+  }, [supabase]);
 
   const fetchJobCodes = async () => {
+    if (!supabase) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('job_codes')

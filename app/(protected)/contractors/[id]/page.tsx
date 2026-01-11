@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { hasOperationsPro } from '@/lib/middleware/role-check';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -10,7 +10,7 @@ export default function ContractorDetailPage() {
   const params = useParams();
   const router = useRouter();
   const contractorId = params.id as string;
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   
   const [contractor, setContractor] = useState<any>(null);
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -32,10 +32,13 @@ export default function ContractorDetailPage() {
   });
 
   useEffect(() => {
-    initializePage();
-  }, [contractorId]);
+    if (supabase) {
+      initializePage();
+    }
+  }, [contractorId, supabase]);
 
   const initializePage = async () => {
+    if (!supabase) return;
     setLoading(true);
     const hasPro = await hasOperationsPro();
     setHasProAccess(hasPro);

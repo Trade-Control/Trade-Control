@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { Contractor } from '@/lib/types/database.types';
 import { sendEmail, generateJobAssignmentEmail } from '@/lib/services/resend';
 import { nanoid } from 'nanoid';
@@ -11,7 +11,7 @@ export default function AssignContractorPage() {
   const params = useParams();
   const jobId = params.id as string;
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const [job, setJob] = useState<any>(null);
   const [contractors, setContractors] = useState<Contractor[]>([]);
@@ -22,11 +22,13 @@ export default function AssignContractorPage() {
   const [complianceWarning, setComplianceWarning] = useState('');
 
   useEffect(() => {
-    fetchData();
-  }, [jobId]);
+    if (supabase) {
+      fetchData();
+    }
+  }, [jobId, supabase]);
 
   useEffect(() => {
-    if (selectedContractorId) {
+    if (selectedContractorId && supabase) {
       checkCompliance(selectedContractorId);
     } else {
       setComplianceWarning('');
@@ -34,8 +36,9 @@ export default function AssignContractorPage() {
   }, [selectedContractorId]);
 
   const fetchData = async () => {
+    if (!supabase) return;
     setLoading(true);
-    
+
     // Fetch job details
     const { data: jobData } = await supabase
       .from('jobs')

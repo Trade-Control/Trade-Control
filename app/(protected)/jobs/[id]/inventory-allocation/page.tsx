@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { JobInventoryAllocation, Inventory } from '@/lib/types/database.types';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -20,12 +20,14 @@ export default function JobInventoryAllocationPage() {
   const [quantity, setQuantity] = useState('');
   const [notes, setNotes] = useState('');
 
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
-    fetchAllocations();
-    fetchAvailableInventory();
-  }, [jobId]);
+    if (supabase) {
+      fetchAllocations();
+      fetchAvailableInventory();
+    }
+  }, [jobId, supabase]);
 
   useEffect(() => {
     // Filter inventory based on search
@@ -45,6 +47,7 @@ export default function JobInventoryAllocationPage() {
   }, [inventorySearch, availableInventory]);
 
   const fetchAllocations = async () => {
+    if (!supabase) return;
     const { data, error } = await supabase
       .from('job_inventory_allocations')
       .select(`
@@ -69,6 +72,7 @@ export default function JobInventoryAllocationPage() {
   };
 
   const fetchAvailableInventory = async () => {
+    if (!supabase) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('inventory')

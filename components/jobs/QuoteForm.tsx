@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 
 interface QuoteFormProps {
   jobId: string;
@@ -24,14 +24,17 @@ export default function QuoteForm({ jobId, onSuccess }: QuoteFormProps) {
   const [showJobCodeDropdown, setShowJobCodeDropdown] = useState<{ [key: number]: boolean }>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
-    fetchJobCodes();
-    generateQuoteNumber();
-  }, []);
+    if (supabase) {
+      fetchJobCodes();
+      generateQuoteNumber();
+    }
+  }, [supabase]);
 
   const fetchJobCodes = async () => {
+    if (!supabase) return;
     const { data } = await supabase
       .from('job_codes')
       .select('*')

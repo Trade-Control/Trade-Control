@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
@@ -25,14 +25,17 @@ export default function JobTravelPage() {
     notes: '',
   });
 
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
-    fetchJob();
-    fetchTravelLogs();
-  }, [jobId]);
+    if (supabase) {
+      fetchJob();
+      fetchTravelLogs();
+    }
+  }, [jobId, supabase]);
 
   const fetchJob = async () => {
+    if (!supabase) return;
     const { data, error } = await supabase
       .from('jobs')
       .select('id, job_number, title, site_address, site_city, site_state, site_postcode')
@@ -53,6 +56,7 @@ export default function JobTravelPage() {
   };
 
   const fetchTravelLogs = async () => {
+    if (!supabase) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('travel_logs')

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { getUserPermissions } from '@/lib/middleware/role-check';
 
 interface ReportData {
@@ -57,7 +57,7 @@ interface ReportData {
 }
 
 export default function ReportsPage() {
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [reportData, setReportData] = useState<ReportData | null>(null);
@@ -70,18 +70,21 @@ export default function ReportsPage() {
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
-    checkPermissionsAndFetch();
-  }, []);
+    if (supabase) {
+      checkPermissionsAndFetch();
+    }
+  }, [supabase]);
 
   useEffect(() => {
-    if (userRole) {
+    if (userRole && supabase) {
       fetchReports();
     }
-  }, [dateFrom, dateTo, userRole]);
+  }, [dateFrom, dateTo, userRole, supabase]);
 
   const checkPermissionsAndFetch = async () => {
+    if (!supabase) return;
     const permissions = await getUserPermissions();
-    
+
     if (!permissions || !permissions.role) {
       setLoading(false);
       return;

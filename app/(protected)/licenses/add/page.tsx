@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { addLicense, calculateProRata, formatPrice, PRICING } from '@/lib/services/stripe';
 import { Subscription } from '@/lib/types/database.types';
 
 export default function AddLicensePage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const [licenseType, setLicenseType] = useState<'management' | 'field_staff'>('management');
   const [quantity, setQuantity] = useState(1);
@@ -18,8 +18,10 @@ export default function AddLicensePage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchSubscription();
-  }, []);
+    if (supabase) {
+      fetchSubscription();
+    }
+  }, [supabase]);
 
   useEffect(() => {
     if (subscription) {
@@ -28,6 +30,7 @@ export default function AddLicensePage() {
   }, [licenseType, quantity, subscription]);
 
   const fetchSubscription = async () => {
+    if (!supabase) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 

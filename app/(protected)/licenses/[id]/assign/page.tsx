@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { License } from '@/lib/types/database.types';
 
 export default function AssignLicensePage() {
   const params = useParams();
   const licenseId = params.id as string;
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const [license, setLicense] = useState<License | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,10 +21,13 @@ export default function AssignLicensePage() {
   const [phone, setPhone] = useState('');
 
   useEffect(() => {
-    fetchLicense();
-  }, [licenseId]);
+    if (supabase) {
+      fetchLicense();
+    }
+  }, [licenseId, supabase]);
 
   const fetchLicense = async () => {
+    if (!supabase) return;
     const { data } = await supabase
       .from('licenses')
       .select('*')

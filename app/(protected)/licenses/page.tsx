@@ -1,22 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { License, Profile } from '@/lib/types/database.types';
 import { getUserPermissions } from '@/lib/middleware/role-check';
 import { formatPrice, getLicenseTypeName, getLicensePrice } from '@/lib/services/stripe';
 import Link from 'next/link';
 
 export default function LicensesPage() {
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   const [licenses, setLicenses] = useState<(License & { profiles?: Profile })[]>([]);
   const [loading, setLoading] = useState(true);
   const [canManage, setCanManage] = useState(false);
 
   useEffect(() => {
     checkPermissions();
-    fetchLicenses();
-  }, []);
+    if (supabase) {
+      fetchLicenses();
+    }
+  }, [supabase]);
 
   const checkPermissions = async () => {
     const permissions = await getUserPermissions();
@@ -24,6 +26,7 @@ export default function LicensesPage() {
   };
 
   const fetchLicenses = async () => {
+    if (!supabase) return;
     setLoading(true);
     
     try {

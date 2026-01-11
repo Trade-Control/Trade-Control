@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { Subscription, License } from '@/lib/types/database.types';
 import { getUserPermissions } from '@/lib/middleware/role-check';
 import { formatPrice, PRICING, cancelSubscription, updateSubscription } from '@/lib/services/stripe';
@@ -10,7 +10,7 @@ import Link from 'next/link';
 
 export default function ManageSubscriptionPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [licenses, setLicenses] = useState<License[]>([]);
@@ -19,8 +19,10 @@ export default function ManageSubscriptionPage() {
 
   useEffect(() => {
     checkPermissions();
-    fetchData();
-  }, []);
+    if (supabase) {
+      fetchData();
+    }
+  }, [supabase]);
 
   const checkPermissions = async () => {
     const permissions = await getUserPermissions();
@@ -28,6 +30,7 @@ export default function ManageSubscriptionPage() {
   };
 
   const fetchData = async () => {
+    if (!supabase) return;
     setLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();

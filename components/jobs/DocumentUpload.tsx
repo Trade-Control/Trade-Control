@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 
 interface DocumentUploadProps {
   jobId: string;
@@ -14,7 +14,7 @@ export default function DocumentUpload({ jobId, onSuccess }: DocumentUploadProps
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -25,7 +25,12 @@ export default function DocumentUpload({ jobId, onSuccess }: DocumentUploadProps
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    if (!supabase) {
+      setError('Configuration error');
+      return;
+    }
+
     if (!file) {
       setError('Please select a file');
       return;

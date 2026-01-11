@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { useRouter } from 'next/navigation';
 import { getUserPermissions } from '@/lib/middleware/role-check';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
@@ -38,13 +38,16 @@ export default function OrganizationSettingsPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
-    checkPermissionsAndLoadData();
-  }, []);
+    if (supabase) {
+      checkPermissionsAndLoadData();
+    }
+  }, [supabase]);
 
   const checkPermissionsAndLoadData = async () => {
+    if (!supabase) return;
     setLoading(true);
     
     try {

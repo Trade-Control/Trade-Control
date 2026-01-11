@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { ContractorSubmission } from '@/lib/types/database.types';
 import Link from 'next/link';
 
 export default function ContractorSubmissionsPage() {
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   const router = useRouter();
 
   const [submissions, setSubmissions] = useState<any[]>([]);
@@ -15,10 +15,13 @@ export default function ContractorSubmissionsPage() {
   const [filter, setFilter] = useState<'all' | 'pending_review' | 'accepted' | 'needs_changes'>('all');
 
   useEffect(() => {
-    fetchSubmissions();
-  }, []);
+    if (supabase) {
+      fetchSubmissions();
+    }
+  }, [supabase]);
 
   const fetchSubmissions = async () => {
+    if (!supabase) return;
     setLoading(true);
 
     const { data: { user } } = await supabase.auth.getUser();

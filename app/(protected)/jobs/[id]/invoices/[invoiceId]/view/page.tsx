@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { redirect, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -10,7 +10,7 @@ export default function InvoiceViewPage() {
   const params = useParams();
   const jobId = params.id as string;
   const invoiceId = params.invoiceId as string;
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   
   const [invoice, setInvoice] = useState<any>(null);
   const [lineItems, setLineItems] = useState<any[]>([]);
@@ -18,6 +18,7 @@ export default function InvoiceViewPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!supabase) return;
     const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
