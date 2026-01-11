@@ -8,10 +8,18 @@
 import Stripe from 'stripe';
 import { SubscriptionTier, OperationsProLevel } from '../types/database.types';
 
-// Initialize Stripe client
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-02-24.acacia',
-});
+// Helper function to create Stripe client lazily (only when needed)
+function getStripeClient() {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  
+  if (!secretKey) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+
+  return new Stripe(secretKey, {
+    apiVersion: '2025-02-24.acacia',
+  });
+}
 
 // Pricing constants (in cents AUD) - should match your Stripe Price IDs
 export const PRICING = {
@@ -110,6 +118,7 @@ export function calculateSubscriptionPrice(
  * Create Stripe customer
  */
 export async function createCustomer(params: CreateCustomerParams) {
+  const stripe = getStripeClient();
   const customer = await stripe.customers.create({
     email: params.email,
     name: params.name,
@@ -128,6 +137,7 @@ export async function createCustomer(params: CreateCustomerParams) {
  * Create subscription
  */
 export async function createSubscription(params: CreateSubscriptionParams) {
+  const stripe = getStripeClient();
   const items: Stripe.SubscriptionCreateParams.Item[] = [];
 
   // Add base Operations plan
@@ -178,6 +188,7 @@ export async function createSubscription(params: CreateSubscriptionParams) {
  * Add license to subscription (creates subscription item)
  */
 export async function addLicense(params: AddLicenseParams) {
+  const stripe = getStripeClient();
   const priceId = params.licenseType === 'management' 
     ? STRIPE_PRICE_IDS.MANAGEMENT_LICENSE 
     : STRIPE_PRICE_IDS.FIELD_STAFF_LICENSE;
@@ -207,6 +218,7 @@ export async function addLicense(params: AddLicenseParams) {
  * Remove license from subscription
  */
 export async function removeLicense(subscriptionItemId: string) {
+  const stripe = getStripeClient();
   await stripe.subscriptionItems.del(subscriptionItemId);
   return { success: true };
 }
@@ -221,6 +233,7 @@ export async function updateSubscription(
     operationsProLevel?: OperationsProLevel;
   }
 ) {
+  const stripe = getStripeClient();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
   
   const items: Stripe.SubscriptionUpdateParams.Item[] = subscription.items.data.map(item => ({
@@ -276,6 +289,7 @@ export async function cancelSubscription(
   subscriptionId: string,
   cancelAtPeriodEnd: boolean = true
 ) {
+  const stripe = getStripeClient();
   const subscription = await stripe.subscriptions.update(subscriptionId, {
     cancel_at_period_end: cancelAtPeriodEnd,
   });
@@ -292,6 +306,7 @@ export async function cancelSubscription(
  * Retrieve subscription
  */
 export async function retrieveSubscription(subscriptionId: string) {
+  const stripe = getStripeClient();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
   return {
@@ -312,6 +327,7 @@ export async function createPaymentMethod(cardDetails: {
   exp_year: number;
   cvc: string;
 }) {
+  const stripe = getStripeClient();
   // In production, use Stripe Elements on the frontend
   // This is just for reference
   const paymentMethod = await stripe.paymentMethods.create({
@@ -340,6 +356,7 @@ export async function createPaymentMethod(cardDetails: {
  * Handle webhook
  */
 export async function handleWebhook(payload: string | Buffer, signature: string) {
+  const stripe = getStripeClient();
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   
   if (!webhookSecret) {

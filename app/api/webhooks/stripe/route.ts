@@ -2,10 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Stripe from 'stripe';
 
-// Initialize Stripe for webhook verification
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-02-24.acacia',
-});
+// Helper function to create Stripe client lazily (only when needed)
+function getStripeClient() {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  
+  if (!secretKey) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+
+  return new Stripe(secretKey, {
+    apiVersion: '2025-02-24.acacia',
+  });
+}
 
 /**
  * Stripe Webhook Handler
@@ -47,6 +55,9 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Get Stripe client (created lazily)
+    const stripe = getStripeClient();
 
     let event: Stripe.Event;
     

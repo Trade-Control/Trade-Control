@@ -8,8 +8,16 @@
 import { Resend } from 'resend';
 import { EmailType } from '../types/database.types';
 
-// Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Helper function to create Resend client lazily (only when needed)
+function getResendClient() {
+  const apiKey = process.env.RESEND_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY is not configured');
+  }
+
+  return new Resend(apiKey);
+}
 
 const DEFAULT_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Trade Control <noreply@tradecontrol.app>';
 
@@ -30,6 +38,7 @@ export interface EmailTemplate {
  * Send email via Resend
  */
 export async function sendEmail(params: SendEmailParams) {
+  const resend = getResendClient();
   const { data, error } = await resend.emails.send({
     from: params.from || DEFAULT_FROM_EMAIL,
     to: params.to,
