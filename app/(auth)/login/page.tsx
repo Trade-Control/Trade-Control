@@ -55,13 +55,13 @@ export default function LoginPage() {
       {/* Left side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary to-[#1a7aad] items-center justify-center p-12">
         <div className="text-white text-center max-w-md">
-          <div className="mb-8">
+          <div className="mb-8 bg-white/95 rounded-xl p-6 shadow-lg">
             <Image 
               src="/logo.png" 
               alt="Trade Control" 
-              width={300} 
-              height={100} 
-              className="mx-auto filter brightness-0 invert"
+              width={280} 
+              height={93} 
+              className="mx-auto"
               priority
             />
           </div>

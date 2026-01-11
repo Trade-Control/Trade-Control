@@ -10,6 +10,7 @@ export default function ContractorsPage() {
   const supabase = createClient();
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accessChecked, setAccessChecked] = useState(false);
   const [hasProAccess, setHasProAccess] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'flagged' | 'blocked'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,18 +31,23 @@ export default function ContractorsPage() {
   });
 
   useEffect(() => {
-    checkAccess();
-    fetchContractors();
+    initializePage();
   }, []);
 
-  const checkAccess = async () => {
+  const initializePage = async () => {
+    setLoading(true);
+    // Check access first, then fetch data
     const hasPro = await hasOperationsPro();
     setHasProAccess(hasPro);
+    setAccessChecked(true);
+    
+    if (hasPro) {
+      await fetchContractors();
+    }
+    setLoading(false);
   };
 
   const fetchContractors = async () => {
-    setLoading(true);
-
     const { data, error } = await supabase
       .from('contractors')
       .select('*')
@@ -52,8 +58,6 @@ export default function ContractorsPage() {
     } else {
       setContractors(data || []);
     }
-
-    setLoading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -185,17 +189,30 @@ export default function ContractorsPage() {
     return matchesStatus && matchesSearch;
   });
 
+  // Show loading state while checking access - prevents flash of upgrade page
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   if (!hasProAccess) {
     return (
       <div className="text-center py-12">
-        <div className="text-6xl mb-4">🔒</div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Operations Pro Required</h1>
-        <p className="text-gray-600 mb-6">
+        <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-semibold text-gray-900 mb-3">Operations Pro Required</h1>
+        <p className="text-gray-600 mb-6 text-sm max-w-md mx-auto">
           Contractor management is available with Operations Pro subscription.
         </p>
         <Link
           href="/subscription/manage"
-          className="inline-block bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          className="inline-block bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-md text-sm font-medium transition-colors"
         >
           Upgrade to Operations Pro
         </Link>
@@ -203,30 +220,33 @@ export default function ContractorsPage() {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-xl text-gray-600">Loading...</div>
-      </div>
-    );
-  }
-
   return (
     <div>
-      <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Contractors</h1>
-          <p className="text-gray-600 mt-2">Manage external contractors and compliance</p>
+          <h1 className="text-2xl font-semibold text-gray-900">Contractors</h1>
+          <p className="text-gray-500 text-sm mt-1">Manage external contractors and compliance</p>
         </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowModal(true);
-          }}
-          className="bg-primary hover:bg-primary-hover text-white px-6 py-3 rounded-lg font-medium transition-colors"
-        >
-          + Add Contractor
-        </button>
+        <div className="flex gap-2">
+          <Link
+            href="/contractors/onboard"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            Request Details
+          </Link>
+          <button
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+            className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+          >
+            + Add Contractor
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -288,81 +308,89 @@ export default function ContractorsPage() {
 
       {/* Contractors Grid */}
       {filteredContractors.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-lg p-12 text-center">
-          <div className="text-6xl mb-4">👷</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">No Contractors Found</h2>
-          <p className="text-gray-600 mb-6">
+        <div className="bg-white rounded-md border border-gray-200 p-10 text-center">
+          <div className="h-14 w-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">No Contractors Found</h2>
+          <p className="text-gray-500 text-sm">
             {searchTerm || filterStatus !== 'all'
               ? 'Try adjusting your search or filter'
               : 'Add contractors to manage external workers'}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredContractors.map((contractor) => {
             const complianceStatus = getComplianceStatus(contractor);
             
             return (
               <div
                 key={contractor.id}
-                className={`bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow ${
-                  complianceStatus === 'expired' ? 'border-l-4 border-red-500' :
-                  complianceStatus === 'expiring' ? 'border-l-4 border-orange-500' :
-                  complianceStatus === 'blocked' ? 'border-l-4 border-gray-500' :
-                  'border-l-4 border-green-500'
+                className={`bg-white rounded-md border border-gray-200 p-5 hover:shadow-sm transition-shadow ${
+                  complianceStatus === 'expired' ? 'border-l-4 border-l-red-500' :
+                  complianceStatus === 'expiring' ? 'border-l-4 border-l-amber-500' :
+                  complianceStatus === 'blocked' ? 'border-l-4 border-l-gray-400' :
+                  'border-l-4 border-l-green-500'
                 }`}
               >
-                <div className="flex justify-between items-start mb-4">
+                <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900">{contractor.contractor_name}</h3>
+                    <h3 className="text-base font-semibold text-gray-900">{contractor.contractor_name}</h3>
                     {contractor.company_name && (
-                      <p className="text-sm text-gray-600">{contractor.company_name}</p>
+                      <p className="text-xs text-gray-500">{contractor.company_name}</p>
                     )}
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleEdit(contractor)}
-                      className="text-primary hover:text-primary-hover text-sm font-medium"
+                      className="text-primary hover:text-primary-hover text-xs font-medium"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDelete(contractor.id)}
-                      className="text-red-600 hover:text-red-700 text-sm font-medium"
+                      className="text-red-600 hover:text-red-700 text-xs font-medium"
                     >
                       Delete
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-2 text-sm mb-4">
+                <div className="space-y-1.5 text-sm mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-500">📧</span>
-                    <a href={`mailto:${contractor.email}`} className="text-primary hover:underline">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <a href={`mailto:${contractor.email}`} className="text-primary hover:underline text-sm">
                       {contractor.email}
                     </a>
                   </div>
                   {contractor.phone && (
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-500">📞</span>
-                      <span className="text-gray-900">{contractor.phone}</span>
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      <span className="text-gray-900 text-sm">{contractor.phone}</span>
                     </div>
                   )}
                 </div>
 
                 {/* Compliance Info */}
-                <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
+                <div className="bg-gray-50 rounded-md p-3 space-y-1.5 text-xs">
                   {contractor.insurance_expiry && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">Insurance:</span>
                       <span className={`font-medium ${
                         isExpired(contractor.insurance_expiry) ? 'text-red-600' :
-                        isExpiringSoon(contractor.insurance_expiry) ? 'text-orange-600' :
+                        isExpiringSoon(contractor.insurance_expiry) ? 'text-amber-600' :
                         'text-green-600'
                       }`}>
-                        {isExpired(contractor.insurance_expiry) ? '❌ Expired' :
-                         isExpiringSoon(contractor.insurance_expiry) ? '⚠️ Expiring Soon' :
-                         '✓ Valid'} - {new Date(contractor.insurance_expiry).toLocaleDateString()}
+                        {isExpired(contractor.insurance_expiry) ? 'Expired' :
+                         isExpiringSoon(contractor.insurance_expiry) ? 'Expiring Soon' :
+                         'Valid'} • {new Date(contractor.insurance_expiry).toLocaleDateString()}
                       </span>
                     </div>
                   )}
@@ -371,18 +399,18 @@ export default function ContractorsPage() {
                       <span className="text-gray-600">License:</span>
                       <span className={`font-medium ${
                         isExpired(contractor.license_expiry) ? 'text-red-600' :
-                        isExpiringSoon(contractor.license_expiry) ? 'text-orange-600' :
+                        isExpiringSoon(contractor.license_expiry) ? 'text-amber-600' :
                         'text-green-600'
                       }`}>
-                        {isExpired(contractor.license_expiry) ? '❌ Expired' :
-                         isExpiringSoon(contractor.license_expiry) ? '⚠️ Expiring Soon' :
-                         '✓ Valid'} - {new Date(contractor.license_expiry).toLocaleDateString()}
+                        {isExpired(contractor.license_expiry) ? 'Expired' :
+                         isExpiringSoon(contractor.license_expiry) ? 'Expiring Soon' :
+                         'Valid'} • {new Date(contractor.license_expiry).toLocaleDateString()}
                       </span>
                     </div>
                   )}
                 </div>
 
-                <div className="mt-4">
+                <div className="mt-3">
                   <Link
                     href={`/contractors/${contractor.id}`}
                     className="text-primary hover:text-primary-hover text-sm font-medium"
