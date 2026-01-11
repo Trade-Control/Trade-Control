@@ -4,10 +4,10 @@ import Stripe from 'stripe';
 
 // Helper function to create Stripe client lazily (only when needed)
 function getStripeClient() {
-  const secretKey = process.env.STRIPE_SECRET_KEY_V2;
+  const secretKey = process.env.STRIPE_SECRET_KEY;
   
   if (!secretKey) {
-    throw new Error('STRIPE_SECRET_KEY_V2 is not configured');
+    throw new Error('STRIPE_SECRET_KEY is not configured');
   }
 
   return new Stripe(secretKey, {

@@ -194,8 +194,8 @@ function SubscribeForm() {
       }
       
       // Check for common issues
-      if (err?.message?.includes('STRIPE_SECRET_KEY_V2 is not configured') || err?.message?.includes('STRIPE_SECRET_KEY is not configured')) {
-        errorMessage = 'Stripe is not configured. Please set STRIPE_SECRET_KEY_V2 in your environment variables. See ROLLOUT_GUIDE.md for setup instructions.';
+      if (err?.message?.includes('STRIPE_SECRET_KEY is not configured')) {
+        errorMessage = 'Stripe is not configured. Please set STRIPE_SECRET_KEY in your environment variables. See ROLLOUT_GUIDE.md for setup instructions.';
       } else if (err?.code === '42P01' || err?.message?.includes('relation') || err?.message?.includes('does not exist')) {
         errorMessage = 'Database tables not found. Please run the migration SQL file first. See README.md for instructions.';
       } else if (err?.code === '23505') {

@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     message: 'Environment variable check',
     nodeEnv: process.env.NODE_ENV,
     
-    // Detailed STRIPE_SECRET_KEY_V2 diagnostics
+    // Detailed STRIPE_SECRET_KEY diagnostics
     stripeSecretKeyCheck: {
       exists: keyExists,
       type: keyType,
@@ -55,8 +55,8 @@ export async function GET(request: NextRequest) {
     // All stripe-related keys found
     allStripeKeys: stripeRelatedKeys,
     
-    hasStripeKey: !!process.env.STRIPE_SECRET_KEY_V2,
-    stripeKeyPrefix: process.env.STRIPE_SECRET_KEY_V2?.substring(0, 7) || 'MISSING',
+    hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
+    stripeKeyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 7) || 'MISSING',
     stripeVars,
     supabaseVars,
     totalEnvVars: Object.keys(process.env).length,
