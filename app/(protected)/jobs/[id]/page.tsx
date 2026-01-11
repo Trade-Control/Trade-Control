@@ -477,7 +477,7 @@ function TimesheetsTab({ jobId, job }: { jobId: string; job: any }) {
     
     if (data) {
       setTimesheets(data);
-      const active = data.find(t => t.clock_on && !t.clock_off);
+      const active = data.find((t: any) => t.clock_on && !t.clock_off);
       setActiveTimesheet(active);
     }
     setLoading(false);
