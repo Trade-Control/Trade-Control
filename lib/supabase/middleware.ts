@@ -43,6 +43,12 @@ export async function updateSession(request: NextRequest) {
   const isOrgSetup = request.nextUrl.pathname.startsWith('/organization-setup');
   const isPublicRoute = request.nextUrl.pathname === '/' || 
                         request.nextUrl.pathname.startsWith('/contractor-access');
+  const isApiRoute = request.nextUrl.pathname.startsWith('/api');
+
+  // Skip middleware for API routes - they handle their own auth and return JSON
+  if (isApiRoute) {
+    return supabaseResponse;
+  }
 
   if (!user && !isAuthPage && !isPublicRoute) {
     // Redirect to login if not authenticated (except for auth pages and public routes)

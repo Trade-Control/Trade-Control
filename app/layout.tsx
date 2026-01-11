@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Trade Control",
   description: "Business management for Australian tradespeople",
+  icons: {
+    icon: "/icon.ico",
+  },
 };
 
 export default function RootLayout({

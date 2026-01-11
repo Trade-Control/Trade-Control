@@ -85,45 +85,8 @@ export default function SubscribePage() {
       });
       console.log('✅ Customer created');
 
-      // Step 3: Create organization via API route
-      // Note: We pass user_id explicitly to handle cases where email confirmation is required
-      // and no session is available yet
-      console.log('Step 3: Creating organization...');
-      const orgResponse = await fetch('/api/organizations/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: businessName,
-          onboarding_completed: false,
-          user_id: authData.user.id, // Pass user_id explicitly
-        }),
-      });
-
-      if (!orgResponse.ok) {
-        const errorData = await orgResponse.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('❌ Organization creation failed:', {
-          status: orgResponse.status,
-          statusText: orgResponse.statusText,
-          errorData,
-        });
-        throw new Error(errorData.error || `Failed to create organization: ${orgResponse.statusText}`);
-      }
-
-      const responseData = await orgResponse.json();
-      const { organization } = responseData;
-      
-      if (!organization) {
-        console.error('❌ No organization in response:', responseData);
-        throw new Error('Organization creation succeeded but no organization data returned');
-      }
-      
-      console.log('✅ Organization created:', organization.id);
-      // Note: Profile is already updated by the database function (organization_id and role set to 'owner')
-
-      // Step 5: Create subscription (mock)
-      console.log('Step 5: Creating Stripe subscription...');
+      // Step 3: Create Stripe subscription (mock)
+      console.log('Step 3: Creating Stripe subscription...');
       const subscription = await createSubscription({
         customerId: customer.id,
         tier,
@@ -132,64 +95,59 @@ export default function SubscribePage() {
       });
       console.log('✅ Stripe subscription created');
 
-      // Step 6: Save subscription to database
-      console.log('Step 6: Saving subscription to database...');
-      const { data: dbSubscription, error: subError } = await supabase
-        .from('subscriptions')
-        .insert({
-          organization_id: organization.id,
-          stripe_customer_id: customer.id,
-          stripe_subscription_id: subscription.id,
+      // Step 4: Complete signup via API route
+      // This creates organization, subscription, and license in one database transaction
+      console.log('Step 4: Completing signup (organization, subscription, license)...');
+      const signupResponse = await fetch('/api/signup/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: authData.user.id,
+          organization_name: businessName,
           tier,
           operations_pro_level: tier === 'operations_pro' ? operationsProLevel : null,
-          status: 'trialing',
+          stripe_customer_id: customer.id,
+          stripe_subscription_id: subscription.id,
+          base_price: totalPrice / 100, // Convert from cents
+          total_price: totalPrice / 100,
           current_period_start: subscription.currentPeriodStart,
           current_period_end: subscription.currentPeriodEnd,
           trial_ends_at: subscription.trialEnd,
-          base_price: totalPrice / 100, // Convert from cents
-          total_price: totalPrice / 100,
-        })
-        .select()
-        .single();
+        }),
+      });
 
-      if (subError) {
-        console.error('Subscription DB error:', subError);
-        throw new Error(`Failed to save subscription: ${subError.message}. Did you run the database migration?`);
+      if (!signupResponse.ok) {
+        // Check content type before parsing
+        const contentType = signupResponse.headers.get('content-type');
+        let errorData: any = { error: 'Unknown error' };
+        
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            errorData = await signupResponse.json();
+          } catch (e) {
+            console.error('Failed to parse error JSON:', e);
+          }
+        } else {
+          const text = await signupResponse.text();
+          console.error('Received non-JSON response:', text.substring(0, 200));
+          errorData = { error: `Server error (${signupResponse.status}): ${signupResponse.statusText}` };
+        }
+        
+        console.error('❌ Signup completion failed:', errorData);
+        throw new Error(errorData.error || `Failed to complete signup: ${signupResponse.statusText}`);
       }
-      if (!dbSubscription) throw new Error('Subscription not created in database');
-      console.log('✅ Subscription saved to database');
 
-      // Step 7: Update organization with subscription_id
-      console.log('Step 7: Linking subscription to organization...');
-      const { error: updateOrgError } = await supabase
-        .from('organizations')
-        .update({ subscription_id: dbSubscription.id })
-        .eq('id', organization.id);
-
-      if (updateOrgError) {
-        console.error('Org update error:', updateOrgError);
-        throw new Error(`Failed to link subscription: ${updateOrgError.message}`);
+      const signupResult = await signupResponse.json();
+      
+      if (!signupResult.success) {
+        throw new Error('Signup failed - no success confirmation');
       }
-      console.log('✅ Organization updated');
-
-      // Step 8: Create owner license
-      console.log('Step 8: Creating owner license...');
-      const { error: licenseError } = await supabase
-        .from('licenses')
-        .insert({
-          organization_id: organization.id,
-          profile_id: authData.user.id,
-          license_type: 'owner',
-          status: 'active',
-          monthly_cost: 0, // Owner license is included in base price
-          assigned_at: new Date().toISOString(),
-        });
-
-      if (licenseError) {
-        console.error('License error:', licenseError);
-        throw new Error(`Failed to create license: ${licenseError.message}`);
-      }
-      console.log('✅ License created');
+      
+      console.log('✅ Organization created:', signupResult.organization_id);
+      console.log('✅ Subscription created:', signupResult.subscription_id);
+      console.log('✅ License created:', signupResult.license_id);
 
       console.log('🎉 Subscription flow complete! Redirecting to onboarding...');
       // Redirect to onboarding
