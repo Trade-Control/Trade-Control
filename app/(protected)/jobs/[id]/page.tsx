@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { redirect, useParams } from 'next/navigation';
+import { redirect, useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getUserPermissions } from '@/lib/middleware/role-check';
 import QuoteForm from '@/components/jobs/QuoteForm';
@@ -21,6 +21,7 @@ export default function JobDetailPage() {
   const [loading, setLoading] = useState(true);
   const [hasOperationsPro, setHasOperationsPro] = useState(false);
   const [canManageContractors, setCanManageContractors] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
   
   const supabase = createClient();
 
@@ -97,6 +98,16 @@ export default function JobDetailPage() {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const getPriorityColor = (priority: string) => {
+    const colors: Record<string, string> = {
+      low: 'bg-gray-100 text-gray-700',
+      normal: 'bg-blue-100 text-blue-700',
+      high: 'bg-orange-100 text-orange-700',
+      urgent: 'bg-red-100 text-red-700',
+    };
+    return colors[priority] || 'bg-gray-100 text-gray-700';
+  };
+
   const tabs = [
     { id: 'details' as TabType, label: 'Details', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> },
     { id: 'quotes' as TabType, label: 'Quotes', icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> },
@@ -119,13 +130,42 @@ export default function JobDetailPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">{job.title}</h1>
-            <p className="text-sm text-gray-500 mt-1">Job #{job.job_number}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-sm text-gray-500">Job #{job.job_number}</p>
+              {job.priority && (
+                <span className={`px-2 py-0.5 text-xs font-medium rounded ${getPriorityColor(job.priority)}`}>
+                  {job.priority}
+                </span>
+              )}
+            </div>
           </div>
-          <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${getStatusColor(job.status)}`}>
-            {job.status.replace('_', ' ')}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${getStatusColor(job.status)}`}>
+              {job.status.replace('_', ' ')}
+            </span>
+            {job.status !== 'completed' && job.status !== 'cancelled' && (
+              <button
+                onClick={() => setShowCompletionModal(true)}
+                className="px-4 py-1.5 text-xs font-medium bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
+              >
+                Complete Job
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Job Completion Modal */}
+      {showCompletionModal && (
+        <JobCompletionModal
+          job={job}
+          onClose={() => setShowCompletionModal(false)}
+          onComplete={() => {
+            setShowCompletionModal(false);
+            fetchJob();
+          }}
+        />
+      )}
 
       {/* Tabs Navigation */}
       <div className="bg-white rounded-t-md border border-gray-200 border-b-0">
@@ -169,6 +209,18 @@ function DetailsTab({ job }: { job: any }) {
     <div>
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Job Details</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {job.priority && (
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Priority</p>
+            <p className="text-sm font-medium text-gray-900 capitalize">{job.priority}</p>
+          </div>
+        )}
+        {job.service_area && (
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Service Area</p>
+            <p className="text-sm font-medium text-gray-900">{job.service_area}</p>
+          </div>
+        )}
         <div>
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Client</p>
           <p className="text-sm font-medium text-gray-900">
@@ -212,6 +264,12 @@ function DetailsTab({ job }: { job: any }) {
               </div>
             )}
           </>
+        )}
+        {job.completed_at && (
+          <div className="md:col-span-2">
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completed</p>
+            <p className="text-sm font-medium text-green-600">{new Date(job.completed_at).toLocaleString()}</p>
+          </div>
         )}
       </div>
     </div>
@@ -395,6 +453,7 @@ function TimesheetsTab({ jobId, job }: { jobId: string; job: any }) {
   const [timesheets, setTimesheets] = useState<any[]>([]);
   const [activeTimesheet, setActiveTimesheet] = useState<any>(null);
   const [showManualEntry, setShowManualEntry] = useState(false);
+  const [editingTimesheet, setEditingTimesheet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
@@ -415,6 +474,50 @@ function TimesheetsTab({ jobId, job }: { jobId: string; job: any }) {
   }, [jobId]);
 
   useEffect(() => { fetchTimesheets(); }, [fetchTimesheets]);
+
+  const handleEdit = (timesheet: any) => {
+    setEditingTimesheet(timesheet);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingTimesheet) return;
+
+    try {
+      const { error } = await supabase
+        .from('timesheets')
+        .update({
+          description: editingTimesheet.description,
+          hours: editingTimesheet.hours,
+        })
+        .eq('id', editingTimesheet.id);
+
+      if (error) throw error;
+
+      setEditingTimesheet(null);
+      fetchTimesheets();
+    } catch (error: any) {
+      alert('Failed to update timesheet: ' + error.message);
+    }
+  };
+
+  const handleDelete = async (timesheetId: string) => {
+    if (!confirm('Are you sure you want to delete this timesheet entry? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('timesheets')
+        .delete()
+        .eq('id', timesheetId);
+
+      if (error) throw error;
+
+      fetchTimesheets();
+    } catch (error: any) {
+      alert('Failed to delete timesheet: ' + error.message);
+    }
+  };
 
   const totalHours = timesheets.reduce((t, ts) => t + (parseFloat(ts.hours) || 0), 0);
 
@@ -463,7 +566,9 @@ function TimesheetsTab({ jobId, job }: { jobId: string; job: any }) {
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Clock On</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Clock Off</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Hours</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -472,8 +577,46 @@ function TimesheetsTab({ jobId, job }: { jobId: string; job: any }) {
                   <td className="px-4 py-2.5 text-gray-900">{new Date(ts.entry_date).toLocaleDateString()}</td>
                   <td className="px-4 py-2.5 text-gray-600">{ts.clock_on ? new Date(ts.clock_on).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '-'}</td>
                   <td className="px-4 py-2.5 text-gray-600">{ts.clock_off ? new Date(ts.clock_off).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : ts.clock_on ? <span className="text-green-600 font-medium">Active</span> : '-'}</td>
-                  <td className="px-4 py-2.5 font-medium text-gray-900">{ts.hours ? `${parseFloat(ts.hours).toFixed(2)}h` : '-'}</td>
+                  <td className="px-4 py-2.5">
+                    {editingTimesheet?.id === ts.id ? (
+                      <input
+                        type="number"
+                        step="0.25"
+                        value={editingTimesheet.hours}
+                        onChange={(e) => setEditingTimesheet({ ...editingTimesheet, hours: e.target.value })}
+                        className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                      />
+                    ) : (
+                      <span className="font-medium text-gray-900">{ts.hours ? `${parseFloat(ts.hours).toFixed(2)}h` : '-'}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {editingTimesheet?.id === ts.id ? (
+                      <input
+                        type="text"
+                        value={editingTimesheet.description || ''}
+                        onChange={(e) => setEditingTimesheet({ ...editingTimesheet, description: e.target.value })}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                        placeholder="Description"
+                      />
+                    ) : (
+                      <span className="text-gray-600">{ts.description || '-'}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5"><span className={`px-2 py-0.5 text-xs font-medium rounded ${ts.is_manual ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>{ts.is_manual ? 'Manual' : 'Clocked'}</span></td>
+                  <td className="px-4 py-2.5">
+                    {editingTimesheet?.id === ts.id ? (
+                      <div className="flex gap-1">
+                        <button onClick={handleSaveEdit} className="text-xs text-green-600 hover:text-green-700 font-medium">Save</button>
+                        <button onClick={() => setEditingTimesheet(null)} className="text-xs text-gray-600 hover:text-gray-700 font-medium">Cancel</button>
+                      </div>
+                    ) : !ts.clock_on || ts.clock_off ? (
+                      <div className="flex gap-1">
+                        <button onClick={() => handleEdit(ts)} className="text-xs text-primary hover:text-primary-hover font-medium">Edit</button>
+                        <button onClick={() => handleDelete(ts.id)} className="text-xs text-red-600 hover:text-red-700 font-medium">Delete</button>
+                      </div>
+                    ) : null}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -883,6 +1026,215 @@ function ActivityTab({ jobId }: { jobId: string }) {
       ) : (
         <div className="text-center py-8 text-gray-500"><svg className="w-10 h-10 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg><p className="text-sm">No activity yet</p></div>
       )}
+    </div>
+  );
+}
+
+// Job Completion Modal Component
+function JobCompletionModal({ job, onClose, onComplete }: { job: any; onClose: () => void; onComplete: () => void }) {
+  const [completionType, setCompletionType] = useState<'simple' | 'invoice_pending' | 'new_job'>('simple');
+  const [newJobTitle, setNewJobTitle] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const supabase = createClient();
+  const router = useRouter();
+
+  const handleComplete = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const updates: any = {
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        completed_by: user.id,
+      };
+
+      if (completionType === 'simple') {
+        updates.completion_status = 'completed';
+      } else if (completionType === 'invoice_pending') {
+        updates.completion_status = 'completed_invoice_pending';
+      } else if (completionType === 'new_job') {
+        updates.completion_status = 'completed_new_job_created';
+      }
+
+      // Update the job
+      const { error: updateError } = await supabase
+        .from('jobs')
+        .update(updates)
+        .eq('id', job.id);
+
+      if (updateError) throw updateError;
+
+      // If creating a new related job
+      if (completionType === 'new_job' && newJobTitle) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('organization_id')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.organization_id) {
+          // Generate next job number
+          const { data: lastJob } = await supabase
+            .from('jobs')
+            .select('job_number')
+            .eq('organization_id', profile.organization_id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          let nextJobNumber = 'JOB-001';
+          if (lastJob?.job_number) {
+            const match = lastJob.job_number.match(/(\d+)$/);
+            if (match) {
+              const num = parseInt(match[1]) + 1;
+              nextJobNumber = `JOB-${String(num).padStart(3, '0')}`;
+            }
+          }
+
+          const newJobData = {
+            organization_id: profile.organization_id,
+            created_by: user.id,
+            job_number: nextJobNumber,
+            title: newJobTitle,
+            client_id: job.client_id,
+            site_address: job.site_address,
+            site_city: job.site_city,
+            site_state: job.site_state,
+            site_postcode: job.site_postcode,
+            service_area: job.service_area,
+            priority: job.priority,
+            parent_job_id: job.id,
+            completion_status: 'active',
+          };
+
+          const { data: newJob, error: newJobError } = await supabase
+            .from('jobs')
+            .insert([newJobData])
+            .select()
+            .single();
+
+          if (newJobError) throw newJobError;
+
+          // Navigate to the new job
+          router.push(`/jobs/${newJob.id}`);
+          return;
+        }
+      }
+
+      onComplete();
+    } catch (error: any) {
+      setError(error.message || 'Failed to complete job');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+        <h3 className="text-xl font-bold text-gray-900 mb-4">Complete Job</h3>
+        
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-gray-600 mb-3">How would you like to complete this job?</p>
+            
+            <div className="space-y-2">
+              <label className="flex items-start gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-primary transition-colors">
+                <input
+                  type="radio"
+                  name="completion"
+                  value="simple"
+                  checked={completionType === 'simple'}
+                  onChange={(e) => setCompletionType(e.target.value as any)}
+                  className="mt-1"
+                />
+                <div>
+                  <p className="font-medium text-gray-900">Complete Job</p>
+                  <p className="text-xs text-gray-500">Mark this job as completed</p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-primary transition-colors">
+                <input
+                  type="radio"
+                  name="completion"
+                  value="invoice_pending"
+                  checked={completionType === 'invoice_pending'}
+                  onChange={(e) => setCompletionType(e.target.value as any)}
+                  className="mt-1"
+                />
+                <div>
+                  <p className="font-medium text-gray-900">Complete with Invoice Outstanding</p>
+                  <p className="text-xs text-gray-500">Job is done but awaiting final payment</p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-primary transition-colors">
+                <input
+                  type="radio"
+                  name="completion"
+                  value="new_job"
+                  checked={completionType === 'new_job'}
+                  onChange={(e) => setCompletionType(e.target.value as any)}
+                  className="mt-1"
+                />
+                <div>
+                  <p className="font-medium text-gray-900">Complete and Create Related Job</p>
+                  <p className="text-xs text-gray-500">Job is done and requires a follow-up job</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {completionType === 'new_job' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                New Job Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={newJobTitle}
+                onChange={(e) => setNewJobTitle(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                placeholder="Follow-up service or related work"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                The new job will inherit client and site details from this job.
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 mt-6">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleComplete}
+            disabled={loading || (completionType === 'new_job' && !newJobTitle)}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
+          >
+            {loading ? 'Completing...' : completionType === 'new_job' ? 'Complete & Create Job' : 'Complete Job'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

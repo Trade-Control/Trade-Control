@@ -1,89 +1,115 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { ActivityFeed as ActivityFeedType, EmailCommunication } from '@/lib/types/database.types';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 
-export default function ActivityPage() {
+export default function JobActivityPage() {
   const params = useParams();
   const jobId = params.id as string;
-  const supabase = createClient();
-
-  const [activities, setActivities] = useState<ActivityFeedType[]>([]);
-  const [emails, setEmails] = useState<EmailCommunication[]>([]);
+  const [job, setJob] = useState<any>(null);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'emails' | 'submissions' | 'status'>('all');
+  const [filter, setFilter] = useState<'all' | 'create' | 'update' | 'delete'>('all');
+  const supabase = createClient();
 
   useEffect(() => {
     fetchData();
-  }, [jobId]);
+  }, [jobId, filter]);
 
   const fetchData = async () => {
     setLoading(true);
 
-    // Fetch activity feed
-    const { data: activityData } = await supabase
-      .from('activity_feed')
-      .select('*')
+    // Fetch job details
+    const { data: jobData } = await supabase
+      .from('jobs')
+      .select('id, job_number, title')
+      .eq('id', jobId)
+      .single();
+
+    setJob(jobData);
+
+    // Fetch audit logs for this job
+    let query = supabase
+      .from('audit_logs')
+      .select('*, profiles(first_name, last_name)')
       .eq('job_id', jobId)
       .order('created_at', { ascending: false });
 
-    setActivities(activityData || []);
+    if (filter !== 'all') {
+      query = query.eq('action', filter);
+    }
 
-    // Fetch emails
-    const { data: emailData } = await supabase
-      .from('email_communications')
-      .select('*')
-      .eq('job_id', jobId)
-      .order('sent_at', { ascending: false });
+    const { data: logsData } = await query;
 
-    setEmails(emailData || []);
+    setAuditLogs(logsData || []);
     setLoading(false);
   };
 
-  const getActivityIcon = (type: string) => {
-    const icons: Record<string, string> = {
-      email_sent: '📧',
-      contractor_submission: '📝',
-      status_change: '🔄',
-      quote_sent: '💰',
-      invoice_sent: '🧾',
-      contractor_assigned: '👷',
-      field_staff_assigned: '👤',
-      document_uploaded: '📎',
-      note_added: '📌',
-    };
-    return icons[type] || '•';
+  const getActionIcon = (action: string) => {
+    switch (action) {
+      case 'create':
+        return (
+          <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+        );
+      case 'update':
+        return (
+          <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </div>
+        );
+      case 'delete':
+        return (
+          <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </div>
+        );
+      case 'view':
+        return (
+          <div className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </div>
+        );
+      default:
+        return (
+          <div className="h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        );
+    }
   };
 
-  const getActivityColor = (type: string) => {
-    const colors: Record<string, string> = {
-      email_sent: 'bg-blue-100 text-blue-800',
-      contractor_submission: 'bg-green-100 text-green-800',
-      status_change: 'bg-purple-100 text-purple-800',
-      quote_sent: 'bg-yellow-100 text-yellow-800',
-      invoice_sent: 'bg-orange-100 text-orange-800',
-      contractor_assigned: 'bg-indigo-100 text-indigo-800',
-      field_staff_assigned: 'bg-teal-100 text-teal-800',
-      document_uploaded: 'bg-gray-100 text-gray-800',
-      note_added: 'bg-pink-100 text-pink-800',
-    };
-    return colors[type] || 'bg-gray-100 text-gray-800';
+  const getActionColor = (action: string) => {
+    switch (action) {
+      case 'create':
+        return 'text-green-700 bg-green-50';
+      case 'update':
+        return 'text-blue-700 bg-blue-50';
+      case 'delete':
+        return 'text-red-700 bg-red-50';
+      default:
+        return 'text-gray-700 bg-gray-50';
+    }
   };
-
-  const filteredActivities = activities.filter((activity) => {
-    if (filter === 'all') return true;
-    if (filter === 'emails') return activity.activity_type.includes('_sent');
-    if (filter === 'submissions') return activity.activity_type === 'contractor_submission';
-    if (filter === 'status') return activity.activity_type === 'status_change';
-    return true;
-  });
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-xl text-gray-600">Loading activity...</div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -91,142 +117,135 @@ export default function ActivityPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Activity Feed</h1>
-        <p className="text-gray-600 mt-2">Chronological log of all job-related activity</p>
+        <Link href={`/jobs/${jobId}`} className="text-primary hover:text-primary-hover text-sm mb-3 inline-flex items-center gap-1">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to Job
+        </Link>
+        <h1 className="text-3xl font-bold text-gray-900">Job Activity Log</h1>
+        {job && (
+          <p className="text-gray-600 mt-2">
+            Complete audit trail for {job.title} (#{job.job_number})
+          </p>
+        )}
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'all'
-                ? 'bg-primary text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            All Activity
-          </button>
-          <button
-            onClick={() => setFilter('emails')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'emails'
-                ? 'bg-primary text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Emails
-          </button>
-          <button
-            onClick={() => setFilter('submissions')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'submissions'
-                ? 'bg-primary text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Submissions
-          </button>
-          <button
-            onClick={() => setFilter('status')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'status'
-                ? 'bg-primary text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Status Changes
-          </button>
-        </div>
+      {/* Filter Tabs */}
+      <div className="bg-white rounded-lg shadow mb-6 p-2 flex gap-2">
+        <button
+          onClick={() => setFilter('all')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            filter === 'all' ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          All Activity
+        </button>
+        <button
+          onClick={() => setFilter('create')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            filter === 'create' ? 'bg-green-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          Created
+        </button>
+        <button
+          onClick={() => setFilter('update')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            filter === 'update' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          Updates
+        </button>
+        <button
+          onClick={() => setFilter('delete')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            filter === 'delete' ? 'bg-red-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+          }`}
+        >
+          Deletions
+        </button>
       </div>
 
       {/* Activity Timeline */}
-      {filteredActivities.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-lg p-12 text-center">
-          <div className="text-6xl mb-4">📋</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">No Activity Yet</h2>
-          <p className="text-gray-600">
-            Activity will appear here as actions are taken on this job
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filteredActivities.map((activity) => (
-            <div
-              key={activity.id}
-              className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
-            >
-              <div className="flex items-start gap-4">
-                <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-2xl ${getActivityColor(activity.activity_type)}`}>
-                  {getActivityIcon(activity.activity_type)}
-                </div>
-
-                <div className="flex-1">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{activity.description}</h3>
-                      <p className="text-sm text-gray-500">
-                        {activity.actor_type === 'user' ? 'User' : activity.actor_type === 'contractor' ? 'Contractor' : 'System'}
-                        {' • '}
-                        {new Date(activity.created_at).toLocaleString()}
-                      </p>
+      <div className="bg-white rounded-lg shadow">
+        {auditLogs.length > 0 ? (
+          <div className="divide-y divide-gray-200">
+            {auditLogs.map((log) => (
+              <div key={log.id} className="p-5 hover:bg-gray-50 transition-colors">
+                <div className="flex gap-4">
+                  {getActionIcon(log.action)}
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className={`px-2.5 py-0.5 text-xs font-medium rounded ${getActionColor(log.action)}`}>
+                        {log.action.toUpperCase()}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {log.resource_type.replace('_', ' ')}
+                      </span>
                     </div>
-                    <span className={`px-3 py-1 text-xs font-medium rounded-full ${getActivityColor(activity.activity_type)}`}>
-                      {activity.activity_type.replace(/_/g, ' ').toUpperCase()}
-                    </span>
-                  </div>
-
-                  {activity.metadata && Object.keys(activity.metadata).length > 0 && (
-                    <div className="mt-3 bg-gray-50 rounded-lg p-3">
-                      <pre className="text-sm text-gray-700 whitespace-pre-wrap">
-                        {JSON.stringify(activity.metadata, null, 2)}
-                      </pre>
+                    
+                    <p className="text-sm font-medium text-gray-900 mb-1">
+                      {log.description}
+                    </p>
+                    
+                    <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
+                      <div className="flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span>
+                          {log.profiles ? `${log.profiles.first_name} ${log.profiles.last_name}` : 'System'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>{new Date(log.created_at).toLocaleString()}</span>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
-      {/* Emails Section */}
-      {emails.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Email Communications</h2>
-          <div className="space-y-4">
-            {emails.map((email) => (
-              <div
-                key={email.id}
-                className="bg-white rounded-lg shadow p-6"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{email.subject}</h3>
-                    <p className="text-sm text-gray-600">To: {email.recipient_email}</p>
-                    <p className="text-sm text-gray-500">{new Date(email.sent_at).toLocaleString()}</p>
+                    {log.metadata && Object.keys(log.metadata).length > 0 && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-200">
+                        <p className="text-xs font-medium text-gray-700 mb-2">Details:</p>
+                        <div className="space-y-1">
+                          {Object.entries(log.metadata).map(([key, value]) => (
+                            <div key={key} className="flex gap-2 text-xs">
+                              <span className="text-gray-500 capitalize">{key.replace('_', ' ')}:</span>
+                              <span className="text-gray-900 font-medium">{JSON.stringify(value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                    email.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                    email.status === 'sent' ? 'bg-blue-100 text-blue-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {email.status.toUpperCase()}
-                  </span>
                 </div>
-
-                <details className="mt-3">
-                  <summary className="cursor-pointer text-primary font-medium text-sm">
-                    View Email Content
-                  </summary>
-                  <div className="mt-3 border-t pt-3">
-                    <div dangerouslySetInnerHTML={{ __html: email.body }} />
-                  </div>
-                </details>
               </div>
             ))}
           </div>
+        ) : (
+          <div className="text-center py-12 text-gray-500">
+            <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <p className="text-sm">No activity logs found</p>
+            {filter !== 'all' && (
+              <button
+                onClick={() => setFilter('all')}
+                className="mt-2 text-sm text-primary hover:text-primary-hover font-medium"
+              >
+                View all activity
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {auditLogs.length > 0 && (
+        <div className="mt-4 text-center text-sm text-gray-500">
+          Showing {auditLogs.length} activity {auditLogs.length === 1 ? 'log' : 'logs'}
         </div>
       )}
     </div>
