@@ -284,9 +284,10 @@ function QuotesTab({ jobId, job }: { jobId: string; job: any }) {
   const [quotes, setQuotes] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const fetchQuotes = useCallback(async () => {
+    if (!supabase) return;
     setLoading(true);
     const { data } = await supabase
       .from('quotes')
@@ -295,9 +296,13 @@ function QuotesTab({ jobId, job }: { jobId: string; job: any }) {
       .order('created_at', { ascending: false });
     setQuotes(data || []);
     setLoading(false);
-  }, [jobId]);
+  }, [jobId, supabase]);
 
-  useEffect(() => { fetchQuotes(); }, [fetchQuotes]);
+  useEffect(() => {
+    if (supabase) {
+      fetchQuotes();
+    }
+  }, [fetchQuotes, supabase]);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -377,9 +382,10 @@ function QuotesTab({ jobId, job }: { jobId: string; job: any }) {
 function InvoicesTab({ jobId, job }: { jobId: string; job: any }) {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
+    if (!supabase) return;
     const fetchInvoices = async () => {
       setLoading(true);
       const { data } = await supabase
@@ -391,7 +397,7 @@ function InvoicesTab({ jobId, job }: { jobId: string; job: any }) {
       setLoading(false);
     };
     fetchInvoices();
-  }, [jobId]);
+  }, [jobId, supabase]);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -458,9 +464,10 @@ function TimesheetsTab({ jobId, job }: { jobId: string; job: any }) {
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [editingTimesheet, setEditingTimesheet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const fetchTimesheets = useCallback(async () => {
+    if (!supabase) return;
     setLoading(true);
     const { data } = await supabase
       .from('timesheets')
@@ -483,7 +490,7 @@ function TimesheetsTab({ jobId, job }: { jobId: string; job: any }) {
   };
 
   const handleSaveEdit = async () => {
-    if (!editingTimesheet) return;
+    if (!editingTimesheet || !supabase) return;
 
     try {
       const { error } = await supabase
@@ -504,6 +511,7 @@ function TimesheetsTab({ jobId, job }: { jobId: string; job: any }) {
   };
 
   const handleDelete = async (timesheetId: string) => {
+    if (!supabase) return;
     if (!confirm('Are you sure you want to delete this timesheet entry? This action cannot be undone.')) {
       return;
     }
@@ -648,9 +656,10 @@ function TimesheetsTab({ jobId, job }: { jobId: string; job: any }) {
 function DocumentsTab({ jobId }: { jobId: string }) {
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const fetchDocuments = useCallback(async () => {
+    if (!supabase) return;
     setLoading(true);
     const { data } = await supabase
       .from('documents')
@@ -659,9 +668,13 @@ function DocumentsTab({ jobId }: { jobId: string }) {
       .order('created_at', { ascending: false });
     setDocuments(data || []);
     setLoading(false);
-  }, [jobId]);
+  }, [jobId, supabase]);
 
-  useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
+  useEffect(() => {
+    if (supabase) {
+      fetchDocuments();
+    }
+  }, [fetchDocuments, supabase]);
 
   const handleDownload = async (doc: any) => {
     const { data, error } = await supabase.storage.from('job-documents').download(doc.file_path);
@@ -677,6 +690,7 @@ function DocumentsTab({ jobId }: { jobId: string }) {
   };
 
   const handleDelete = async (doc: any) => {
+    if (!supabase) return;
     if (!confirm(`Delete ${doc.file_name}?`)) return;
     await supabase.storage.from('job-documents').remove([doc.file_path]);
     await supabase.from('documents').delete().eq('id', doc.id);
@@ -742,9 +756,10 @@ function InventoryTab({ jobId }: { jobId: string }) {
   const [selectedInventory, setSelectedInventory] = useState('');
   const [quantity, setQuantity] = useState('');
   const [notes, setNotes] = useState('');
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const fetchData = useCallback(async () => {
+    if (!supabase) return;
     setLoading(true);
     const [allocRes, invRes] = await Promise.all([
       supabase.from('job_inventory_allocations').select('*, inventory(*)').eq('job_id', jobId).order('allocated_at', { ascending: false }),
@@ -753,12 +768,17 @@ function InventoryTab({ jobId }: { jobId: string }) {
     setAllocations(allocRes.data || []);
     setAvailableInventory(invRes.data || []);
     setLoading(false);
-  }, [jobId]);
+  }, [jobId, supabase]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (supabase) {
+      fetchData();
+    }
+  }, [fetchData, supabase]);
 
   const handleAllocate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supabase) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
@@ -780,6 +800,7 @@ function InventoryTab({ jobId }: { jobId: string }) {
   };
 
   const handleReturn = async (alloc: any) => {
+    if (!supabase) return;
     if (!confirm('Return to stock?')) return;
     await supabase.from('inventory').update({ quantity: alloc.inventory.quantity + alloc.quantity_allocated }).eq('id', alloc.inventory_id);
     await supabase.from('job_inventory_allocations').delete().eq('id', alloc.id);
@@ -838,16 +859,18 @@ function TravelTab({ jobId, job }: { jobId: string; job: any }) {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ origin_address: '', destination_address: '', distance_km: '', duration_minutes: '', notes: '' });
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   const fetchLogs = useCallback(async () => {
+    if (!supabase) return;
     setLoading(true);
     const { data } = await supabase.from('travel_logs').select('*').eq('job_id', jobId).order('travel_date', { ascending: false });
     setLogs(data || []);
     setLoading(false);
-  }, [jobId]);
+  }, [jobId, supabase]);
 
-  useEffect(() => { 
+  useEffect(() => {
+    if (!supabase) return; 
     fetchLogs();
     if (job?.site_address) {
       const addr = `${job.site_address}${job.site_city ? ', ' + job.site_city : ''}${job.site_state ? ' ' + job.site_state : ''}`;
@@ -857,6 +880,7 @@ function TravelTab({ jobId, job }: { jobId: string; job: any }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supabase) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
@@ -939,9 +963,10 @@ function TravelTab({ jobId, job }: { jobId: string; job: any }) {
 function ContractorsTab({ jobId }: { jobId: string }) {
   const [assignments, setAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
+    if (!supabase) return;
     const fetchAssignments = async () => {
       const { data } = await supabase
         .from('contractor_job_assignments')
@@ -952,7 +977,7 @@ function ContractorsTab({ jobId }: { jobId: string }) {
       setLoading(false);
     };
     fetchAssignments();
-  }, [jobId]);
+  }, [jobId, supabase]);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = { pending: 'bg-amber-100 text-amber-800', in_progress: 'bg-blue-100 text-blue-800', completed: 'bg-green-100 text-green-800', cancelled: 'bg-gray-100 text-gray-800' };
@@ -990,9 +1015,10 @@ function ContractorsTab({ jobId }: { jobId: string }) {
 function ActivityTab({ jobId }: { jobId: string }) {
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
 
   useEffect(() => {
+    if (!supabase) return;
     const fetchActivities = async () => {
       const { data } = await supabase
         .from('activity_feed')
@@ -1004,7 +1030,7 @@ function ActivityTab({ jobId }: { jobId: string }) {
       setLoading(false);
     };
     fetchActivities();
-  }, [jobId]);
+  }, [jobId, supabase]);
 
   if (loading) return <div className="text-center py-6 text-gray-500 text-sm">Loading activity...</div>;
 
@@ -1039,10 +1065,11 @@ function JobCompletionModal({ job, onClose, onComplete }: { job: any; onClose: (
   const [newJobTitle, setNewJobTitle] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const supabase = createClient();
+  const supabase = useSafeSupabaseClient();
   const router = useRouter();
 
   const handleComplete = async () => {
+    if (!supabase) return;
     setLoading(true);
     setError('');
 
