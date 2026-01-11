@@ -64,8 +64,5 @@ export async function GET(request: NextRequest) {
     // Runtime info
     vercelEnv: process.env.VERCEL_ENV,
     vercelUrl: process.env.VERCEL_URL,
-    netlifyEnv: process.env.CONTEXT || process.env.NETLIFY_ENV,
-    netlifyUrl: process.env.URL || process.env.DEPLOY_URL,
-    deploymentPlatform: process.env.VERCEL ? 'Vercel' : process.env.NETLIFY ? 'Netlify' : 'Unknown',
   });
 }
