@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
@@ -19,9 +19,21 @@ export default function OrganizationSetupPage() {
   const [loading, setLoading] = useState(false);
   const [checkingOrg, setCheckingOrg] = useState(true);
   const router = useRouter();
-  const supabase = createClient();
+  
+  // Create Supabase client only in browser (not during build)
+  const supabase = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return createClient();
+    } catch (error) {
+      console.error('Failed to create Supabase client:', error);
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
+    if (!supabase) return;
+    
     const checkExistingOrg = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -52,6 +64,17 @@ export default function OrganizationSetupPage() {
     checkExistingOrg();
   }, [router, supabase]);
 
+  // Show error if Supabase client couldn't be created
+  if (!supabase) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <p className="text-red-600">Configuration error. Please check your environment variables.</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -63,6 +86,12 @@ export default function OrganizationSetupPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+
+    if (!supabase) {
+      setError('Configuration error. Please refresh the page.');
+      setLoading(false);
+      return;
+    }
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
