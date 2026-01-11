@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function isOrganizationReadOnly(orgId: string): Promise<boolean> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: subscription } = await supabase
       .from('subscriptions')
       .select('read_only_mode, grace_period_ends, status')
@@ -41,7 +41,7 @@ export async function isOrganizationReadOnly(orgId: string): Promise<boolean> {
  */
 export async function getSubscriptionStatus(orgId: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: subscription } = await supabase
       .from('subscriptions')
       .select('*')
@@ -90,7 +90,7 @@ export async function getSubscriptionStatus(orgId: string) {
  */
 export async function isUserAccountActive(userId: string): Promise<boolean> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: profile } = await supabase
       .from('profiles')
       .select('account_status, role, organization_id')
@@ -132,7 +132,7 @@ export async function isUserAccountActive(userId: string): Promise<boolean> {
  */
 export async function handleSubscriptionExpiry() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Find expired subscriptions
     const { data: expiredSubs } = await supabase
