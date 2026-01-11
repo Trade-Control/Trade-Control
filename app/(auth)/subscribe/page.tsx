@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { createCustomer, createSubscription, PRICING, formatPrice, calculateSubscriptionPrice } from '@/lib/services/stripe';
+import { PRICING, formatPrice, calculateSubscriptionPrice } from '@/lib/services/stripe';
 import { SubscriptionTier, OperationsProLevel } from '@/lib/types/database.types';
 
 function SubscribeForm() {
@@ -74,25 +74,51 @@ function SubscribeForm() {
       if (!authData.user) throw new Error('Failed to create user');
       console.log('✅ User created:', authData.user.id);
 
-      // Step 2: Create Stripe customer (mock)
+      // Step 2: Create Stripe customer via API route
       console.log('Step 2: Creating Stripe customer...');
-      const customer = await createCustomer({
-        email,
-        name: businessName,
-        metadata: {
-          user_id: authData.user.id,
+      const customerResponse = await fetch('/api/subscriptions/create-customer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          email,
+          name: businessName,
+          metadata: {
+            user_id: authData.user.id,
+          },
+        }),
       });
+
+      if (!customerResponse.ok) {
+        const errorData = await customerResponse.json();
+        throw new Error(errorData.error || 'Failed to create Stripe customer');
+      }
+
+      const customer = await customerResponse.json();
       console.log('✅ Customer created');
 
-      // Step 3: Create Stripe subscription (mock)
+      // Step 3: Create Stripe subscription via API route
       console.log('Step 3: Creating Stripe subscription...');
-      const subscription = await createSubscription({
-        customerId: customer.id,
-        tier,
-        operationsProLevel: tier === 'operations_pro' ? operationsProLevel : undefined,
-        trialDays: 14, // 14-day trial
+      const subscriptionResponse = await fetch('/api/subscriptions/create-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId: customer.id,
+          tier,
+          operationsProLevel: tier === 'operations_pro' ? operationsProLevel : undefined,
+          trialDays: 14, // 14-day trial
+        }),
       });
+
+      if (!subscriptionResponse.ok) {
+        const errorData = await subscriptionResponse.json();
+        throw new Error(errorData.error || 'Failed to create Stripe subscription');
+      }
+
+      const subscription = await subscriptionResponse.json();
       console.log('✅ Stripe subscription created');
 
       // Step 4: Complete signup via API route
@@ -168,7 +194,9 @@ function SubscribeForm() {
       }
       
       // Check for common issues
-      if (err?.code === '42P01' || err?.message?.includes('relation') || err?.message?.includes('does not exist')) {
+      if (err?.message?.includes('STRIPE_SECRET_KEY is not configured')) {
+        errorMessage = 'Stripe is not configured. Please set STRIPE_SECRET_KEY in your environment variables. See ROLLOUT_GUIDE.md for setup instructions.';
+      } else if (err?.code === '42P01' || err?.message?.includes('relation') || err?.message?.includes('does not exist')) {
         errorMessage = 'Database tables not found. Please run the migration SQL file first. See README.md for instructions.';
       } else if (err?.code === '23505') {
         errorMessage = 'This email is already registered. Please try logging in instead.';

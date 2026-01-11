@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { createCustomer, createSubscription, PRICING, formatPrice } from '@/lib/services/stripe';
+import { PRICING, formatPrice } from '@/lib/services/stripe';
 import { SubscriptionTier, OperationsProLevel } from '@/lib/types/database.types';
 
 export default function MigrationPage() {
@@ -78,22 +78,48 @@ export default function MigrationPage() {
 
       if (!org) throw new Error('Organization not found');
 
-      // Create Stripe customer
-      const customer = await createCustomer({
-        email: user.email!,
-        name: org.name,
-        metadata: {
-          organization_id: organizationId,
+      // Create Stripe customer via API route
+      const customerResponse = await fetch('/api/subscriptions/create-customer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          email: user.email!,
+          name: org.name,
+          metadata: {
+            organization_id: organizationId,
+          },
+        }),
       });
 
-      // Create subscription with 14-day trial
-      const subscription = await createSubscription({
-        customerId: customer.id,
-        tier,
-        operationsProLevel: tier === 'operations_pro' ? operationsProLevel : undefined,
-        trialDays: 14,
+      if (!customerResponse.ok) {
+        const errorData = await customerResponse.json();
+        throw new Error(errorData.error || 'Failed to create Stripe customer');
+      }
+
+      const customer = await customerResponse.json();
+
+      // Create subscription with 14-day trial via API route
+      const subscriptionResponse = await fetch('/api/subscriptions/create-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId: customer.id,
+          tier,
+          operationsProLevel: tier === 'operations_pro' ? operationsProLevel : undefined,
+          trialDays: 14,
+        }),
       });
+
+      if (!subscriptionResponse.ok) {
+        const errorData = await subscriptionResponse.json();
+        throw new Error(errorData.error || 'Failed to create Stripe subscription');
+      }
+
+      const subscription = await subscriptionResponse.json();
 
       // Save to database
       const { data: dbSub, error: subError } = await supabase

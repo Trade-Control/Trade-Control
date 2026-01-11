@@ -13,7 +13,11 @@ function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   
   if (!secretKey) {
-    throw new Error('STRIPE_SECRET_KEY is not configured');
+    throw new Error(
+      'STRIPE_SECRET_KEY is not configured. ' +
+      'Please set STRIPE_SECRET_KEY in your environment variables. ' +
+      'See ROLLOUT_GUIDE.md for instructions on setting up Stripe.'
+    );
   }
 
   return new Stripe(secretKey, {
