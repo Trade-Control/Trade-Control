@@ -12,7 +12,21 @@ import { SubscriptionTier, OperationsProLevel } from '../types/database.types';
 function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   
+  // Debug logging
+  console.log('[getStripeClient] Environment check:', {
+    hasKey: !!secretKey,
+    keyPrefix: secretKey?.substring(0, 7) || 'MISSING',
+    nodeEnv: process.env.NODE_ENV,
+    allEnvKeys: Object.keys(process.env).filter(k => k.includes('STRIPE')).join(', ')
+  });
+  
   if (!secretKey) {
+    console.error('[getStripeClient] CRITICAL: STRIPE_SECRET_KEY is undefined');
+    console.error('[getStripeClient] Available STRIPE env vars:', 
+      Object.keys(process.env)
+        .filter(k => k.includes('STRIPE'))
+        .map(k => `${k}=${process.env[k]?.substring(0, 10)}...`)
+    );
     throw new Error(
       'STRIPE_SECRET_KEY is not configured. ' +
       'Please set STRIPE_SECRET_KEY in your environment variables. ' +
@@ -20,6 +34,7 @@ function getStripeClient() {
     );
   }
 
+  console.log('[getStripeClient] SUCCESS: Creating Stripe client with key:', secretKey.substring(0, 7));
   return new Stripe(secretKey, {
     apiVersion: '2025-02-24.acacia',
   });
