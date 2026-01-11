@@ -139,10 +139,10 @@ export async function GET(request: NextRequest) {
     const fromEmail = process.env.RESEND_FROM_EMAIL;
     if (!fromEmail) {
       debugInfo.recommendations.push(
-        '⚠️ RESEND_FROM_EMAIL is not set. Using default: Trade Control <noreply@tradecontrol.app>'
+        '✅ RESEND_FROM_EMAIL is not set. Using default: onboarding@resend.dev (works immediately for testing)'
       );
       debugInfo.recommendations.push(
-        '📝 Set RESEND_FROM_EMAIL in Vercel to customize the sender email address'
+        '📝 Set RESEND_FROM_EMAIL in Vercel to use a custom email address (requires domain verification)'
       );
     } else {
       // Validate email format
@@ -172,6 +172,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Show actual FROM email being used
+    const actualFromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    debugInfo.resend.actualFromEmail = actualFromEmail;
+    debugInfo.resend.isUsingDefault = !process.env.RESEND_FROM_EMAIL;
+
     // Overall status
     const hasApiKey = !!apiKey && apiKey.startsWith('re_');
     const apiWorking = debugInfo.resend.apiTest?.success === true;
@@ -181,6 +186,7 @@ export async function GET(request: NextRequest) {
       hasApiKey,
       apiWorking,
       hasFromEmail: !!fromEmail,
+      actualFromEmail: actualFromEmail,
     };
 
     return NextResponse.json(debugInfo, { status: 200 });

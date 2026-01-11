@@ -32,6 +32,8 @@ interface DebugInfo {
       type?: string;
       code?: string | number;
     } | null;
+    actualFromEmail?: string;
+    isUsingDefault?: boolean;
   };
   recommendations: string[];
   status: 'success' | 'partial' | 'error';
@@ -39,6 +41,7 @@ interface DebugInfo {
     hasApiKey: boolean;
     apiWorking: boolean;
     hasFromEmail: boolean;
+    actualFromEmail?: string;
   };
 }
 
@@ -211,6 +214,9 @@ export default function ResendDebugPage() {
             <div className="bg-white/50 rounded p-3">
               <div className="text-sm opacity-70">From Email</div>
               <div className="font-semibold">{debugInfo.summary.hasFromEmail ? '✅ Set' : '⚠️ Using Default'}</div>
+              {debugInfo.summary.actualFromEmail && (
+                <div className="text-xs opacity-60 mt-1 font-mono break-all">{debugInfo.summary.actualFromEmail}</div>
+              )}
             </div>
           </div>
         </div>
@@ -308,6 +314,41 @@ export default function ResendDebugPage() {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Current FROM Email Configuration */}
+        {debugInfo.resend.actualFromEmail && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Current FROM Email Configuration</h2>
+            <div className={`rounded-lg p-4 ${
+              debugInfo.resend.isUsingDefault 
+                ? 'bg-blue-50 border border-blue-200' 
+                : 'bg-green-50 border border-green-200'
+            }`}>
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">{debugInfo.resend.isUsingDefault ? '📧' : '✅'}</span>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900 mb-1">
+                    {debugInfo.resend.isUsingDefault ? 'Using Default Email' : 'Using Custom Email'}
+                  </div>
+                  <div className="font-mono text-sm text-gray-700 mb-2 break-all">
+                    {debugInfo.resend.actualFromEmail}
+                  </div>
+                  {debugInfo.resend.isUsingDefault ? (
+                    <div className="text-sm text-blue-700">
+                      <p>✅ This is the Resend test domain - works immediately for testing (100 emails/day)</p>
+                      <p className="mt-1">To use a custom domain, verify it in Resend Dashboard and set RESEND_FROM_EMAIL</p>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-green-700">
+                      <p>✅ Custom FROM email is configured</p>
+                      <p className="mt-1">Make sure this domain is verified in Resend Dashboard</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
