@@ -87,17 +87,17 @@ export async function GET(request: NextRequest) {
           keyType: secretKey.startsWith('sk_test_') ? 'test' : 'live',
         };
 
-        // Test 3: Try a simple API call (retrieve account)
+        // Test 3: Try a simple API call (retrieve balance to test connectivity)
         try {
-          const account = await stripe.account.retrieve();
+          const balance = await stripe.balance.retrieve();
           debugInfo.stripe.apiTest = {
             success: true,
             message: 'Stripe API connection successful',
-            accountId: account.id,
-            country: account.country,
-            defaultCurrency: account.default_currency,
-            chargesEnabled: account.charges_enabled,
-            payoutsEnabled: account.payouts_enabled,
+            accountId: 'Connected Account',
+            country: null,
+            defaultCurrency: balance.available?.[0]?.currency || balance.available?.[0]?.currency || null,
+            chargesEnabled: null,
+            payoutsEnabled: null,
           };
           debugInfo.recommendations.push('✅ Stripe API connection is working correctly');
         } catch (apiError: any) {
