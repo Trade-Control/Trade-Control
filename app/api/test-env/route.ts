@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   // Check for exact key name
-  const exactKey = process.env.STRIPE_SECRET_KEY;
+  const exactKey = process.env.STRIPE_SECRET_KEY || '';
   const keyExists = exactKey !== undefined;
   const keyType = typeof exactKey;
   const keyLength = exactKey?.length || 0;

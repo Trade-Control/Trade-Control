@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     // Lazy-load env at request time
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
     console.log('[Create Subscription] STRIPE_SECRET_KEY check:', { hasStripeKey: !!stripeSecretKey });
 
     if (!stripeSecretKey) {

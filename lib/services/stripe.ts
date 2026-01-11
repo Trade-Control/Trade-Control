@@ -10,7 +10,7 @@ import { SubscriptionTier, OperationsProLevel } from '../types/database.types';
 
 // Helper function to create Stripe client lazily (only when needed)
 function getStripeClient(secretKeyOverride?: string) {
-  const secretKey = secretKeyOverride || process.env.STRIPE_SECRET_KEY;
+  const secretKey = secretKeyOverride || process.env.STRIPE_SECRET_KEY || '';
   
   // Debug logging
   console.log('[getStripeClient] Environment check:', {
