@@ -342,36 +342,90 @@ export async function retrieveSubscription(subscriptionId: string) {
 }
 
 /**
- * Create payment method (for UI only - returns client secret for Stripe Elements)
+ * Get Payment Link URL for subscription tier (for new signups only)
  */
-export async function createPaymentMethod(cardDetails: {
-  number: string;
-  exp_month: number;
-  exp_year: number;
-  cvc: string;
-}) {
+export function getPaymentLinkForTier(
+  tier: SubscriptionTier,
+  operationsProLevel?: OperationsProLevel
+): string {
+  if (tier === 'operations') {
+    return process.env.STRIPE_PAYMENT_LINK_OPERATIONS || '';
+  }
+  
+  if (tier === 'operations_pro') {
+    if (operationsProLevel === 'scale') {
+      return process.env.STRIPE_PAYMENT_LINK_OPERATIONS_PRO_SCALE || '';
+    } else if (operationsProLevel === 'unlimited') {
+      return process.env.STRIPE_PAYMENT_LINK_OPERATIONS_PRO_UNLIMITED || '';
+    }
+  }
+  
+  throw new Error(`No Payment Link configured for tier: ${tier}, level: ${operationsProLevel}`);
+}
+
+/**
+ * Verify checkout session and extract customer/subscription data
+ */
+export async function verifyCheckoutSession(sessionId: string) {
   const stripe = getStripeClient();
-  // In production, use Stripe Elements on the frontend
-  // This is just for reference
-  const paymentMethod = await stripe.paymentMethods.create({
-    type: 'card',
-    card: {
-      number: cardDetails.number,
-      exp_month: cardDetails.exp_month,
-      exp_year: cardDetails.exp_year,
-      cvc: cardDetails.cvc,
-    },
+  const session = await stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ['customer', 'subscription'],
   });
 
   return {
-    id: paymentMethod.id,
-    type: paymentMethod.type,
-    card: paymentMethod.card ? {
-      last4: paymentMethod.card.last4,
-      brand: paymentMethod.card.brand,
-      exp_month: paymentMethod.card.exp_month,
-      exp_year: paymentMethod.card.exp_year,
-    } : undefined,
+    id: session.id,
+    customerId: typeof session.customer === 'string' ? session.customer : session.customer?.id || '',
+    subscriptionId: typeof session.subscription === 'string' ? session.subscription : session.subscription?.id || '',
+    mode: session.mode,
+    metadata: session.metadata || {},
+    paymentStatus: session.payment_status,
+    status: session.status,
+  };
+}
+
+/**
+ * Create checkout session for upgrading existing subscription to Operations Pro
+ */
+export async function createUpgradeCheckoutSession(params: {
+  subscriptionId: string;
+  customerId: string;
+  newTier: SubscriptionTier;
+  operationsProLevel: OperationsProLevel;
+}) {
+  const stripe = getStripeClient();
+  const subscription = await stripe.subscriptions.retrieve(params.subscriptionId);
+  
+  // Determine Pro tier price ID
+  const proPriceId = params.operationsProLevel === 'scale'
+    ? STRIPE_PRICE_IDS.OPERATIONS_PRO_SCALE
+    : STRIPE_PRICE_IDS.OPERATIONS_PRO_UNLIMITED;
+  
+  if (!proPriceId) {
+    throw new Error(`Price ID not configured for Operations Pro ${params.operationsProLevel}`);
+  }
+  
+  // Create checkout session to add Pro tier to existing subscription
+  // Note: We'll add the Pro tier subscription item via API after checkout completes
+  const session = await stripe.checkout.sessions.create({
+    customer: params.customerId,
+    mode: 'subscription',
+    line_items: [{
+      price: proPriceId, // Only the Pro tier price (base is already in subscription)
+      quantity: 1,
+    }],
+    metadata: {
+      action: 'upgrade_to_pro',
+      existing_subscription_id: params.subscriptionId,
+      new_tier: params.newTier,
+      operations_pro_level: params.operationsProLevel,
+    },
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://trade-control.vercel.app'}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://trade-control.vercel.app'}/subscription/manage`,
+  });
+  
+  return {
+    url: session.url,
+    sessionId: session.id,
   };
 }
 

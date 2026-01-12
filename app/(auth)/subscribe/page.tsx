@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
-import { PRICING, formatPrice, calculateSubscriptionPrice } from '@/lib/services/stripe';
+import { PRICING, formatPrice, calculateSubscriptionPrice, getPaymentLinkForTier } from '@/lib/services/stripe';
 import { SubscriptionTier, OperationsProLevel } from '@/lib/types/database.types';
 
 function SubscribeForm() {
@@ -23,11 +23,6 @@ function SubscribeForm() {
   const [businessName, setBusinessName] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
 
-  // Mock card details (for UI only)
-  const [cardNumber, setCardNumber] = useState('');
-  const [expMonth, setExpMonth] = useState('');
-  const [expYear, setExpYear] = useState('');
-  const [cvc, setCvc] = useState('');
 
   // Calculate total price
   const totalPrice = calculateSubscriptionPrice(
@@ -79,110 +74,29 @@ function SubscribeForm() {
       if (!authData.user) throw new Error('Failed to create user');
       console.log('✅ User created:', authData.user.id);
 
-      // Step 2: Create Stripe customer via API route
-      console.log('Step 2: Creating Stripe customer...');
-      const customerResponse = await fetch('/api/subscriptions/create-customer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          name: businessName,
-          metadata: {
-            user_id: authData.user.id,
-          },
-        }),
-      });
-
-      if (!customerResponse.ok) {
-        const errorData = await customerResponse.json();
-        throw new Error(errorData.error || 'Failed to create Stripe customer');
-      }
-
-      const customer = await customerResponse.json();
-      console.log('✅ Customer created');
-
-      // Step 3: Create Stripe subscription via API route
-      console.log('Step 3: Creating Stripe subscription...');
-      const subscriptionResponse = await fetch('/api/subscriptions/create-subscription', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          customerId: customer.id,
-          tier,
-          operationsProLevel: tier === 'operations_pro' ? operationsProLevel : undefined,
-          trialDays: 14, // 14-day trial
-        }),
-      });
-
-      if (!subscriptionResponse.ok) {
-        const errorData = await subscriptionResponse.json();
-        throw new Error(errorData.error || 'Failed to create Stripe subscription');
-      }
-
-      const subscription = await subscriptionResponse.json();
-      console.log('✅ Stripe subscription created');
-
-      // Step 4: Complete signup via API route
-      // This creates organization, subscription, and license in one database transaction
-      console.log('Step 4: Completing signup (organization, subscription, license)...');
-      const signupResponse = await fetch('/api/signup/complete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: authData.user.id,
-          organization_name: businessName,
-          tier,
-          operations_pro_level: tier === 'operations_pro' ? operationsProLevel : null,
-          stripe_customer_id: customer.id,
-          stripe_subscription_id: subscription.id,
-          base_price: totalPrice / 100, // Convert from cents
-          total_price: totalPrice / 100,
-          current_period_start: subscription.currentPeriodStart,
-          current_period_end: subscription.currentPeriodEnd,
-          trial_ends_at: subscription.trialEnd,
-        }),
-      });
-
-      if (!signupResponse.ok) {
-        // Check content type before parsing
-        const contentType = signupResponse.headers.get('content-type');
-        let errorData: any = { error: 'Unknown error' };
-        
-        if (contentType && contentType.includes('application/json')) {
-          try {
-            errorData = await signupResponse.json();
-          } catch (e) {
-            console.error('Failed to parse error JSON:', e);
-          }
-        } else {
-          const text = await signupResponse.text();
-          console.error('Received non-JSON response:', text.substring(0, 200));
-          errorData = { error: `Server error (${signupResponse.status}): ${signupResponse.statusText}` };
-        }
-        
-        console.error('❌ Signup completion failed:', errorData);
-        throw new Error(errorData.error || `Failed to complete signup: ${signupResponse.statusText}`);
-      }
-
-      const signupResult = await signupResponse.json();
+      // Step 2: Store subscription details temporarily for success page
+      const pendingSubscription = {
+        user_id: authData.user.id,
+        email,
+        businessName,
+        tier,
+        operationsProLevel: tier === 'operations_pro' ? operationsProLevel : null,
+        totalPrice: totalPrice / 100, // Convert from cents
+      };
       
-      if (!signupResult.success) {
-        throw new Error('Signup failed - no success confirmation');
+      sessionStorage.setItem('pending_subscription', JSON.stringify(pendingSubscription));
+      console.log('✅ Subscription details stored');
+
+      // Step 3: Get Payment Link URL and redirect
+      console.log('Step 3: Redirecting to Stripe Payment Link...');
+      const paymentLink = getPaymentLinkForTier(tier, operationsProLevel);
+      
+      if (!paymentLink) {
+        throw new Error('Payment Link not configured. Please set STRIPE_PAYMENT_LINK_* environment variables.');
       }
       
-      console.log('✅ Organization created:', signupResult.organization_id);
-      console.log('✅ Subscription created:', signupResult.subscription_id);
-      console.log('✅ License created:', signupResult.license_id);
-
-      console.log('🎉 Subscription flow complete! Redirecting to onboarding...');
-      // Redirect to onboarding
-      router.push('/onboarding');
+      // Redirect to Stripe Payment Link
+      window.location.href = paymentLink;
     } catch (err: any) {
       console.error('❌ Subscription error:', err);
       console.error('Error details:', {
@@ -380,74 +294,14 @@ function SubscribeForm() {
                 </div>
               </div>
 
-              {/* Mock Payment Details */}
+              {/* Payment Information Notice */}
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">Payment Information</h2>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Mock Mode:</strong> This is a test environment. Enter any card details.
-                    No actual charges will be made.
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Secure Payment:</strong> You'll be redirected to Stripe's secure checkout page to complete your subscription. 
+                    No card details are collected on this page for your security.
                   </p>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Card Number
-                    </label>
-                    <input
-                      type="text"
-                      value={cardNumber}
-                      onChange={(e) => setCardNumber(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                      placeholder="4242 4242 4242 4242"
-                      maxLength={19}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Exp Month
-                      </label>
-                      <input
-                        type="text"
-                        value={expMonth}
-                        onChange={(e) => setExpMonth(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                        placeholder="12"
-                        maxLength={2}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Exp Year
-                      </label>
-                      <input
-                        type="text"
-                        value={expYear}
-                        onChange={(e) => setExpYear(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                        placeholder="2025"
-                        maxLength={4}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        CVC
-                      </label>
-                      <input
-                        type="text"
-                        value={cvc}
-                        onChange={(e) => setCvc(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                        placeholder="123"
-                        maxLength={4}
-                      />
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -478,7 +332,7 @@ function SubscribeForm() {
                 disabled={loading}
                 className="w-full bg-primary hover:bg-primary-hover text-white py-4 rounded-lg font-semibold text-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Creating Account...' : 'Start 14-Day Free Trial'}
+                {loading ? 'Redirecting to Secure Checkout...' : 'Start 14-Day Free Trial'}
               </button>
             </form>
           </div>

@@ -13,6 +13,12 @@ STRIPE_PRICE_ID_FIELD_STAFF_LICENSE=price_YOUR_PRICE_ID_HERE
 STRIPE_PRICE_ID_OPERATIONS_PRO_SCALE=price_YOUR_PRICE_ID_HERE
 STRIPE_PRICE_ID_OPERATIONS_PRO_UNLIMITED=price_YOUR_PRICE_ID_HERE
 
+# Stripe Payment Links (create Payment Links in Stripe Dashboard > Products > Payment Links)
+# These are ONLY for new signups. Upgrades and license additions use Checkout Sessions API.
+STRIPE_PAYMENT_LINK_OPERATIONS=https://buy.stripe.com/YOUR_PAYMENT_LINK_ID
+STRIPE_PAYMENT_LINK_OPERATIONS_PRO_SCALE=https://buy.stripe.com/YOUR_PAYMENT_LINK_ID
+STRIPE_PAYMENT_LINK_OPERATIONS_PRO_UNLIMITED=https://buy.stripe.com/YOUR_PAYMENT_LINK_ID
+
 # Resend Email Configuration (Free tier: 100 emails/day)
 RESEND_API_KEY=re_YOUR_API_KEY_HERE
 RESEND_FROM_EMAIL=Trade Control <onboarding@resend.dev>

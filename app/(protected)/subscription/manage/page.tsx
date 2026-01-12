@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { Subscription, License } from '@/lib/types/database.types';
 import { getUserPermissions } from '@/lib/middleware/role-check';
-import { formatPrice, PRICING, cancelSubscription, updateSubscription } from '@/lib/services/stripe';
+import { formatPrice, PRICING, cancelSubscription } from '@/lib/services/stripe';
 import Link from 'next/link';
 
 export default function ManageSubscriptionPage() {
@@ -16,6 +16,8 @@ export default function ManageSubscriptionPage() {
   const [licenses, setLicenses] = useState<License[]>([]);
   const [loading, setLoading] = useState(true);
   const [canManage, setCanManage] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
+  const [selectedProLevel, setSelectedProLevel] = useState<'scale' | 'unlimited'>('scale');
 
   useEffect(() => {
     checkPermissions();
@@ -88,40 +90,52 @@ export default function ManageSubscriptionPage() {
   const handleUpgradeToPro = async () => {
     if (!subscription || subscription.tier === 'operations_pro') return;
 
-    // Check if subscription is in trial
-    if (subscription.status === 'trialing') {
-      alert('Cannot upgrade during trial period. Please add a payment method first or wait until trial ends.');
-      return;
-    }
-
     // Check if Stripe subscription ID exists
     if (!subscription.stripe_subscription_id) {
       alert('Stripe subscription not found. Please contact support.');
       return;
     }
 
-    if (confirm('Upgrade to Operations Pro? This will add contractor management features.')) {
-      try {
-        await updateSubscription(subscription.stripe_subscription_id, {
-          tier: 'operations_pro',
-          operationsProLevel: 'scale',
-        });
+    const proLevelName = selectedProLevel === 'scale' ? 'Scale (50 contractors)' : 'Unlimited Contractors';
+    const proPrice = selectedProLevel === 'scale' ? PRICING.OPERATIONS_PRO_SCALE : PRICING.OPERATIONS_PRO_UNLIMITED;
 
-        await supabase
-          .from('subscriptions')
-          .update({
-            tier: 'operations_pro',
-            operations_pro_level: 'scale',
-            total_price: subscription.total_price + 99,
-          })
-          .eq('id', subscription.id);
+    if (!confirm(`Upgrade to Operations Pro ${proLevelName}? This will add contractor management features for ${formatPrice(proPrice)}/mo.`)) {
+      return;
+    }
 
-        alert('Upgraded to Operations Pro!');
-        fetchData();
-      } catch (err: any) {
-        console.error('Upgrade error:', err);
-        alert('Error upgrading subscription: ' + (err.message || 'Unknown error'));
+    setUpgrading(true);
+
+    try {
+      // Create checkout session for upgrade
+      const checkoutResponse = await fetch('/api/subscriptions/create-upgrade-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subscriptionId: subscription.id,
+          newTier: 'operations_pro',
+          operationsProLevel: selectedProLevel,
+        }),
+      });
+
+      if (!checkoutResponse.ok) {
+        const errorData = await checkoutResponse.json();
+        throw new Error(errorData.error || 'Failed to create upgrade checkout session');
       }
+
+      const result = await checkoutResponse.json();
+
+      // Redirect to checkout session
+      if (result.url) {
+        window.location.href = result.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (err: any) {
+      console.error('Upgrade error:', err);
+      alert('Error upgrading subscription: ' + (err.message || 'Unknown error'));
+      setUpgrading(false);
     }
   };
 
@@ -266,28 +280,55 @@ export default function ManageSubscriptionPage() {
           <span className="text-primary font-medium">Manage Licenses →</span>
         </Link>
 
-        {subscription.tier === 'operations' && subscription.status !== 'trialing' && (
-          <button
-            onClick={handleUpgradeToPro}
-            className="bg-purple-600 hover:bg-purple-700 rounded-lg shadow p-6 text-white transition-all"
-          >
+        {subscription.tier === 'operations' && (
+          <div className="bg-purple-600 hover:bg-purple-700 rounded-lg shadow p-6 text-white transition-all">
             <div className="text-4xl mb-3">⚡</div>
             <h3 className="font-semibold mb-2">Upgrade to Operations Pro</h3>
             <p className="text-sm mb-4 opacity-90">Add contractor management and compliance tracking</p>
-            <span className="font-medium">Upgrade Now →</span>
-          </button>
-        )}
-        
-        {subscription.tier === 'operations' && subscription.status === 'trialing' && (
-          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg shadow p-6">
-            <div className="text-4xl mb-3">⚡</div>
-            <h3 className="font-semibold text-yellow-900 mb-2">Upgrade to Operations Pro</h3>
-            <p className="text-sm text-yellow-700 mb-4">
-              Upgrade available after your free trial ends on {subscription.trial_ends_at ? new Date(subscription.trial_ends_at).toLocaleDateString() : 'trial end date'}.
-            </p>
-            <p className="text-xs text-yellow-600">
-              During the trial period, subscription modifications are limited. You can upgrade once the trial ends or by adding a payment method in Stripe.
-            </p>
+            
+            {/* Operations Pro Level Selection */}
+            <div className="mb-4 space-y-2">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="proLevel"
+                  value="scale"
+                  checked={selectedProLevel === 'scale'}
+                  onChange={(e) => setSelectedProLevel(e.target.value as 'scale')}
+                  className="mr-2"
+                />
+                <span className="text-sm">
+                  Scale (50 contractors) - {formatPrice(PRICING.OPERATIONS_PRO_SCALE)}/mo
+                </span>
+              </label>
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="proLevel"
+                  value="unlimited"
+                  checked={selectedProLevel === 'unlimited'}
+                  onChange={(e) => setSelectedProLevel(e.target.value as 'unlimited')}
+                  className="mr-2"
+                />
+                <span className="text-sm">
+                  Unlimited Contractors - {formatPrice(PRICING.OPERATIONS_PRO_UNLIMITED)}/mo
+                </span>
+              </label>
+            </div>
+
+            <button
+              onClick={handleUpgradeToPro}
+              disabled={upgrading}
+              className="w-full bg-white text-purple-600 hover:bg-purple-50 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {upgrading ? 'Redirecting to Checkout...' : 'Upgrade Now →'}
+            </button>
+            
+            {subscription.status === 'trialing' && (
+              <p className="text-xs mt-3 opacity-75">
+                You'll be asked to add a payment method during checkout. Your trial will continue until it ends.
+              </p>
+            )}
           </div>
         )}
       </div>
