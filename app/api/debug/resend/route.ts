@@ -135,37 +135,42 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Check domain verification status
-    const isDomainVerified = process.env.RESEND_DOMAIN_VERIFIED === 'true';
+    // Check custom domain configuration
     const customFromEmail = process.env.RESEND_FROM_EMAIL;
     
     // Determine actual FROM email that will be used
-    // Note: Resend requires "Name <email>" format for free tier
-    const actualFromEmail = (isDomainVerified && customFromEmail) 
-      ? customFromEmail 
-      : 'Trade Control <onboarding@resend.dev>';
+    // If RESEND_FROM_EMAIL is set, use it (assumes domain is verified in Resend Dashboard)
+    let actualFromEmail: string;
+    if (customFromEmail) {
+      // If it's already in "Name <email>" format, use as-is
+      if (customFromEmail.includes('<') && customFromEmail.includes('>')) {
+        actualFromEmail = customFromEmail;
+      } else {
+        // Otherwise, wrap it in "Trade Control <email>" format
+        actualFromEmail = `Trade Control <${customFromEmail}>`;
+      }
+    } else {
+      actualFromEmail = 'Trade Control <onboarding@resend.dev>';
+    }
     
     debugInfo.resend.actualFromEmail = actualFromEmail;
-    debugInfo.resend.isDomainVerified = isDomainVerified;
     debugInfo.resend.customFromEmail = customFromEmail || 'NOT_SET';
-    debugInfo.resend.isUsingFreeTier = !isDomainVerified || !customFromEmail;
+    debugInfo.resend.isUsingFreeTier = !customFromEmail;
 
     // Recommendations based on configuration
-    if (!isDomainVerified) {
+    if (customFromEmail) {
+      debugInfo.recommendations.push(
+        `✅ Using custom domain email: ${actualFromEmail}`
+      );
+      debugInfo.recommendations.push(
+        '📝 Make sure your domain is verified in Resend Dashboard > Domains'
+      );
+    } else {
       debugInfo.recommendations.push(
         '✅ Using Resend free tier email: onboarding@resend.dev (works immediately, no setup needed)'
       );
-      if (customFromEmail) {
-        debugInfo.recommendations.push(
-          `📝 RESEND_FROM_EMAIL is set to "${customFromEmail}" but will NOT be used until domain is verified`
-        );
-        debugInfo.recommendations.push(
-          '📝 To use your custom domain: 1) Verify domain in Resend Dashboard, 2) Set RESEND_DOMAIN_VERIFIED=true in env vars'
-        );
-      }
-    } else {
       debugInfo.recommendations.push(
-        `✅ Domain verified! Using custom email: ${actualFromEmail}`
+        '📝 To use a custom domain: 1) Add domain in Resend Dashboard, 2) Verify domain, 3) Set RESEND_FROM_EMAIL in env vars (e.g., "mail@mail.tradecontrol.com.au")'
       );
     }
 
@@ -184,9 +189,9 @@ export async function GET(request: NextRequest) {
     debugInfo.summary = {
       hasApiKey,
       apiWorking,
-      isDomainVerified,
+      customFromEmail: customFromEmail || null,
       actualFromEmail: actualFromEmail,
-      usingFreeTier: !isDomainVerified || !customFromEmail,
+      usingFreeTier: !customFromEmail,
     };
 
     return NextResponse.json(debugInfo, { status: 200 });

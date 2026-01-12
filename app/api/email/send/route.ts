@@ -12,15 +12,23 @@ const RESEND_FREE_TIER_FROM = 'Trade Control <onboarding@resend.dev>';
 
 /**
  * Get the FROM email address
- * - Uses "Trade Control <onboarding@resend.dev>" by default (works immediately)
- * - Only uses custom RESEND_FROM_EMAIL if RESEND_DOMAIN_VERIFIED is set to 'true'
+ * - Uses RESEND_FROM_EMAIL if set (assumes domain is verified in Resend Dashboard)
+ * - Falls back to "Trade Control <onboarding@resend.dev>" if not set
+ * 
+ * Supports formats:
+ * - "email@domain.com"
+ * - "Name <email@domain.com>"
  */
 function getFromEmail(): string {
-  const isDomainVerified = process.env.RESEND_DOMAIN_VERIFIED === 'true';
   const customFromEmail = process.env.RESEND_FROM_EMAIL;
   
-  if (isDomainVerified && customFromEmail) {
-    return customFromEmail;
+  if (customFromEmail) {
+    // If it's already in "Name <email>" format, use as-is
+    if (customFromEmail.includes('<') && customFromEmail.includes('>')) {
+      return customFromEmail;
+    }
+    // Otherwise, wrap it in "Trade Control <email>" format
+    return `Trade Control <${customFromEmail}>`;
   }
   
   // Default to Resend free tier email with proper format

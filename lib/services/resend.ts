@@ -6,9 +6,10 @@
  * 
  * IMPORTANT: By default, uses onboarding@resend.dev which works immediately.
  * To use a custom domain:
- * 1. Verify your domain in Resend Dashboard > Domains
- * 2. Set RESEND_FROM_EMAIL to your verified email
- * 3. Set RESEND_DOMAIN_VERIFIED=true in environment variables
+ * 1. Add and verify your domain in Resend Dashboard > Domains
+ * 2. Set RESEND_FROM_EMAIL in environment variables (e.g., "mail@mail.tradecontrol.com.au" or "Trade Control <mail@mail.tradecontrol.com.au>")
+ * 
+ * The code will automatically use your custom email if RESEND_FROM_EMAIL is set.
  */
 
 import { Resend } from 'resend';
@@ -30,15 +31,23 @@ function getResendClient() {
 
 /**
  * Get the FROM email address
- * - Uses "Trade Control <onboarding@resend.dev>" by default (works immediately)
- * - Only uses custom RESEND_FROM_EMAIL if RESEND_DOMAIN_VERIFIED is set to 'true'
+ * - Uses RESEND_FROM_EMAIL if set (assumes domain is verified in Resend Dashboard)
+ * - Falls back to "Trade Control <onboarding@resend.dev>" if not set
+ * 
+ * Supports formats:
+ * - "email@domain.com"
+ * - "Name <email@domain.com>"
  */
 function getFromEmail(): string {
-  const isDomainVerified = process.env.RESEND_DOMAIN_VERIFIED === 'true';
   const customFromEmail = process.env.RESEND_FROM_EMAIL;
   
-  if (isDomainVerified && customFromEmail) {
-    return customFromEmail;
+  if (customFromEmail) {
+    // If it's already in "Name <email>" format, use as-is
+    if (customFromEmail.includes('<') && customFromEmail.includes('>')) {
+      return customFromEmail;
+    }
+    // Otherwise, wrap it in "Trade Control <email>" format
+    return `Trade Control <${customFromEmail}>`;
   }
   
   // Default to Resend free tier email with proper format
