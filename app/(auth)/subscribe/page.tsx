@@ -15,6 +15,7 @@ function SubscribeForm() {
   const [operationsProLevel, setOperationsProLevel] = useState<OperationsProLevel | undefined>('scale');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   // Form state
   const [email, setEmail] = useState('');
@@ -22,7 +23,39 @@ function SubscribeForm() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
+
+  // Check if user is authenticated on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (!supabase) {
+        setCheckingAuth(false);
+        return;
+      }
+
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        
+        if (user && !authError) {
+          setIsAuthenticated(true);
+          setUserId(user.id);
+          setEmail(user.email || '');
+          // User is already authenticated, no need for password fields
+        } else {
+          setIsAuthenticated(false);
+        }
+      } catch (err) {
+        console.error('Error checking auth:', err);
+        setIsAuthenticated(false);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+
+    checkAuth();
+  }, [supabase]);
 
   // Calculate total price
   const totalPrice = calculateSubscriptionPrice(
@@ -40,8 +73,20 @@ function SubscribeForm() {
     }
 
     // Validation
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
+    if (!isAuthenticated) {
+      // Only validate password if user is not authenticated
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters long');
+        return;
+      }
+    }
+
+    if (!businessName.trim()) {
+      setError('Business name is required');
       return;
     }
 
@@ -60,24 +105,33 @@ function SubscribeForm() {
     try {
       console.log('🔵 Starting subscription flow...');
       
-      // Step 1: Create auth user
-      console.log('Step 1: Creating auth user...');
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      let currentUserId = userId;
+      let currentEmail = email;
 
-      if (authError) {
-        console.error('Auth error:', authError);
-        throw authError;
+      // Step 1: Create auth user only if not authenticated
+      if (!isAuthenticated) {
+        console.log('Step 1: Creating auth user...');
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (authError) {
+          console.error('Auth error:', authError);
+          throw authError;
+        }
+        if (!authData.user) throw new Error('Failed to create user');
+        console.log('✅ User created:', authData.user.id);
+        currentUserId = authData.user.id;
+        currentEmail = authData.user.email || email;
+      } else {
+        console.log('Step 1: Using existing authenticated user:', currentUserId);
       }
-      if (!authData.user) throw new Error('Failed to create user');
-      console.log('✅ User created:', authData.user.id);
 
       // Step 2: Store subscription details temporarily for success page
       const pendingSubscription = {
-        user_id: authData.user.id,
-        email,
+        user_id: currentUserId,
+        email: currentEmail,
         businessName,
         tier,
         operationsProLevel: tier === 'operations_pro' ? operationsProLevel : null,
@@ -129,6 +183,17 @@ function SubscribeForm() {
     }
   };
 
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-4xl mx-auto">
@@ -145,6 +210,14 @@ function SubscribeForm() {
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">Account Details</h2>
                 
+                {isAuthenticated && (
+                  <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800">
+                      <strong>Signed in as:</strong> {email}
+                    </p>
+                  </div>
+                )}
+                
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -160,48 +233,52 @@ function SubscribeForm() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email *
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                      placeholder="your@email.com"
-                    />
-                  </div>
+                  {!isAuthenticated && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Email *
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                          placeholder="your@email.com"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Password *
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                      placeholder="••••••••"
-                      minLength={6}
-                    />
-                  </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Password *
+                        </label>
+                        <input
+                          type="password"
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                          placeholder="••••••••"
+                          minLength={6}
+                        />
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Confirm Password *
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                      placeholder="••••••••"
-                    />
-                  </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Confirm Password *
+                        </label>
+                        <input
+                          type="password"
+                          required
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                          placeholder="••••••••"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 

@@ -39,20 +39,33 @@ export async function GET(request: NextRequest) {
       'STRIPE_PRICE_ID_FIELD_STAFF_LICENSE',
       'STRIPE_PRICE_ID_OPERATIONS_PRO_SCALE',
       'STRIPE_PRICE_ID_OPERATIONS_PRO_UNLIMITED',
+      'STRIPE_PAYMENT_LINK_OPERATIONS',
+      'STRIPE_PAYMENT_LINK_OPERATIONS_PRO_SCALE',
+      'STRIPE_PAYMENT_LINK_OPERATIONS_PRO_UNLIMITED',
     ];
 
     stripeEnvVars.forEach((varName) => {
       const value = process.env[varName];
+      let preview = 'NOT_SET';
+      
+      if (value) {
+        if (varName.includes('SECRET') || varName.includes('KEY')) {
+          // For secret keys, show first 7 and last 4 chars
+          preview = `${value.substring(0, 7)}...${value.substring(value.length - 4)}`;
+        } else if (varName.includes('PAYMENT_LINK')) {
+          // For payment links (URLs), show first 50 chars to see the domain
+          preview = value.length > 50 ? `${value.substring(0, 50)}...` : value;
+        } else {
+          // For other variables (Price IDs, etc.), show first 20 chars
+          preview = value.substring(0, 20);
+        }
+      }
+      
       debugInfo.stripe.envVars[varName] = {
         exists: !!value,
         length: value?.length || 0,
         prefix: value?.substring(0, 10) || 'NOT_SET',
-        // Show first 7 chars and last 4 chars for secret keys (for debugging)
-        preview: value 
-          ? (varName.includes('SECRET') || varName.includes('KEY') 
-              ? `${value.substring(0, 7)}...${value.substring(value.length - 4)}`
-              : value.substring(0, 20))
-          : 'NOT_SET',
+        preview,
       };
     });
 
@@ -147,6 +160,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Check Payment Links
+    const missingPaymentLinks: string[] = [];
+    if (!process.env.STRIPE_PAYMENT_LINK_OPERATIONS) missingPaymentLinks.push('STRIPE_PAYMENT_LINK_OPERATIONS');
+    if (!process.env.STRIPE_PAYMENT_LINK_OPERATIONS_PRO_SCALE) missingPaymentLinks.push('STRIPE_PAYMENT_LINK_OPERATIONS_PRO_SCALE');
+    if (!process.env.STRIPE_PAYMENT_LINK_OPERATIONS_PRO_UNLIMITED) missingPaymentLinks.push('STRIPE_PAYMENT_LINK_OPERATIONS_PRO_UNLIMITED');
+
+    if (missingPaymentLinks.length > 0) {
+      debugInfo.recommendations.push(
+        `⚠️ Missing Payment Links: ${missingPaymentLinks.join(', ')}. These are required for the subscription signup flow. Create Payment Links in Stripe Dashboard and add the URLs as environment variables.`
+      );
+    } else {
+      debugInfo.recommendations.push(
+        '✅ All Payment Links are configured'
+      );
+    }
+
     // Vercel-specific recommendations
     if (process.env.VERCEL) {
       debugInfo.recommendations.push(
@@ -163,12 +192,14 @@ export async function GET(request: NextRequest) {
     // Overall status
     const hasSecretKey = !!secretKey && (secretKey.startsWith('sk_test_') || secretKey.startsWith('sk_live_'));
     const apiWorking = debugInfo.stripe.apiTest?.success === true;
+    const allPaymentLinksSet = missingPaymentLinks.length === 0;
     
-    debugInfo.status = hasSecretKey && apiWorking ? 'success' : hasSecretKey ? 'partial' : 'error';
+    debugInfo.status = hasSecretKey && apiWorking && allPaymentLinksSet ? 'success' : hasSecretKey && apiWorking ? 'partial' : 'error';
     debugInfo.summary = {
       hasSecretKey,
       apiWorking,
       allPriceIdsSet: missingPriceIds.length === 0,
+      allPaymentLinksSet,
     };
 
     return NextResponse.json(debugInfo, { status: 200 });

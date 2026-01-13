@@ -42,6 +42,7 @@ interface DebugInfo {
     hasSecretKey: boolean;
     apiWorking: boolean;
     allPriceIdsSet: boolean;
+    allPaymentLinksSet: boolean;
   };
 }
 
@@ -169,7 +170,7 @@ export default function StripeDebugPage() {
               <p className="text-sm opacity-80">Last checked: {new Date(debugInfo.timestamp).toLocaleString()}</p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white/50 rounded p-3">
               <div className="text-sm opacity-70">Secret Key</div>
               <div className="font-semibold">{debugInfo.summary.hasSecretKey ? '✅ Set' : '❌ Missing'}</div>
@@ -181,6 +182,10 @@ export default function StripeDebugPage() {
             <div className="bg-white/50 rounded p-3">
               <div className="text-sm opacity-70">Price IDs</div>
               <div className="font-semibold">{debugInfo.summary.allPriceIdsSet ? '✅ All Set' : '⚠️ Some Missing'}</div>
+            </div>
+            <div className="bg-white/50 rounded p-3">
+              <div className="text-sm opacity-70">Payment Links</div>
+              <div className="font-semibold">{debugInfo.summary.allPaymentLinksSet ? '✅ All Set' : '⚠️ Some Missing'}</div>
             </div>
           </div>
         </div>
@@ -288,9 +293,42 @@ export default function StripeDebugPage() {
           </div>
         )}
 
+        {/* Payment Links Section */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Links</h2>
+          <p className="text-sm text-gray-600 mb-4">Stripe Payment Links used for subscription signup flow</p>
+          <div className="space-y-3">
+            {['STRIPE_PAYMENT_LINK_OPERATIONS', 'STRIPE_PAYMENT_LINK_OPERATIONS_PRO_SCALE', 'STRIPE_PAYMENT_LINK_OPERATIONS_PRO_UNLIMITED'].map((varName) => {
+              const info = debugInfo.stripe.envVars[varName];
+              if (!info) return null;
+              return (
+                <div key={varName} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="font-mono text-sm text-gray-900">{varName}</div>
+                    {info.exists ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        ✅ Set
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        ❌ Missing
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    <div className="font-medium mb-1">Preview:</div>
+                    <div className="font-mono text-xs bg-gray-50 p-2 rounded break-all">{info.preview}</div>
+                    {info.exists && <div className="mt-1 text-xs text-gray-500">Length: {info.length} characters</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Environment Variables */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Environment Variables</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">All Environment Variables</h2>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -302,8 +340,15 @@ export default function StripeDebugPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {Object.entries(debugInfo.stripe.envVars).map(([varName, info]) => (
-                  <tr key={varName}>
+                {Object.entries(debugInfo.stripe.envVars)
+                  .sort(([a], [b]) => {
+                    // Sort payment links to the top
+                    if (a.includes('PAYMENT_LINK') && !b.includes('PAYMENT_LINK')) return -1;
+                    if (!a.includes('PAYMENT_LINK') && b.includes('PAYMENT_LINK')) return 1;
+                    return a.localeCompare(b);
+                  })
+                  .map(([varName, info]: [string, any]) => (
+                  <tr key={varName} className={varName.includes('PAYMENT_LINK') ? 'bg-blue-50' : ''}>
                     <td className="px-4 py-3 text-sm font-mono text-gray-900">{varName}</td>
                     <td className="px-4 py-3">
                       {info.exists ? (
@@ -316,7 +361,7 @@ export default function StripeDebugPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm font-mono text-gray-600">{info.preview}</td>
+                    <td className="px-4 py-3 text-sm font-mono text-gray-600 break-all">{info.preview}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{info.length} chars</td>
                   </tr>
                 ))}

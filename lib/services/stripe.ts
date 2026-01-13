@@ -360,7 +360,7 @@ export function getPaymentLinkForTier(
     }
   }
   
-  throw new Error(`No Payment Link configured for tier: ${tier}, level: ${operationsProLevel}`);
+  return '';
 }
 
 /**
