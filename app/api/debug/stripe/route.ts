@@ -39,9 +39,6 @@ export async function GET(request: NextRequest) {
       'STRIPE_PRICE_ID_FIELD_STAFF_LICENSE',
       'STRIPE_PRICE_ID_OPERATIONS_PRO_SCALE',
       'STRIPE_PRICE_ID_OPERATIONS_PRO_UNLIMITED',
-      'STRIPE_PAYMENT_LINK_OPERATIONS',
-      'STRIPE_PAYMENT_LINK_OPERATIONS_PRO_SCALE',
-      'STRIPE_PAYMENT_LINK_OPERATIONS_PRO_UNLIMITED',
     ];
 
     stripeEnvVars.forEach((varName) => {
@@ -146,7 +143,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Check Price IDs
+    // Check Price IDs - REQUIRED for Checkout Sessions
     const missingPriceIds: string[] = [];
     if (!process.env.STRIPE_PRICE_ID_OPERATIONS_BASE) missingPriceIds.push('STRIPE_PRICE_ID_OPERATIONS_BASE');
     if (!process.env.STRIPE_PRICE_ID_MANAGEMENT_LICENSE) missingPriceIds.push('STRIPE_PRICE_ID_MANAGEMENT_LICENSE');
@@ -156,23 +153,11 @@ export async function GET(request: NextRequest) {
 
     if (missingPriceIds.length > 0) {
       debugInfo.recommendations.push(
-        `⚠️ Missing Price IDs: ${missingPriceIds.join(', ')}. These are optional but required for subscription features.`
-      );
-    }
-
-    // Check Payment Links
-    const missingPaymentLinks: string[] = [];
-    if (!process.env.STRIPE_PAYMENT_LINK_OPERATIONS) missingPaymentLinks.push('STRIPE_PAYMENT_LINK_OPERATIONS');
-    if (!process.env.STRIPE_PAYMENT_LINK_OPERATIONS_PRO_SCALE) missingPaymentLinks.push('STRIPE_PAYMENT_LINK_OPERATIONS_PRO_SCALE');
-    if (!process.env.STRIPE_PAYMENT_LINK_OPERATIONS_PRO_UNLIMITED) missingPaymentLinks.push('STRIPE_PAYMENT_LINK_OPERATIONS_PRO_UNLIMITED');
-
-    if (missingPaymentLinks.length > 0) {
-      debugInfo.recommendations.push(
-        `⚠️ Missing Payment Links: ${missingPaymentLinks.join(', ')}. These are required for the subscription signup flow. Create Payment Links in Stripe Dashboard and add the URLs as environment variables.`
+        `❌ Missing Price IDs: ${missingPriceIds.join(', ')}. These are REQUIRED for subscription checkout sessions. Create products/prices in Stripe Dashboard and add the Price IDs as environment variables.`
       );
     } else {
       debugInfo.recommendations.push(
-        '✅ All Payment Links are configured'
+        '✅ All Price IDs are configured'
       );
     }
 
@@ -192,14 +177,13 @@ export async function GET(request: NextRequest) {
     // Overall status
     const hasSecretKey = !!secretKey && (secretKey.startsWith('sk_test_') || secretKey.startsWith('sk_live_'));
     const apiWorking = debugInfo.stripe.apiTest?.success === true;
-    const allPaymentLinksSet = missingPaymentLinks.length === 0;
+    const allPriceIdsSet = missingPriceIds.length === 0;
     
-    debugInfo.status = hasSecretKey && apiWorking && allPaymentLinksSet ? 'success' : hasSecretKey && apiWorking ? 'partial' : 'error';
+    debugInfo.status = hasSecretKey && apiWorking && allPriceIdsSet ? 'success' : hasSecretKey && apiWorking ? 'partial' : 'error';
     debugInfo.summary = {
       hasSecretKey,
       apiWorking,
-      allPriceIdsSet: missingPriceIds.length === 0,
-      allPaymentLinksSet,
+      allPriceIdsSet,
     };
 
     return NextResponse.json(debugInfo, { status: 200 });

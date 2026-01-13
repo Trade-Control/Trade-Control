@@ -141,34 +141,37 @@ function SubscribeForm() {
       sessionStorage.setItem('pending_subscription', JSON.stringify(pendingSubscription));
       console.log('✅ Subscription details stored');
 
-      // Step 3: Get Payment Link URL from server and redirect
-      console.log('Step 3: Fetching Payment Link from server...');
-      const paymentLinkResponse = await fetch('/api/subscriptions/get-payment-link', {
+      // Step 3: Create checkout session and redirect
+      console.log('Step 3: Creating Stripe Checkout Session...');
+      const checkoutResponse = await fetch('/api/subscriptions/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          email: currentEmail,
           tier,
           operationsProLevel: tier === 'operations_pro' ? operationsProLevel : undefined,
+          userId: currentUserId,
+          businessName,
         }),
       });
 
-      if (!paymentLinkResponse.ok) {
-        const errorData = await paymentLinkResponse.json();
-        throw new Error(errorData.error || 'Failed to get payment link');
+      if (!checkoutResponse.ok) {
+        const errorData = await checkoutResponse.json();
+        throw new Error(errorData.error || 'Failed to create checkout session');
       }
 
-      const { paymentLink } = await paymentLinkResponse.json();
+      const { url } = await checkoutResponse.json();
       
-      if (!paymentLink) {
-        throw new Error('Payment Link not configured. Please set STRIPE_PAYMENT_LINK_* environment variables.');
+      if (!url) {
+        throw new Error('Failed to create checkout session - no URL returned');
       }
 
-      console.log('✅ Payment Link received, redirecting to Stripe...');
+      console.log('✅ Checkout session created, redirecting to Stripe...');
       
-      // Redirect to Stripe Payment Link
-      window.location.href = paymentLink;
+      // Redirect to Stripe Checkout
+      window.location.href = url;
     } catch (err: any) {
       console.error('❌ Subscription error:', err);
       console.error('Error details:', {

@@ -42,7 +42,6 @@ interface DebugInfo {
     hasSecretKey: boolean;
     apiWorking: boolean;
     allPriceIdsSet: boolean;
-    allPaymentLinksSet: boolean;
   };
 }
 
@@ -170,7 +169,7 @@ export default function StripeDebugPage() {
               <p className="text-sm opacity-80">Last checked: {new Date(debugInfo.timestamp).toLocaleString()}</p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white/50 rounded p-3">
               <div className="text-sm opacity-70">Secret Key</div>
               <div className="font-semibold">{debugInfo.summary.hasSecretKey ? '✅ Set' : '❌ Missing'}</div>
@@ -180,12 +179,8 @@ export default function StripeDebugPage() {
               <div className="font-semibold">{debugInfo.summary.apiWorking ? '✅ Working' : '❌ Failed'}</div>
             </div>
             <div className="bg-white/50 rounded p-3">
-              <div className="text-sm opacity-70">Price IDs</div>
-              <div className="font-semibold">{debugInfo.summary.allPriceIdsSet ? '✅ All Set' : '⚠️ Some Missing'}</div>
-            </div>
-            <div className="bg-white/50 rounded p-3">
-              <div className="text-sm opacity-70">Payment Links</div>
-              <div className="font-semibold">{debugInfo.summary.allPaymentLinksSet ? '✅ All Set' : '⚠️ Some Missing'}</div>
+              <div className="text-sm opacity-70">Price IDs (Required)</div>
+              <div className="font-semibold">{debugInfo.summary.allPriceIdsSet ? '✅ All Set' : '❌ Missing'}</div>
             </div>
           </div>
         </div>
@@ -293,12 +288,17 @@ export default function StripeDebugPage() {
           </div>
         )}
 
-        {/* Payment Links Section */}
+        {/* Subscription Configuration */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Links</h2>
-          <p className="text-sm text-gray-600 mb-4">Stripe Payment Links used for subscription signup flow</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Subscription Configuration</h2>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> This app uses Stripe Checkout Sessions (not Payment Links) for subscription signups. 
+              This ensures email validation and proper redirect flow.
+            </p>
+          </div>
           <div className="space-y-3">
-            {['STRIPE_PAYMENT_LINK_OPERATIONS', 'STRIPE_PAYMENT_LINK_OPERATIONS_PRO_SCALE', 'STRIPE_PAYMENT_LINK_OPERATIONS_PRO_UNLIMITED'].map((varName) => {
+            {['STRIPE_PRICE_ID_OPERATIONS_BASE', 'STRIPE_PRICE_ID_OPERATIONS_PRO_SCALE', 'STRIPE_PRICE_ID_OPERATIONS_PRO_UNLIMITED'].map((varName) => {
               const info = debugInfo.stripe.envVars[varName];
               if (!info) return null;
               return (
@@ -342,13 +342,13 @@ export default function StripeDebugPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {Object.entries(debugInfo.stripe.envVars)
                   .sort(([a], [b]) => {
-                    // Sort payment links to the top
-                    if (a.includes('PAYMENT_LINK') && !b.includes('PAYMENT_LINK')) return -1;
-                    if (!a.includes('PAYMENT_LINK') && b.includes('PAYMENT_LINK')) return 1;
+                    // Sort price IDs to the top
+                    if (a.includes('PRICE_ID') && !b.includes('PRICE_ID')) return -1;
+                    if (!a.includes('PRICE_ID') && b.includes('PRICE_ID')) return 1;
                     return a.localeCompare(b);
                   })
                   .map(([varName, info]: [string, any]) => (
-                  <tr key={varName} className={varName.includes('PAYMENT_LINK') ? 'bg-blue-50' : ''}>
+                  <tr key={varName} className={varName.includes('PRICE_ID') ? 'bg-green-50' : ''}>
                     <td className="px-4 py-3 text-sm font-mono text-gray-900">{varName}</td>
                     <td className="px-4 py-3">
                       {info.exists ? (
