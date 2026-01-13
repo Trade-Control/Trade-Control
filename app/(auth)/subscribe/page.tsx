@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
-import { PRICING, formatPrice, calculateSubscriptionPrice, getPaymentLinkForTier } from '@/lib/services/stripe';
+import { PRICING, formatPrice, calculateSubscriptionPrice } from '@/lib/services/stripe';
 import { SubscriptionTier, OperationsProLevel } from '@/lib/types/database.types';
 
 function SubscribeForm() {
@@ -141,13 +141,31 @@ function SubscribeForm() {
       sessionStorage.setItem('pending_subscription', JSON.stringify(pendingSubscription));
       console.log('✅ Subscription details stored');
 
-      // Step 3: Get Payment Link URL and redirect
-      console.log('Step 3: Redirecting to Stripe Payment Link...');
-      const paymentLink = getPaymentLinkForTier(tier, operationsProLevel);
+      // Step 3: Get Payment Link URL from server and redirect
+      console.log('Step 3: Fetching Payment Link from server...');
+      const paymentLinkResponse = await fetch('/api/subscriptions/get-payment-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tier,
+          operationsProLevel: tier === 'operations_pro' ? operationsProLevel : undefined,
+        }),
+      });
+
+      if (!paymentLinkResponse.ok) {
+        const errorData = await paymentLinkResponse.json();
+        throw new Error(errorData.error || 'Failed to get payment link');
+      }
+
+      const { paymentLink } = await paymentLinkResponse.json();
       
       if (!paymentLink) {
         throw new Error('Payment Link not configured. Please set STRIPE_PAYMENT_LINK_* environment variables.');
       }
+
+      console.log('✅ Payment Link received, redirecting to Stripe...');
       
       // Redirect to Stripe Payment Link
       window.location.href = paymentLink;
