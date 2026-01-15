@@ -11,7 +11,9 @@ function SubscribeForm() {
   const searchParams = useSearchParams();
   const supabase = useSafeSupabaseClient();
 
-  const [tier, setTier] = useState<SubscriptionTier>((searchParams.get('tier') as SubscriptionTier) || 'operations');
+  // Get tier from URL params or default to operations
+  const tierParam = searchParams.get('tier') as SubscriptionTier;
+  const [tier, setTier] = useState<SubscriptionTier>(tierParam || 'operations');
   const [operationsProLevel, setOperationsProLevel] = useState<OperationsProLevel | undefined>('scale');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,17 +21,14 @@ function SubscribeForm() {
 
   // Form state
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
 
-  // Check if user is authenticated on mount
+  // Check if user is authenticated on mount and has active subscription
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuthAndSubscription = async () => {
       if (!supabase) {
         setCheckingAuth(false);
         return;
@@ -38,24 +37,67 @@ function SubscribeForm() {
       try {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         
-        if (user && !authError) {
-          setIsAuthenticated(true);
-          setUserId(user.id);
-          setEmail(user.email || '');
-          // User is already authenticated, no need for password fields
-        } else {
-          setIsAuthenticated(false);
+        if (!user || authError) {
+          // Not authenticated - redirect to signup
+          console.log('User not authenticated, redirecting to signup');
+          router.push(`/signup${tierParam ? `?tier=${tierParam}` : ''}`);
+          return;
         }
+
+        // User is authenticated
+        setUserId(user.id);
+        setEmail(user.email || '');
+        
+        // Get tier from user metadata if not in URL
+        if (!tierParam && user.user_metadata?.selected_tier) {
+          setTier(user.user_metadata.selected_tier as SubscriptionTier);
+        }
+        
+        // Check if user already has an organization
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('organization_id')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.organization_id) {
+          // Check subscription status
+          const { data: subscription } = await supabase
+            .from('subscriptions')
+            .select('status')
+            .eq('organization_id', profile.organization_id)
+            .single();
+
+          if (subscription && (subscription.status === 'active' || subscription.status === 'trialing')) {
+            // User has active subscription - check onboarding status
+            const { data: org } = await supabase
+              .from('organizations')
+              .select('onboarding_completed')
+              .eq('id', profile.organization_id)
+              .single();
+
+            if (org?.onboarding_completed) {
+              // Redirect to dashboard
+              router.push('/dashboard');
+              return;
+            } else {
+              // Redirect to onboarding
+              router.push('/onboarding');
+              return;
+            }
+          }
+        }
+        
+        // User is authenticated but has no organization - allow them to continue
+        setCheckingAuth(false);
       } catch (err) {
         console.error('Error checking auth:', err);
-        setIsAuthenticated(false);
-      } finally {
-        setCheckingAuth(false);
+        router.push(`/signup${tierParam ? `?tier=${tierParam}` : ''}`);
       }
     };
 
-    checkAuth();
-  }, [supabase]);
+    checkAuthAndSubscription();
+  }, [supabase, router, tierParam]);
 
   // Calculate total price
   const totalPrice = calculateSubscriptionPrice(
@@ -73,16 +115,9 @@ function SubscribeForm() {
     }
 
     // Validation
-    if (!isAuthenticated) {
-      // Only validate password if user is not authenticated
-      if (password !== confirmPassword) {
-        setError('Passwords do not match');
-        return;
-      }
-      if (password.length < 6) {
-        setError('Password must be at least 6 characters long');
-        return;
-      }
+    if (!userId) {
+      setError('You must be logged in to subscribe');
+      return;
     }
 
     if (!businessName.trim()) {
@@ -103,35 +138,13 @@ function SubscribeForm() {
     setLoading(true);
 
     try {
-      console.log('🔵 Starting subscription flow...');
-      
-      let currentUserId = userId;
-      let currentEmail = email;
-
-      // Step 1: Create auth user only if not authenticated
-      if (!isAuthenticated) {
-        console.log('Step 1: Creating auth user...');
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-
-        if (authError) {
-          console.error('Auth error:', authError);
-          throw authError;
-        }
-        if (!authData.user) throw new Error('Failed to create user');
-        console.log('✅ User created:', authData.user.id);
-        currentUserId = authData.user.id;
-        currentEmail = authData.user.email || email;
-      } else {
-        console.log('Step 1: Using existing authenticated user:', currentUserId);
-      }
+      console.log('🔵 Starting subscription flow for authenticated user...');
+      console.log('User ID:', userId);
 
       // Step 2: Store subscription details temporarily for success page
       const pendingSubscription = {
-        user_id: currentUserId,
-        email: currentEmail,
+        user_id: userId,
+        email: email,
         businessName,
         tier,
         operationsProLevel: tier === 'operations_pro' ? operationsProLevel : null,
@@ -142,17 +155,17 @@ function SubscribeForm() {
       console.log('✅ Subscription details stored');
 
       // Step 3: Create checkout session and redirect
-      console.log('Step 3: Creating Stripe Checkout Session...');
+      console.log('Step 2: Creating Stripe Checkout Session...');
       const checkoutResponse = await fetch('/api/subscriptions/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: currentEmail,
+          email: email,
           tier,
           operationsProLevel: tier === 'operations_pro' ? operationsProLevel : undefined,
-          userId: currentUserId,
+          userId: userId,
           businessName,
         }),
       });
@@ -231,13 +244,11 @@ function SubscribeForm() {
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">Account Details</h2>
                 
-                {isAuthenticated && (
-                  <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800">
-                      <strong>Signed in as:</strong> {email}
-                    </p>
-                  </div>
-                )}
+                <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Signed in as:</strong> {email}
+                  </p>
+                </div>
                 
                 <div className="space-y-4">
                   <div>
@@ -253,53 +264,6 @@ function SubscribeForm() {
                       placeholder="Your Business Name"
                     />
                   </div>
-
-                  {!isAuthenticated && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Email *
-                        </label>
-                        <input
-                          type="email"
-                          required
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                          placeholder="your@email.com"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Password *
-                        </label>
-                        <input
-                          type="password"
-                          required
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                          placeholder="••••••••"
-                          minLength={6}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Confirm Password *
-                        </label>
-                        <input
-                          type="password"
-                          required
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                          placeholder="••••••••"
-                        />
-                      </div>
-                    </>
-                  )}
                 </div>
               </div>
 

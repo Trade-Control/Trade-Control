@@ -45,11 +45,14 @@ export async function updateSession(request: NextRequest) {
   // Check if user is authenticated
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') || 
                      request.nextUrl.pathname.startsWith('/signup') ||
-                     request.nextUrl.pathname.startsWith('/subscribe') ||
                      request.nextUrl.pathname.startsWith('/get-started');
-  const isOrgSetup = request.nextUrl.pathname.startsWith('/organization-setup');
+  const isSubscribePage = request.nextUrl.pathname.startsWith('/subscribe');
+  const isOnboardingPage = request.nextUrl.pathname.startsWith('/onboarding');
+  const isSuccessPage = request.nextUrl.pathname.startsWith('/subscription/success') ||
+                        request.nextUrl.pathname.startsWith('/licenses/add/success');
   const isPublicRoute = request.nextUrl.pathname === '/' || 
                         request.nextUrl.pathname.startsWith('/contractor-access') ||
+                        request.nextUrl.pathname.startsWith('/contractor-onboard') ||
                         request.nextUrl.pathname.startsWith('/debug');
   const isApiRoute = request.nextUrl.pathname.startsWith('/api');
 
@@ -58,31 +61,24 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  if (!user && !isAuthPage && !isPublicRoute) {
-    // Redirect to login if not authenticated (except for auth pages and public routes)
+  // Allow access to public routes without authentication
+  if (isPublicRoute) {
+    return supabaseResponse;
+  }
+
+  // Allow access to success pages without additional checks
+  if (isSuccessPage) {
+    return supabaseResponse;
+  }
+
+  // If not authenticated, redirect to login (except for auth pages)
+  if (!user && !isAuthPage && !isSubscribePage) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  // Only check organization for protected routes (not auth pages, org setup, or public routes)
-  if (user && !isAuthPage && !isOrgSetup && !isPublicRoute) {
-    // Check if user has an organization
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('organization_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.organization_id) {
-      // Redirect to subscribe if no organization (for new signups)
-      const url = request.nextUrl.clone();
-      url.pathname = '/subscribe';
-      return NextResponse.redirect(url);
-    }
-  }
-
-  // Redirect authenticated users away from login/signup pages (but allow subscribe)
+  // Redirect authenticated users away from login/signup pages
   if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
     // Check if authenticated user has organization before redirecting
     const { data: profile } = await supabase
@@ -92,11 +88,89 @@ export async function updateSession(request: NextRequest) {
       .single();
 
     if (profile?.organization_id) {
-      // Has organization - redirect to dashboard
-      const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
+      // Has organization - check subscription and onboarding status
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('status')
+        .eq('organization_id', profile.organization_id)
+        .single();
+
+      if (subscription && (subscription.status === 'active' || subscription.status === 'trialing')) {
+        // Check onboarding status
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('onboarding_completed')
+          .eq('id', profile.organization_id)
+          .single();
+
+        if (org?.onboarding_completed) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/dashboard';
+          return NextResponse.redirect(url);
+        } else {
+          const url = request.nextUrl.clone();
+          url.pathname = '/onboarding';
+          return NextResponse.redirect(url);
+        }
+      } else {
+        // Has organization but no active subscription - redirect to dashboard
+        const url = request.nextUrl.clone();
+        url.pathname = '/dashboard';
+        return NextResponse.redirect(url);
+      }
     } else {
+      // No organization - redirect to subscribe
+      const url = request.nextUrl.clone();
+      url.pathname = '/subscribe';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Handle subscribe page - require authentication
+  if (isSubscribePage) {
+    if (!user) {
+      // Not authenticated - redirect to signup
+      const url = request.nextUrl.clone();
+      url.pathname = '/signup';
+      return NextResponse.redirect(url);
+    }
+    // Authenticated - allow access to subscribe page
+    return supabaseResponse;
+  }
+
+  // Handle onboarding page - require authentication and organization
+  if (isOnboardingPage) {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+    
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile?.organization_id) {
+      // No organization - redirect to subscribe
+      const url = request.nextUrl.clone();
+      url.pathname = '/subscribe';
+      return NextResponse.redirect(url);
+    }
+    
+    return supabaseResponse;
+  }
+
+  // For all other protected routes, check if user has organization
+  if (user && !isAuthPage) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile?.organization_id) {
       // No organization - redirect to subscribe
       const url = request.nextUrl.clone();
       url.pathname = '/subscribe';

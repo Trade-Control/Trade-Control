@@ -26,7 +26,17 @@ function SuccessHandler() {
         throw new Error('No session ID provided');
       }
 
+      // Ensure user is authenticated
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        throw new Error('You must be logged in to complete subscription setup');
+      }
+      
+      console.log('✅ User authenticated:', user.id);
+
       // Verify checkout session
+      console.log('🔍 Verifying Stripe checkout session...');
       const session = await fetch('/api/subscriptions/verify-session', {
         method: 'POST',
         headers: {
@@ -38,16 +48,26 @@ function SuccessHandler() {
       if (!session.success) {
         throw new Error(session.error || 'Failed to verify checkout session');
       }
+      
+      console.log('✅ Stripe session verified');
 
       // Get pending subscription details from sessionStorage
       const pendingData = sessionStorage.getItem('pending_subscription');
       if (!pendingData) {
-        throw new Error('Pending subscription data not found. Please try signing up again.');
+        throw new Error('Pending subscription data not found. Please contact support if you were charged.');
       }
 
       const pendingSubscription = JSON.parse(pendingData);
+      
+      // Verify the user_id matches
+      if (pendingSubscription.user_id !== user.id) {
+        throw new Error('User mismatch - please contact support');
+      }
+      
+      console.log('✅ Subscription data retrieved from session storage');
 
       // Complete signup via API route
+      console.log('📝 Creating organization and subscription...');
       const signupResponse = await fetch('/api/signup/complete', {
         method: 'POST',
         headers: {
@@ -78,6 +98,22 @@ function SuccessHandler() {
       if (!signupResult.success) {
         throw new Error('Signup failed - no success confirmation');
       }
+      
+      console.log('✅ Organization and subscription created successfully');
+      console.log('Organization ID:', signupResult.organization_id);
+
+      // Verify profile was updated with organization_id
+      const { data: verifyProfile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+        
+      if (!verifyProfile?.organization_id) {
+        throw new Error('Profile was not updated with organization. Please contact support.');
+      }
+      
+      console.log('✅ Profile verified with organization_id:', verifyProfile.organization_id);
 
       // Clear pending subscription data
       sessionStorage.removeItem('pending_subscription');

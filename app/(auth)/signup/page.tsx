@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 
-export default function SignupPage() {
+function SignupForm() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -14,8 +14,15 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showEmailVerificationNotice, setShowEmailVerificationNotice] = useState(false);
+  const [signupEmail, setSignupEmail] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = useSafeSupabaseClient();
+  
+  // Get tier from URL params
+  const tierParam = searchParams.get('tier');
+  const [selectedTier] = useState<string | null>(tierParam);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,14 +48,22 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
+      // Store tier in user metadata for later retrieval
+      const metadata: any = {
+        first_name: firstName,
+        last_name: lastName,
+      };
+      
+      // Add tier information if available
+      if (selectedTier) {
+        metadata.selected_tier = selectedTier;
+      }
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-          },
+          data: metadata,
         },
       });
 
@@ -64,8 +79,10 @@ export default function SignupPage() {
           })
           .eq('id', data.user.id);
 
-        // Redirect to subscription signup (new flow)
-        router.push('/subscribe');
+        // Always show email verification notice
+        // User must verify email before proceeding to payment
+        setSignupEmail(email);
+        setShowEmailVerificationNotice(true);
       }
     } catch (error: any) {
       setError(error.message || 'Failed to create account');
@@ -204,13 +221,63 @@ export default function SignupPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary hover:bg-primary-hover text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-            >
-              {loading ? 'Creating account...' : 'Create Account'}
-            </button>
+            {showEmailVerificationNotice && (
+              <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 space-y-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                      Verify Your Email Address
+                    </h3>
+                    <p className="text-sm text-blue-800 mb-3">
+                      We've sent a verification email to <strong>{signupEmail}</strong>. Please check your inbox and click the verification link to activate your account.
+                    </p>
+                    <p className="text-sm text-blue-700 mb-4">
+                      After verifying your email, you'll be able to log in and complete your subscription setup.
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          router.push('/login');
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Go to Login
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowEmailVerificationNotice(false);
+                          setEmail('');
+                          setPassword('');
+                          setConfirmPassword('');
+                          setFirstName('');
+                          setLastName('');
+                        }}
+                        className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Start Over
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!showEmailVerificationNotice && (
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary hover:bg-primary-hover text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                {loading ? 'Creating account...' : 'Create Account'}
+              </button>
+            )}
           </form>
 
           <div className="mt-8 text-center">
@@ -224,5 +291,24 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SignupLoading() {
+  return (
+    <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<SignupLoading />}>
+      <SignupForm />
+    </Suspense>
   );
 }

@@ -116,7 +116,7 @@ export default function GetStartedPage() {
             </div>
 
             <Link
-              href="/subscribe?tier=operations"
+              href="/signup?tier=operations"
               className="block w-full text-center bg-primary hover:bg-primary-hover text-white py-4 rounded-lg font-semibold text-lg transition-colors"
             >
               Choose Operations
@@ -173,7 +173,7 @@ export default function GetStartedPage() {
             </div>
 
             <Link
-              href="/subscribe?tier=operations_pro"
+              href="/signup?tier=operations_pro"
               className="block w-full text-center bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-lg font-semibold text-lg transition-colors"
             >
               Choose Operations Pro

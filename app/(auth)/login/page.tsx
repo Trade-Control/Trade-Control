@@ -34,7 +34,7 @@ export default function LoginPage() {
       if (error) throw error;
 
       if (data.user) {
-        // Check if user has an organisation
+        // Check if user has an organization
         const { data: profile } = await supabase
           .from('profiles')
           .select('organization_id')
@@ -42,11 +42,38 @@ export default function LoginPage() {
           .single();
 
         if (profile?.organization_id) {
-          // Has organization - redirect to dashboard
-          router.push('/dashboard');
+          // Has organization - check subscription and onboarding status
+          const { data: subscription } = await supabase
+            .from('subscriptions')
+            .select('status')
+            .eq('organization_id', profile.organization_id)
+            .single();
+
+          if (subscription && (subscription.status === 'active' || subscription.status === 'trialing')) {
+            // Check onboarding status
+            const { data: org } = await supabase
+              .from('organizations')
+              .select('onboarding_completed')
+              .eq('id', profile.organization_id)
+              .single();
+
+            if (org?.onboarding_completed) {
+              router.push('/dashboard');
+            } else {
+              router.push('/onboarding');
+            }
+          } else {
+            // Has organization but no active subscription
+            router.push('/dashboard');
+          }
         } else {
-          // No organization - go to subscribe
-          router.push('/subscribe');
+          // No organization - redirect to subscribe with tier from metadata if available
+          const tierFromMetadata = data.user.user_metadata?.selected_tier;
+          if (tierFromMetadata) {
+            router.push(`/subscribe?tier=${tierFromMetadata}`);
+          } else {
+            router.push('/subscribe');
+          }
         }
       }
     } catch (error: any) {
