@@ -80,10 +80,17 @@ export async function POST(request: NextRequest) {
 
     if (authError) {
       console.error('Auth error:', authError);
+      console.error('Auth error details:', {
+        message: authError.message,
+        status: authError.status,
+        code: authError.code,
+        name: authError.name,
+      });
       
       // Handle specific auth errors
       if (authError.message?.includes('already registered') || 
-          authError.message?.includes('already been registered')) {
+          authError.message?.includes('already been registered') ||
+          authError.message?.includes('User already registered')) {
         return NextResponse.json(
           { 
             error: 'This email is already registered. Please try logging in instead.',
@@ -100,8 +107,25 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Check for database-related errors
+      if (authError.message?.includes('Database error') || 
+          authError.message?.includes('database')) {
+        return NextResponse.json(
+          { 
+            error: 'Database connection error. Please try again in a moment.',
+            code: 'DB_ERROR',
+            details: process.env.NODE_ENV === 'development' ? authError.message : undefined,
+          },
+          { status: 503 }
+        );
+      }
+
       return NextResponse.json(
-        { error: authError.message || 'Failed to create account', code: 'AUTH_ERROR' },
+        { 
+          error: authError.message || 'Failed to create account', 
+          code: 'AUTH_ERROR',
+          details: process.env.NODE_ENV === 'development' ? authError.message : undefined,
+        },
         { status: 500 }
       );
     }
