@@ -20,22 +20,23 @@ function SuccessHandler() {
 
   const handleSuccess = async () => {
     try {
-      const sessionId = searchParams.get('session_id');
+      // Get session_id from URL params or sessionStorage (in case user was redirected to login)
+      let sessionId = searchParams.get('session_id');
+      if (!sessionId) {
+        sessionId = sessionStorage.getItem('pending_stripe_session');
+      }
       
       if (!sessionId) {
         throw new Error('No session ID provided');
       }
-
-      // Ensure user is authenticated
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
       
-      if (authError || !user) {
-        throw new Error('You must be logged in to complete subscription setup');
+      // Clear sessionStorage if we got it from there
+      if (sessionStorage.getItem('pending_stripe_session')) {
+        sessionStorage.removeItem('pending_stripe_session');
       }
-      
-      console.log('✅ User authenticated:', user.id);
 
-      // Verify checkout session
+      // Verify checkout session FIRST to get user_id from metadata
+      // This allows us to handle unauthenticated users
       console.log('🔍 Verifying Stripe checkout session...');
       const session = await fetch('/api/subscriptions/verify-session', {
         method: 'POST',
@@ -50,6 +51,31 @@ function SuccessHandler() {
       }
       
       console.log('✅ Stripe session verified');
+      
+      // Get user_id from Stripe metadata
+      const userIdFromStripe = session.metadata?.user_id;
+      if (!userIdFromStripe) {
+        throw new Error('User ID not found in checkout session. Please contact support.');
+      }
+
+      // Check if user is authenticated
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      // If not authenticated, redirect to login with return URL
+      if (authError || !user) {
+        console.log('⚠️ User not authenticated, redirecting to login...');
+        // Store session_id in sessionStorage so we can retrieve it after login
+        sessionStorage.setItem('pending_stripe_session', sessionId);
+        router.push(`/login?returnUrl=${encodeURIComponent('/subscription/success?session_id=' + sessionId)}`);
+        return;
+      }
+      
+      // Verify user_id matches
+      if (user.id !== userIdFromStripe) {
+        throw new Error('User ID mismatch. Please contact support.');
+      }
+      
+      console.log('✅ User authenticated:', user.id);
 
       // Get pending subscription details from sessionStorage
       const pendingData = sessionStorage.getItem('pending_subscription');

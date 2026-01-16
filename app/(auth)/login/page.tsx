@@ -1,18 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = useSafeSupabaseClient();
+  
+  // Get returnUrl from query params
+  const returnUrl = searchParams.get('returnUrl');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,20 +38,15 @@ export default function LoginPage() {
       if (error) throw error;
 
       if (data.user) {
-        // Ensure profile exists (handles users who signed up before the fix)
+        // Ensure profile exists (handles users who signed up before the fix or if trigger failed)
+        // SECURITY: The API extracts userId from the JWT session, not from request body
         try {
           const ensureResponse = await fetch('/api/auth/ensure-profile', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              userId: data.user.id,
-              email: data.user.email,
-              firstName: data.user.user_metadata?.first_name,
-              lastName: data.user.user_metadata?.last_name,
-              phone: data.user.user_metadata?.phone,
-            }),
+            body: JSON.stringify({}), // Empty body - API uses JWT session for user identification
           });
 
           if (!ensureResponse.ok) {
@@ -96,8 +95,12 @@ export default function LoginPage() {
             router.push('/dashboard');
           }
         } else {
-          // No organization - redirect to subscribe page
-          router.push('/subscribe');
+          // No organization - check if we have a returnUrl
+          if (returnUrl) {
+            router.push(returnUrl);
+          } else {
+            router.push('/subscribe');
+          }
         }
       }
     } catch (error: any) {
@@ -221,5 +224,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

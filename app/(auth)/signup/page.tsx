@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { createClient } from '@/lib/supabase/client';
 
 function SignupForm() {
   const [firstName, setFirstName] = useState('');
@@ -37,59 +38,73 @@ function SignupForm() {
     setLoading(true);
 
     try {
-      // Call server-side signup API
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Use client-side signUp - this automatically triggers Supabase's verification email
+      const supabase = createClient();
+      
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          // Pass user metadata - the database trigger will use this to create the profile
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            phone: phone || null,
+          },
+          // Redirect URL after email verification
+          emailRedirectTo: `${window.location.origin}/login?verified=true`,
         },
-        body: JSON.stringify({
-          email,
-          password,
-          firstName,
-          lastName,
-          phone: phone || null,
-        }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        // Handle specific error codes
-        let errorMessage = data.error || 'Failed to create account. Please try again.';
+      if (signUpError) {
+        console.error('Signup error:', signUpError);
+        console.error('Error details:', {
+          message: signUpError.message,
+          status: signUpError.status,
+          name: signUpError.name,
+        });
         
-        // For debugging - show full details
-        if (data.details) {
-          errorMessage += ` (Details: ${data.details})`;
-        }
-        if (data.fullError) {
-          console.error('Full error from server:', data.fullError);
-        }
-        
-        switch (data.code) {
-          case 'EMAIL_EXISTS':
-            setError('This email is already registered. Please try logging in instead.');
-            break;
-          case 'VALIDATION_ERROR':
-            setError(data.error || 'Please check your input and try again.');
-            break;
-          case 'CONFIG_ERROR':
-            setError('Server configuration error. Please contact support.');
-            break;
-          case 'DB_ERROR':
-            // Show the actual database error for debugging
-            setError(`Database error: ${data.details || data.error}`);
-            break;
-          default:
-            setError(errorMessage);
+        // Handle specific error types
+        if (signUpError.message?.includes('already registered') || 
+            signUpError.message?.includes('already been registered')) {
+          setError('This email is already registered. Please try logging in instead.');
+        } else if (signUpError.message?.includes('valid email')) {
+          setError('Please enter a valid email address.');
+        } else if (signUpError.message?.includes('password')) {
+          setError('Password must be at least 6 characters long.');
+        } else if (signUpError.message?.includes('rate limit')) {
+          setError('Too many signup attempts. Please wait a moment and try again.');
+        } else if (signUpError.message?.includes('Database error') || 
+                   signUpError.message?.includes('database') ||
+                   signUpError.message?.includes('finding user') ||
+                   (signUpError as any).code === 'unexpected_failure') {
+          // Database error - likely orphaned/duplicate identity records
+          setError(
+            'Database error during signup. This is usually caused by orphaned identity records. ' +
+            'Please run the SQL cleanup script "FIX_IDENTITY_DUPLICATES_AGGRESSIVE.sql" in Supabase Dashboard → SQL Editor, ' +
+            'then try signing up again.'
+          );
+        } else {
+          setError(signUpError.message || 'Failed to create account. Please try again.');
         }
         return;
       }
 
-      // Success - show email verification notice
-      console.log('Signup successful:', data);
-      setSignupEmail(email);
-      setShowEmailVerificationNotice(true);
+      // Check if email confirmation is required
+      if (data?.user && !data.user.confirmed_at) {
+        // User created but needs email verification
+        console.log('Signup successful, verification email sent:', data.user.email);
+        setSignupEmail(email);
+        setShowEmailVerificationNotice(true);
+      } else if (data?.user?.confirmed_at) {
+        // Email already confirmed (shouldn't happen for new signups, but handle it)
+        console.log('User already confirmed, redirecting to login');
+        router.push('/login');
+      } else {
+        // Fallback - show verification notice
+        setSignupEmail(email);
+        setShowEmailVerificationNotice(true);
+      }
 
     } catch (error: any) {
       console.error('Signup error:', error);

@@ -1,19 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient, isAdminClientAvailable } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 
 /**
  * Ensure Profile Exists endpoint
  * 
- * This endpoint checks if a profile exists for the given user and creates
+ * SECURITY: This endpoint extracts the userId from the verified JWT session,
+ * NOT from the request body. This prevents malicious users from creating
+ * profiles for other users.
+ * 
+ * This endpoint checks if a profile exists for the authenticated user and creates
  * one if it doesn't exist. This handles the case where:
  * 1. A user signed up before this fix was implemented
- * 2. Profile creation failed during signup
+ * 2. Profile creation failed during signup (trigger didn't fire)
  * 
  * Called after successful login to ensure the user has a profile.
  */
 export async function POST(request: NextRequest) {
   try {
-    // Check if admin client is available
+    // SECURITY: Get user from authenticated session, not request body
+    const supabaseAuth = await createClient();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+
+    if (authError || !user) {
+      console.error('Authentication error:', authError);
+      return NextResponse.json(
+        { 
+          error: 'You must be logged in to ensure profile',
+          code: 'AUTH_ERROR'
+        },
+        { status: 401 }
+      );
+    }
+
+    // Extract userId from verified session - NEVER trust request body for userId
+    const userId = user.id;
+    const userEmail = user.email;
+    
+    // Check if admin client is available for profile operations
     if (!isAdminClientAvailable()) {
       console.error('Admin client not available - missing SUPABASE_SERVICE_ROLE_KEY');
       return NextResponse.json(
@@ -25,19 +49,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse request body
-    const body = await request.json();
-    const { userId, email, firstName, lastName, phone } = body;
-
-    // Validate required fields
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID is required', code: 'VALIDATION_ERROR' },
-        { status: 400 }
-      );
-    }
-
-    // Create admin client
+    // Create admin client for profile operations (bypasses RLS)
     const supabase = createAdminClient();
 
     // Check if profile already exists
@@ -71,30 +83,20 @@ export async function POST(request: NextRequest) {
     // Profile doesn't exist, create it
     console.log('Creating profile for user:', userId);
 
-    // Get user details from auth if not provided
-    let userFirstName = firstName;
-    let userLastName = lastName;
-    let userPhone = phone;
-
-    if (!userFirstName || !userLastName) {
-      // Try to get from auth user metadata
-      const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId);
-      
-      if (!authError && authUser?.user?.user_metadata) {
-        userFirstName = userFirstName || authUser.user.user_metadata.first_name || 'Unknown';
-        userLastName = userLastName || authUser.user.user_metadata.last_name || 'User';
-        userPhone = userPhone || authUser.user.user_metadata.phone || null;
-      }
-    }
+    // Get user details from the authenticated session's metadata
+    const userMetadata = user.user_metadata || {};
+    const userFirstName = userMetadata.first_name || 'Unknown';
+    const userLastName = userMetadata.last_name || 'User';
+    const userPhone = userMetadata.phone || null;
 
     // Create the profile
     const { data: newProfile, error: createError } = await supabase
       .from('profiles')
       .insert({
         id: userId,
-        first_name: userFirstName || 'Unknown',
-        last_name: userLastName || 'User',
-        phone: userPhone || null,
+        first_name: userFirstName,
+        last_name: userLastName,
+        phone: userPhone,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
