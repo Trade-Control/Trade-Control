@@ -569,7 +569,8 @@ export async function POST(request: NextRequest) {
         ? `${process.env.NEXT_PUBLIC_SITE_URL}/login?email=${encodeURIComponent(email)}`
         : undefined;
 
-      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+      // Use admin resend with signup type (does not require password)
+      const { data: resendData, error: resendError } = await adminClient.auth.admin.resend({
         type: 'signup',
         email,
         options: {
@@ -577,17 +578,17 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      if (linkError) {
+      if (resendError) {
         return NextResponse.json({
           success: false,
-          error: linkError.message,
+          error: resendError.message,
         });
       }
 
       return NextResponse.json({
         success: true,
-        message: 'Verification link generated. Send it to the user.',
-        link: linkData?.action_link || linkData?.email_action_link,
+        message: 'Verification email triggered. Check the inbox for the confirmation link.',
+        link: resendData?.action_link || resendData?.email_action_link,
         redirectUrl,
       });
     }
