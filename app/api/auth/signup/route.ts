@@ -79,13 +79,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (authError) {
-      console.error('Auth error:', authError);
-      console.error('Auth error details:', {
-        message: authError.message,
-        status: authError.status,
-        code: authError.code,
-        name: authError.name,
-      });
+      console.error('=== SIGNUP AUTH ERROR ===');
+      console.error('Full error object:', JSON.stringify(authError, null, 2));
+      console.error('Error message:', authError.message);
+      console.error('Error status:', authError.status);
+      console.error('Error code:', (authError as any).code);
+      console.error('Error name:', authError.name);
+      console.error('Error stack:', (authError as any).stack);
+      console.error('=========================');
       
       // Handle specific auth errors
       if (authError.message?.includes('already registered') || 
@@ -107,14 +108,16 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check for database-related errors
+      // Check for database-related errors - ALWAYS return the actual message for debugging
       if (authError.message?.includes('Database error') || 
           authError.message?.includes('database')) {
         return NextResponse.json(
           { 
             error: 'Database connection error. Please try again in a moment.',
             code: 'DB_ERROR',
-            details: process.env.NODE_ENV === 'development' ? authError.message : undefined,
+            // ALWAYS include details for now to debug this issue
+            details: authError.message,
+            fullError: JSON.stringify(authError),
           },
           { status: 503 }
         );
@@ -124,7 +127,9 @@ export async function POST(request: NextRequest) {
         { 
           error: authError.message || 'Failed to create account', 
           code: 'AUTH_ERROR',
-          details: process.env.NODE_ENV === 'development' ? authError.message : undefined,
+          // ALWAYS include details for now to debug this issue
+          details: authError.message,
+          fullError: JSON.stringify(authError),
         },
         { status: 500 }
       );

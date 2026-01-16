@@ -62,6 +62,16 @@ function SignupForm() {
 
       if (!response.ok) {
         // Handle specific error codes
+        let errorMessage = data.error || 'Failed to create account. Please try again.';
+        
+        // For debugging - show full details
+        if (data.details) {
+          errorMessage += ` (Details: ${data.details})`;
+        }
+        if (data.fullError) {
+          console.error('Full error from server:', data.fullError);
+        }
+        
         switch (data.code) {
           case 'EMAIL_EXISTS':
             setError('This email is already registered. Please try logging in instead.');
@@ -72,8 +82,12 @@ function SignupForm() {
           case 'CONFIG_ERROR':
             setError('Server configuration error. Please contact support.');
             break;
+          case 'DB_ERROR':
+            // Show the actual database error for debugging
+            setError(`Database error: ${data.details || data.error}`);
+            break;
           default:
-            setError(data.error || 'Failed to create account. Please try again.');
+            setError(errorMessage);
         }
         return;
       }

@@ -448,10 +448,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action } = body;
+    const { action, email } = body;
 
-    if (action !== 'test-signup') {
-      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    if (!['test-signup', 'check-email', 'delete-user'].includes(action)) {
+      return NextResponse.json({ error: 'Invalid action. Use: test-signup, check-email, or delete-user' }, { status: 400 });
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -472,17 +472,90 @@ export async function POST(request: NextRequest) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Handle check-email action
+    if (action === 'check-email') {
+      if (!email) {
+        return NextResponse.json({ error: 'Email is required for check-email action' }, { status: 400 });
+      }
+
+      const result = await checkExistingUser(adminClient, email);
+      
+      if (result.exists) {
+        // Also check if profile exists
+        const { data: profileData } = await adminClient
+          .from('profiles')
+          .select('id, first_name, last_name, organization_id, created_at')
+          .eq('id', result.user.id)
+          .single();
+
+        return NextResponse.json({
+          exists: true,
+          user: result.user,
+          hasProfile: !!profileData,
+          profile: profileData || null,
+          recommendation: result.user.emailConfirmed
+            ? 'User exists and email is confirmed. They should login instead of signup.'
+            : 'User exists but email NOT confirmed. They need to verify their email or you can delete this user and let them sign up again.',
+        });
+      }
+
+      return NextResponse.json({
+        exists: false,
+        message: 'No user found with this email. They can sign up.',
+      });
+    }
+
+    // Handle delete-user action
+    if (action === 'delete-user') {
+      if (!email) {
+        return NextResponse.json({ error: 'Email is required for delete-user action' }, { status: 400 });
+      }
+
+      const result = await checkExistingUser(adminClient, email);
+      
+      if (!result.exists) {
+        return NextResponse.json({
+          success: false,
+          message: 'No user found with this email.',
+        });
+      }
+
+      // Delete profile first (if exists)
+      await adminClient
+        .from('profiles')
+        .delete()
+        .eq('id', result.user.id);
+
+      // Delete auth user
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(result.user.id);
+      
+      if (deleteError) {
+        return NextResponse.json({
+          success: false,
+          error: deleteError.message,
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `User ${email} has been deleted. They can now sign up again.`,
+        deletedUserId: result.user.id,
+      });
+    }
+
+    // Handle test-signup action
     // Generate a unique test email
     const testEmail = `debug-test-${Date.now()}@test-delete-me.local`;
     const testPassword = 'TestPassword123!';
 
     console.log('[Debug] Testing signup with:', testEmail);
 
-    // Step 1: Try to create a user
+    // Step 1: Try to create a user - use SAME settings as real signup
+    // IMPORTANT: email_confirm: false matches what the real signup does
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email: testEmail,
       password: testPassword,
-      email_confirm: true, // Auto-confirm for test
+      email_confirm: false, // Match real signup - requires email verification
       user_metadata: {
         first_name: 'Debug',
         last_name: 'Test',
@@ -564,6 +637,44 @@ export async function POST(request: NextRequest) {
       diagnosis: getDiagnosis(error.message),
       fix: getFix(error.message),
     }, { status: 200 });
+  }
+}
+
+/**
+ * Check if an email already exists in the auth system
+ */
+async function checkExistingUser(adminClient: any, email: string) {
+  try {
+    // List users and filter by email
+    const { data, error } = await adminClient.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000, // Get enough to search through
+    });
+
+    if (error) {
+      return { exists: false, error: error.message };
+    }
+
+    const existingUser = data?.users?.find((u: any) => 
+      u.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    if (existingUser) {
+      return {
+        exists: true,
+        user: {
+          id: existingUser.id,
+          email: existingUser.email,
+          emailConfirmed: existingUser.email_confirmed_at ? true : false,
+          createdAt: existingUser.created_at,
+          lastSignIn: existingUser.last_sign_in_at,
+        },
+      };
+    }
+
+    return { exists: false };
+  } catch (e: any) {
+    return { exists: false, error: e.message };
   }
 }
 

@@ -100,12 +100,35 @@ interface SignupTestResult {
   };
 }
 
+interface EmailCheckResult {
+  exists: boolean;
+  user?: {
+    id: string;
+    email: string;
+    emailConfirmed: boolean;
+    createdAt: string;
+    lastSignIn: string | null;
+  };
+  hasProfile?: boolean;
+  profile?: any;
+  recommendation?: string;
+  message?: string;
+  error?: string;
+}
+
 export default function SupabaseDebugPage() {
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [signupTestLoading, setSignupTestLoading] = useState(false);
   const [signupTestResult, setSignupTestResult] = useState<SignupTestResult | null>(null);
+  
+  // Email check state
+  const [checkEmail, setCheckEmail] = useState('');
+  const [emailCheckLoading, setEmailCheckLoading] = useState(false);
+  const [emailCheckResult, setEmailCheckResult] = useState<EmailCheckResult | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     fetchDebugInfo();
@@ -150,6 +173,70 @@ export default function SupabaseDebugPage() {
       });
     } finally {
       setSignupTestLoading(false);
+    }
+  };
+
+  const checkUserEmail = async () => {
+    if (!checkEmail || !checkEmail.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+    
+    try {
+      setEmailCheckLoading(true);
+      setEmailCheckResult(null);
+      setDeleteResult(null);
+      
+      const response = await fetch('/api/debug/supabase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check-email', email: checkEmail }),
+      });
+      
+      const data = await response.json();
+      setEmailCheckResult(data);
+    } catch (err: any) {
+      setEmailCheckResult({
+        exists: false,
+        error: err.message || 'Failed to check email',
+      });
+    } finally {
+      setEmailCheckLoading(false);
+    }
+  };
+
+  const deleteUser = async () => {
+    if (!checkEmail || !emailCheckResult?.exists) {
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete the user "${checkEmail}"? This cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      setDeleteLoading(true);
+      setDeleteResult(null);
+      
+      const response = await fetch('/api/debug/supabase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete-user', email: checkEmail }),
+      });
+      
+      const data = await response.json();
+      setDeleteResult(data);
+      
+      if (data.success) {
+        setEmailCheckResult(null);
+      }
+    } catch (err: any) {
+      setDeleteResult({
+        success: false,
+        message: err.message || 'Failed to delete user',
+      });
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -475,6 +562,88 @@ export default function SupabaseDebugPage() {
             )}
           </div>
         )}
+
+        {/* Email Check Section - IMPORTANT FOR TROUBLESHOOTING */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6 border-2 border-orange-300">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Check/Fix User Email</h2>
+          <p className="text-orange-700 text-sm mb-4 font-medium">
+            If signup fails, the email may already exist in the database from a previous attempt. Check here first!
+          </p>
+          
+          <div className="flex gap-2 mb-4">
+            <input
+              type="email"
+              value={checkEmail}
+              onChange={(e) => setCheckEmail(e.target.value)}
+              placeholder="Enter email to check..."
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+            <button
+              onClick={checkUserEmail}
+              disabled={emailCheckLoading || !checkEmail}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              {emailCheckLoading ? 'Checking...' : 'Check Email'}
+            </button>
+          </div>
+
+          {emailCheckResult && (
+            <div className="mt-4">
+              {emailCheckResult.exists ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="text-yellow-800 font-semibold text-lg mb-3">
+                    User Found in Database
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-sm mb-4">
+                    <div className="text-yellow-700">Email:</div>
+                    <div className="font-mono">{emailCheckResult.user?.email}</div>
+                    
+                    <div className="text-yellow-700">Email Confirmed:</div>
+                    <div>{emailCheckResult.user?.emailConfirmed ? '✅ Yes' : '❌ No'}</div>
+                    
+                    <div className="text-yellow-700">Has Profile:</div>
+                    <div>{emailCheckResult.hasProfile ? '✅ Yes' : '❌ No'}</div>
+                    
+                    <div className="text-yellow-700">Created At:</div>
+                    <div className="text-xs">{emailCheckResult.user?.createdAt}</div>
+                    
+                    <div className="text-yellow-700">Last Sign In:</div>
+                    <div className="text-xs">{emailCheckResult.user?.lastSignIn || 'Never'}</div>
+                  </div>
+
+                  <div className="bg-yellow-100 p-3 rounded mb-4">
+                    <div className="font-medium text-yellow-800 mb-1">Recommendation:</div>
+                    <p className="text-yellow-700 text-sm">{emailCheckResult.recommendation}</p>
+                  </div>
+
+                  <button
+                    onClick={deleteUser}
+                    disabled={deleteLoading}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 font-medium"
+                  >
+                    {deleteLoading ? 'Deleting...' : 'Delete User & Allow Re-signup'}
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="text-green-600 font-semibold">✅ No User Found</div>
+                  <p className="text-green-700 text-sm mt-1">
+                    {emailCheckResult.message || 'This email is available for signup.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {deleteResult && (
+            <div className={`mt-4 p-4 rounded-lg ${deleteResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+              <div className={`font-semibold ${deleteResult.success ? 'text-green-600' : 'text-red-600'}`}>
+                {deleteResult.success ? '✅ ' : '❌ '}{deleteResult.message}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Signup Test Section */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
