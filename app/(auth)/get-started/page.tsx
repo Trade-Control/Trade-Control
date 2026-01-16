@@ -34,12 +34,24 @@ export default function GetStartedPage() {
       <div className="container mx-auto px-4 py-12">
         {/* Header */}
         <div className="text-center mb-12">
+          <div className="inline-flex items-center px-4 py-2 bg-primary/10 rounded-full mb-4">
+            <span className="text-sm font-medium text-primary">Step 1 of 4: Choose Your Plan</span>
+          </div>
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
-            Welcome to Trade Control
+            Choose Your Plan
           </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-4">
             Powerful workforce management for sole traders, small teams, property managers, and maintenance firms
           </p>
+          <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+            <span className="font-semibold text-primary">1. Choose Plan</span>
+            <span>→</span>
+            <span>2. Create Account</span>
+            <span>→</span>
+            <span>3. Verify Email</span>
+            <span>→</span>
+            <span>4. Complete Setup</span>
+          </div>
         </div>
 
         {/* Tier Toggle */}

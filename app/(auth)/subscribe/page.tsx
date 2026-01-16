@@ -232,8 +232,11 @@ function SubscribeForm() {
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
+          <div className="inline-flex items-center px-4 py-2 bg-primary/10 rounded-full mb-4">
+            <span className="text-sm font-medium text-primary">Step 4 of 4: Complete Subscription Setup</span>
+          </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Start Your Free Trial</h1>
-          <p className="text-gray-600">14 days free, no credit card required for trial</p>
+          <p className="text-gray-600">14 days free, then ${tier === 'operations' ? '49' : '148+'}/month</p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">

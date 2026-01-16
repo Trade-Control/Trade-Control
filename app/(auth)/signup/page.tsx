@@ -136,8 +136,18 @@ function SignupForm() {
           </div>
 
           <div className="mb-8">
+            <div className="inline-flex items-center px-4 py-2 bg-primary/10 rounded-full mb-4">
+              <span className="text-sm font-medium text-primary">Step 2 of 4: Create Your Account</span>
+            </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Create your account</h1>
             <p className="text-gray-600">Get started with Trade Control in minutes</p>
+            {selectedTier && (
+              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  <strong>Selected Plan:</strong> {selectedTier === 'operations' ? 'Operations' : 'Operations Pro'}
+                </p>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSignup} className="space-y-5">
@@ -249,13 +259,16 @@ function SignupForm() {
                   </div>
                   <div className="ml-3 flex-1">
                     <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                      Verify Your Email Address
+                      Step 3: Verify Your Email Address
                     </h3>
                     <p className="text-sm text-blue-800 mb-3">
                       We've sent a verification email to <strong>{signupEmail}</strong>. Please check your inbox and click the verification link to activate your account.
                     </p>
                     <p className="text-sm text-blue-700 mb-4">
-                      After verifying your email, you'll be able to log in and complete your subscription setup.
+                      <strong>Why verify?</strong> We need to verify your email address before you can set up billing and access your account. This keeps your account secure.
+                    </p>
+                    <p className="text-sm text-blue-700 mb-4">
+                      <strong>Next steps:</strong> After verifying your email, log in to complete your subscription setup and start your 14-day free trial.
                     </p>
                     <div className="flex gap-3">
                       <button

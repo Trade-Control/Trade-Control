@@ -127,6 +127,9 @@ export default function LoginPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Log in to your account</h1>
             <p className="text-gray-600">Enter your credentials to access Trade Control</p>
+            <p className="text-sm text-blue-600 mt-2">
+              After logging in, you'll complete your subscription setup and start your free trial.
+            </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
