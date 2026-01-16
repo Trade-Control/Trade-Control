@@ -129,8 +129,6 @@ export default function SupabaseDebugPage() {
   const [emailCheckResult, setEmailCheckResult] = useState<EmailCheckResult | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteResult, setDeleteResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [verificationLinkLoading, setVerificationLinkLoading] = useState(false);
-  const [verificationLinkResult, setVerificationLinkResult] = useState<{ success: boolean; message?: string; link?: string; error?: string } | null>(null);
 
   useEffect(() => {
     fetchDebugInfo();
@@ -197,7 +195,6 @@ export default function SupabaseDebugPage() {
       
       const data = await response.json();
       setEmailCheckResult(data);
-      setVerificationLinkResult(null);
     } catch (err: any) {
       setEmailCheckResult({
         exists: false,
@@ -648,15 +645,6 @@ export default function SupabaseDebugPage() {
                   </div>
 
                   <div className="flex flex-col md:flex-row gap-3">
-                    {!emailCheckResult.user?.emailConfirmed && (
-                      <button
-                        onClick={generateVerificationLink}
-                        disabled={verificationLinkLoading}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
-                      >
-                        {verificationLinkLoading ? 'Generating link...' : 'Generate Verification Link'}
-                      </button>
-                    )}
                     <button
                       onClick={deleteUser}
                       disabled={deleteLoading}
@@ -665,22 +653,6 @@ export default function SupabaseDebugPage() {
                       {deleteLoading ? 'Deleting...' : 'Delete User & Allow Re-signup'}
                     </button>
                   </div>
-
-                  {verificationLinkResult && (
-                    <div className={`mt-4 p-4 rounded-lg ${verificationLinkResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                      <div className={`font-semibold ${verificationLinkResult.success ? 'text-green-700' : 'text-red-700'}`}>
-                        {verificationLinkResult.success ? verificationLinkResult.message : verificationLinkResult.error}
-                      </div>
-                      {verificationLinkResult.link && (
-                        <div className="mt-2">
-                          <div className="text-sm text-gray-700 mb-1">Verification Link (send this to the user):</div>
-                          <div className="font-mono text-xs bg-gray-100 p-2 rounded break-all">
-                            {verificationLinkResult.link}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
