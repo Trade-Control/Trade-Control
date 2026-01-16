@@ -240,33 +240,6 @@ export default function SupabaseDebugPage() {
     }
   };
 
-  const generateVerificationLink = async () => {
-    if (!checkEmail || !emailCheckResult?.exists || emailCheckResult.user?.emailConfirmed) {
-      return;
-    }
-
-    try {
-      setVerificationLinkLoading(true);
-      setVerificationLinkResult(null);
-
-      const response = await fetch('/api/debug/supabase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'generate-verification-link', email: checkEmail }),
-      });
-
-      const data = await response.json();
-      setVerificationLinkResult(data);
-    } catch (err: any) {
-      setVerificationLinkResult({
-        success: false,
-        error: err.message || 'Failed to generate verification link',
-      });
-    } finally {
-      setVerificationLinkLoading(false);
-    }
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'success':
