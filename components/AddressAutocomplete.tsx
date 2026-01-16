@@ -186,7 +186,7 @@ export default function AddressAutocomplete({
     <div>
       {label && (
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          {label} {required && '*'}
+          {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
       <input
@@ -202,8 +202,13 @@ export default function AddressAutocomplete({
         <p className="text-xs text-gray-500 mt-1">Loading address autocomplete...</p>
       )}
       {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
-        <p className="text-xs text-orange-600 mt-1">
-          Configure Google Maps API key for address autocomplete
+        <p className="text-xs text-gray-500 mt-1">
+          Enter your address manually (Google Maps autocomplete not configured)
+        </p>
+      )}
+      {isLoaded && (
+        <p className="text-xs text-gray-500 mt-1">
+          Start typing to use address autocomplete
         </p>
       )}
     </div>

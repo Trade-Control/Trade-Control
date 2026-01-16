@@ -192,8 +192,8 @@ export default function AddLicensePage() {
                   <div className="text-lg font-bold text-green-600">{formatPrice(PRICING.FIELD_STAFF_LICENSE)}/mo</div>
                 </div>
                 <p className="text-sm text-gray-600">
-                  View assigned jobs only. Can update job status, add notes, and upload photos.
-                  Cannot access quotes, invoices, or other jobs.
+                  Limited access: Can only view assigned jobs, update job status, add notes, and upload photos.
+                  Cannot create quotes, view invoices, or access unassigned jobs.
                 </p>
               </div>
             </label>
@@ -270,10 +270,10 @@ export default function AddLicensePage() {
           </button>
           <button
             type="submit"
-            disabled={loading || !subscription || subscription.status === 'trialing'}
+            disabled={loading || !subscription}
             className="flex-1 bg-primary hover:bg-primary-hover text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
           >
-            {loading ? 'Adding...' : subscription?.status === 'trialing' ? 'Not Available During Trial' : `Add ${quantity === 1 ? 'License' : `${quantity} Licenses`}`}
+            {loading ? 'Adding...' : `Add ${quantity === 1 ? 'License' : `${quantity} Licenses`}`}
           </button>
         </div>
       </form>

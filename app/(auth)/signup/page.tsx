@@ -10,6 +10,7 @@ function SignupForm() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -52,6 +53,7 @@ function SignupForm() {
       const metadata: any = {
         first_name: firstName,
         last_name: lastName,
+        phone: phone,
       };
       
       // Add tier information if available
@@ -70,12 +72,13 @@ function SignupForm() {
       if (error) throw error;
 
       if (data.user) {
-        // Update profile with first and last name
+        // Update profile with first name, last name, and phone
         await supabase
           .from('profiles')
           .update({
             first_name: firstName,
             last_name: lastName,
+            phone: phone,
           })
           .eq('id', data.user.id);
 
@@ -186,6 +189,21 @@ function SignupForm() {
             </div>
 
             <div>
+              <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
+                Phone Number
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition text-gray-900"
+                placeholder="+61 400 000 000"
+              />
+            </div>
+
+            <div>
               <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
                 Password
               </label>
@@ -254,6 +272,7 @@ function SignupForm() {
                         onClick={() => {
                           setShowEmailVerificationNotice(false);
                           setEmail('');
+                          setPhone('');
                           setPassword('');
                           setConfirmPassword('');
                           setFirstName('');

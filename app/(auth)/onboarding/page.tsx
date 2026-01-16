@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 
-type Step = 'business' | 'owner' | 'complete';
+type Step = 'business' | 'complete';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -37,12 +37,10 @@ export default function OnboardingPage() {
     payment_details: '',
   });
   
-  // Owner profile
-  const [ownerData, setOwnerData] = useState({
-    firstName: '',
-    lastName: '',
-    phone: '',
-  });
+  // Logo upload state
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     // Load existing organization data and pre-populate user info
@@ -67,15 +65,7 @@ export default function OnboardingPage() {
       .eq('id', user.id)
       .single();
 
-    if (profile) {
-      // Pre-populate owner data from profile
-      setOwnerData({
-        firstName: profile.first_name || '',
-        lastName: profile.last_name || '',
-        phone: profile.phone || '',
-      });
-
-      if (profile.organization_id) {
+    if (profile?.organization_id) {
         const { data: org } = await supabase
           .from('organizations')
           .select('*')
@@ -108,6 +98,53 @@ export default function OnboardingPage() {
     }
   };
 
+  const uploadLogo = async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('organization-logos')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('organization-logos')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image size must be less than 5MB');
+        return;
+      }
+      
+      setLogoFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleBusinessSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -125,56 +162,38 @@ export default function OnboardingPage() {
 
       if (!profile?.organization_id) throw new Error('Organization not found');
 
+      // Upload logo if provided
+      let logoUrl = businessData.logo_url;
+      if (logoFile) {
+        setUploadingLogo(true);
+        try {
+          logoUrl = await uploadLogo(logoFile);
+        } catch (uploadErr: any) {
+          console.error('Logo upload error:', uploadErr);
+          setError('Failed to upload logo. Please try again.');
+          setLoading(false);
+          setUploadingLogo(false);
+          return;
+        }
+        setUploadingLogo(false);
+      }
+
       // Update organization
       const { error: updateError } = await supabase
         .from('organizations')
-        .update(businessData)
+        .update({
+          ...businessData,
+          logo_url: logoUrl
+        })
         .eq('id', profile.organization_id);
 
       if (updateError) throw updateError;
 
-      setStep('owner');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOwnerSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      // Update profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          first_name: ownerData.firstName,
-          last_name: ownerData.lastName,
-          phone: ownerData.phone,
-        })
-        .eq('id', user.id);
-
-      if (profileError) throw profileError;
-
       // Mark onboarding as complete
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('organization_id')
-        .eq('id', user.id)
-        .single();
-
-      if (profile?.organization_id) {
-        await supabase
-          .from('organizations')
-          .update({ onboarding_completed: true })
-          .eq('id', profile.organization_id);
-      }
+      await supabase
+        .from('organizations')
+        .update({ onboarding_completed: true })
+        .eq('id', profile.organization_id);
 
       setStep('complete');
     } catch (err: any) {
@@ -200,18 +219,7 @@ export default function OnboardingPage() {
               }`}>
                 {step !== 'business' ? '✓' : '1'}
               </div>
-              <span className="ml-2 font-medium">Business</span>
-            </div>
-            
-            <div className="w-16 h-1 bg-gray-300"></div>
-            
-            <div className={`flex items-center ${step === 'owner' ? 'text-primary' : 'text-gray-400'}`}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                step === 'complete' ? 'bg-primary text-white' : step === 'owner' ? 'bg-white border-2 border-primary' : 'bg-white border-2 border-gray-300'
-              }`}>
-                {step === 'complete' ? '✓' : '2'}
-              </div>
-              <span className="ml-2 font-medium">Owner</span>
+              <span className="ml-2 font-medium">Business Details</span>
             </div>
             
             <div className="w-16 h-1 bg-gray-300"></div>
@@ -220,7 +228,7 @@ export default function OnboardingPage() {
               <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
                 step === 'complete' ? 'bg-primary text-white' : 'bg-white border-2 border-gray-300'
               }`}>
-                {step === 'complete' ? '✓' : '3'}
+                {step === 'complete' ? '✓' : '2'}
               </div>
               <span className="ml-2 font-medium">Complete</span>
             </div>
@@ -339,15 +347,14 @@ export default function OnboardingPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Website URL <span className="text-red-500">*</span>
+                  Website URL
                 </label>
                 <input
                   type="url"
-                  required
                   value={businessData.website_url}
                   onChange={(e) => setBusinessData({ ...businessData, website_url: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="https://www.yourbusiness.com.au"
+                  placeholder="https://www.yourbusiness.com.au (optional)"
                 />
               </div>
 
@@ -425,17 +432,27 @@ export default function OnboardingPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Logo URL <span className="text-red-500">*</span>
+                      Logo Image
                     </label>
                     <input
-                      type="url"
-                      required
-                      value={businessData.logo_url}
-                      onChange={(e) => setBusinessData({ ...businessData, logo_url: e.target.value })}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                      placeholder="https://example.com/logo.png"
                     />
-                    <p className="text-xs text-gray-500 mt-1">This will appear on invoices and quotes</p>
+                    <p className="text-xs text-gray-500 mt-1">Upload your logo (optional, max 5MB)</p>
+                    {logoPreview && (
+                      <div className="mt-2">
+                        <img 
+                          src={logoPreview} 
+                          alt="Logo preview" 
+                          className="h-20 w-auto border border-gray-300 rounded"
+                        />
+                      </div>
+                    )}
+                    {uploadingLogo && (
+                      <p className="text-xs text-primary mt-1">Uploading logo...</p>
+                    )}
                   </div>
 
                   <div>
@@ -531,86 +548,11 @@ export default function OnboardingPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || uploadingLogo}
                 className="w-full bg-primary hover:bg-primary-hover text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
               >
-                {loading ? 'Saving...' : 'Continue'}
+                {loading ? 'Saving...' : uploadingLogo ? 'Uploading logo...' : 'Complete Setup'}
               </button>
-            </form>
-          </div>
-        )}
-
-        {/* Owner Profile Step */}
-        {step === 'owner' && (
-          <div className="bg-white rounded-lg shadow-xl p-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Profile</h2>
-            <p className="text-gray-600 mb-6">Confirm your personal details</p>
-
-            <form onSubmit={handleOwnerSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    First Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={ownerData.firstName}
-                    onChange={(e) => setOwnerData({ ...ownerData, firstName: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Last Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={ownerData.lastName}
-                    onChange={(e) => setOwnerData({ ...ownerData, lastName: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={ownerData.phone}
-                  onChange={(e) => setOwnerData({ ...ownerData, phone: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="+61 400 000 000"
-                />
-              </div>
-
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex space-x-4">
-                <button
-                  type="button"
-                  onClick={() => setStep('business')}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-3 rounded-lg font-semibold transition-colors"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-primary hover:bg-primary-hover text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
-                >
-                  {loading ? 'Saving...' : 'Complete Setup'}
-                </button>
-              </div>
             </form>
           </div>
         )}
