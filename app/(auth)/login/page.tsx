@@ -34,6 +34,35 @@ export default function LoginPage() {
       if (error) throw error;
 
       if (data.user) {
+        // Ensure profile exists (handles users who signed up before the fix)
+        try {
+          const ensureResponse = await fetch('/api/auth/ensure-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: data.user.id,
+              email: data.user.email,
+              firstName: data.user.user_metadata?.first_name,
+              lastName: data.user.user_metadata?.last_name,
+              phone: data.user.user_metadata?.phone,
+            }),
+          });
+
+          if (!ensureResponse.ok) {
+            console.warn('Failed to ensure profile, continuing anyway');
+          } else {
+            const ensureData = await ensureResponse.json();
+            if (ensureData.profileCreated) {
+              console.log('Profile was created during login');
+            }
+          }
+        } catch (ensureError) {
+          console.warn('Error ensuring profile:', ensureError);
+          // Don't block login if this fails
+        }
+
         // Check if user has an organization
         const { data: profile } = await supabase
           .from('profiles')
@@ -77,7 +106,18 @@ export default function LoginPage() {
         }
       }
     } catch (error: any) {
-      setError(error.message || 'Failed to log in');
+      console.error('Login error:', error);
+      
+      // Provide more helpful error messages
+      let errorMessage = error.message || 'Failed to log in';
+      
+      if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+      } else if (error.message?.includes('Email not confirmed')) {
+        errorMessage = 'Please verify your email address before logging in. Check your inbox for the verification link.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -127,9 +167,6 @@ export default function LoginPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Log in to your account</h1>
             <p className="text-gray-600">Enter your credentials to access Trade Control</p>
-            <p className="text-sm text-blue-600 mt-2">
-              After logging in, you'll complete your subscription setup and start your free trial.
-            </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">

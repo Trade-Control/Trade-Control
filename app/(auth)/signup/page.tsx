@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -19,7 +18,6 @@ function SignupForm() {
   const [signupEmail, setSignupEmail] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = useSafeSupabaseClient();
   
   // Get tier from URL params
   const tierParam = searchParams.get('tier');
@@ -28,11 +26,6 @@ function SignupForm() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (!supabase) {
-      setError('Configuration error. Please refresh the page.');
-      return;
-    }
 
     // Validate passwords match
     if (password !== confirmPassword) {
@@ -49,130 +42,50 @@ function SignupForm() {
     setLoading(true);
 
     try {
-      // Store tier in user metadata for later retrieval
-      const metadata: any = {
-        first_name: firstName,
-        last_name: lastName,
-        phone: phone,
-      };
-      
-      // Add tier information if available
-      if (selectedTier) {
-        metadata.selected_tier = selectedTier;
-      }
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: metadata,
+      // Call server-side signup API
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          email,
+          password,
+          firstName,
+          lastName,
+          phone: phone || null,
+          selectedTier: selectedTier || null,
+        }),
       });
 
-      if (error) {
-        console.error('❌ Signup error:', error);
-        throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle specific error codes
+        switch (data.code) {
+          case 'EMAIL_EXISTS':
+            setError('This email is already registered. Please try logging in instead.');
+            break;
+          case 'VALIDATION_ERROR':
+            setError(data.error || 'Please check your input and try again.');
+            break;
+          case 'CONFIG_ERROR':
+            setError('Server configuration error. Please contact support.');
+            break;
+          default:
+            setError(data.error || 'Failed to create account. Please try again.');
+        }
+        return;
       }
 
-      if (data.user) {
-        console.log('✅ User created:', data.user.id);
-        
-        // Check if profile exists (trigger should have created it)
-        const { data: existingProfile, error: profileCheckError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', data.user.id)
-          .single();
+      // Success - show email verification notice
+      console.log('Signup successful:', data);
+      setSignupEmail(email);
+      setShowEmailVerificationNotice(true);
 
-        if (profileCheckError && profileCheckError.code !== 'PGRST116') {
-          // PGRST116 = no rows returned, which is expected if profile doesn't exist
-          console.error('❌ Error checking profile:', profileCheckError);
-        }
-
-        // If profile doesn't exist, create it (fallback)
-        if (!existingProfile) {
-          console.warn('⚠️ Profile not found, creating fallback profile');
-          const { error: createError } = await supabase
-            .from('profiles')
-            .insert({
-              id: data.user.id,
-              first_name: firstName,
-              last_name: lastName,
-              phone: phone,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            });
-
-          if (createError) {
-            console.error('❌ Failed to create fallback profile:', createError);
-            // Don't throw - allow signup to proceed, user can update profile later
-            setError(
-              'Account created but profile setup failed. Please contact support or try logging in and updating your profile.'
-            );
-            return;
-          }
-          console.log('✅ Fallback profile created');
-        } else {
-          // Profile exists, update it with user details
-          console.log('✅ Profile exists, updating with user details');
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({
-              first_name: firstName,
-              last_name: lastName,
-              phone: phone,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', data.user.id);
-
-          if (updateError) {
-            console.error('❌ Failed to update profile:', updateError);
-            // Don't throw - profile exists, just couldn't update details
-            // User can update later
-            console.warn('⚠️ Profile exists but update failed, continuing anyway');
-          } else {
-            console.log('✅ Profile updated successfully');
-          }
-        }
-
-        // Always show email verification notice
-        // User must verify email before proceeding to payment
-        setSignupEmail(email);
-        setShowEmailVerificationNotice(true);
-      }
     } catch (error: any) {
-      console.error('❌ Signup failed:', error);
-      
-      // Provide more specific error messages
-      let errorMessage = 'Failed to create account';
-      
-      if (error.message) {
-        errorMessage = error.message;
-        
-        // Add context for common errors
-        if (error.message.includes('Database error finding user')) {
-          errorMessage = 'Database error: Profile creation failed. The account may have been created but profile setup failed. Please try logging in or contact support.';
-        } else if (error.message.includes('already registered')) {
-          errorMessage = 'This email is already registered. Please try logging in instead.';
-        } else if (error.message.includes('Invalid email')) {
-          errorMessage = 'Please enter a valid email address.';
-        } else if (error.message.includes('Password')) {
-          errorMessage = error.message;
-        } else if (error.message.includes('network') || error.message.includes('fetch')) {
-          errorMessage = 'Network error. Please check your connection and try again.';
-        }
-      }
-      
-      // Log detailed error for debugging
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        status: error.status,
-        details: error.details,
-        hint: error.hint,
-      });
-      
-      setError(errorMessage);
+      console.error('Signup error:', error);
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }

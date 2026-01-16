@@ -37,9 +37,13 @@ OPERATIONS_PRO_UNLIMITED_PRICE=19900
 # Supabase Configuration (Add your real values)
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url-here
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key-here
-# Service role key is required for admin operations like creating users
-# Find it in Supabase Dashboard > Settings > API > service_role (secret)
+
+# IMPORTANT: Service Role Key (REQUIRED for signup to work)
+# This key is required for server-side operations that bypass RLS policies.
+# Used by /api/auth/signup and /api/auth/ensure-profile endpoints.
+# Find it in: Supabase Dashboard > Settings > API > service_role (secret)
 # ⚠️ NEVER expose this key in client-side code - only use in API routes
+# Without this key, user signup will fail with "Server configuration error"
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key-here
 
 # Google Maps API (Optional)
