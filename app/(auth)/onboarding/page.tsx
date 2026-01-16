@@ -66,34 +66,33 @@ export default function OnboardingPage() {
       .single();
 
     if (profile?.organization_id) {
-        const { data: org } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('id', profile.organization_id)
-          .single();
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', profile.organization_id)
+        .single();
 
-        if (org) {
-          setBusinessData({
-            name: org.name || '',
-            trading_name: org.trading_name || '',
-            abn: org.abn || '',
-            gst_registered: org.gst_registered ?? true,
-            address: org.address || '',
-            city: org.city || '',
-            state: org.state || '',
-            postcode: org.postcode || '',
-            phone: org.phone || '',
-            email: org.email || '',
-            billing_email: org.billing_email || '',
-            website_url: org.website_url || '',
-            logo_url: org.logo_url || '',
-            brand_color: org.brand_color || '#2563eb',
-            job_code_prefix: org.job_code_prefix || 'JOB',
-            quote_prefix: org.quote_prefix || 'QT',
-            invoice_prefix: org.invoice_prefix || 'INV',
-            payment_details: org.payment_details || '',
-          });
-        }
+      if (org) {
+        setBusinessData({
+          name: org.name || '',
+          trading_name: org.trading_name || '',
+          abn: org.abn || '',
+          gst_registered: org.gst_registered ?? true,
+          address: org.address || '',
+          city: org.city || '',
+          state: org.state || '',
+          postcode: org.postcode || '',
+          phone: org.phone || '',
+          email: org.email || '',
+          billing_email: org.billing_email || '',
+          website_url: org.website_url || '',
+          logo_url: org.logo_url || '',
+          brand_color: org.brand_color || '#2563eb',
+          job_code_prefix: org.job_code_prefix || 'JOB',
+          quote_prefix: org.quote_prefix || 'QT',
+          invoice_prefix: org.invoice_prefix || 'INV',
+          payment_details: org.payment_details || '',
+        });
       }
     }
   };
