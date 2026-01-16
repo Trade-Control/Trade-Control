@@ -53,6 +53,17 @@ interface DebugInfo {
       userId?: string | null;
       userEmail?: string | null;
     } | null;
+    authAdminTest?: {
+      success: boolean;
+      error?: string;
+      message?: string;
+      usersCount?: number;
+    } | null;
+    triggerTest?: {
+      profilesTableAccessible?: boolean;
+      profilesCount?: number;
+      error?: string | null;
+    } | null;
   };
   recommendations: string[];
   status: 'success' | 'partial' | 'error';
@@ -64,6 +75,28 @@ interface DebugInfo {
     serverClientWorking: boolean;
     adminClientWorking: boolean;
     apiWorking: boolean;
+    authAdminWorking?: boolean;
+  };
+}
+
+interface SignupTestResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+  step?: string;
+  errorDetails?: {
+    name?: string;
+    status?: number;
+    code?: string;
+    message?: string;
+  };
+  diagnosis?: string;
+  fix?: string;
+  details?: {
+    userCreated?: boolean;
+    profileCreated?: boolean;
+    profileError?: string | null;
+    testUserCleaned?: boolean;
   };
 }
 
@@ -71,6 +104,8 @@ export default function SupabaseDebugPage() {
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [signupTestLoading, setSignupTestLoading] = useState(false);
+  const [signupTestResult, setSignupTestResult] = useState<SignupTestResult | null>(null);
 
   useEffect(() => {
     fetchDebugInfo();
@@ -92,6 +127,29 @@ export default function SupabaseDebugPage() {
       setError(err.message || 'Failed to load debug information');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const runSignupTest = async () => {
+    try {
+      setSignupTestLoading(true);
+      setSignupTestResult(null);
+      
+      const response = await fetch('/api/debug/supabase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test-signup' }),
+      });
+      
+      const data = await response.json();
+      setSignupTestResult(data);
+    } catch (err: any) {
+      setSignupTestResult({
+        success: false,
+        error: err.message || 'Failed to run signup test',
+      });
+    } finally {
+      setSignupTestLoading(false);
     }
   };
 
@@ -399,6 +457,106 @@ export default function SupabaseDebugPage() {
             )}
           </div>
         )}
+
+        {/* Auth Admin Test */}
+        {debugInfo.supabase.authAdminTest && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Auth Admin API Test</h2>
+            {debugInfo.supabase.authAdminTest.success ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="text-green-600 font-semibold mb-2">✅ Success</div>
+                <p className="text-green-700">{debugInfo.supabase.authAdminTest.message}</p>
+              </div>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="text-red-600 font-semibold mb-2">❌ Failed</div>
+                <p className="text-red-700">{debugInfo.supabase.authAdminTest.error || debugInfo.supabase.authAdminTest.message}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Signup Test Section */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Signup Flow Test</h2>
+          <p className="text-gray-600 mb-4">
+            Test the complete signup flow by creating and immediately deleting a test user. 
+            This will identify if there are any database triggers or RLS policies blocking signup.
+          </p>
+          
+          <button
+            onClick={runSignupTest}
+            disabled={signupTestLoading}
+            className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          >
+            {signupTestLoading ? 'Testing Signup...' : 'Run Signup Test'}
+          </button>
+
+          {signupTestResult && (
+            <div className="mt-6">
+              {signupTestResult.success ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                  <div className="text-green-600 font-semibold text-lg mb-3">✅ Signup Test Passed!</div>
+                  <p className="text-green-700 mb-3">{signupTestResult.message}</p>
+                  {signupTestResult.details && (
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="text-green-700">User Created:</div>
+                      <div>{signupTestResult.details.userCreated ? '✅ Yes' : '❌ No'}</div>
+                      <div className="text-green-700">Profile Created:</div>
+                      <div>{signupTestResult.details.profileCreated ? '✅ Yes' : '❌ No'}</div>
+                      <div className="text-green-700">Test User Cleaned:</div>
+                      <div>{signupTestResult.details.testUserCleaned ? '✅ Yes' : '❌ No'}</div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                  <div className="text-red-600 font-semibold text-lg mb-3">❌ Signup Test Failed</div>
+                  
+                  {signupTestResult.step && (
+                    <div className="mb-3">
+                      <span className="font-medium text-red-700">Failed at step:</span>{' '}
+                      <span className="text-red-600">{signupTestResult.step}</span>
+                    </div>
+                  )}
+                  
+                  <div className="mb-3">
+                    <span className="font-medium text-red-700">Error:</span>{' '}
+                    <span className="text-red-600">{signupTestResult.error}</span>
+                  </div>
+
+                  {signupTestResult.errorDetails && (
+                    <div className="bg-red-100 rounded p-3 mb-4 text-sm font-mono">
+                      <div><strong>Name:</strong> {signupTestResult.errorDetails.name}</div>
+                      <div><strong>Status:</strong> {signupTestResult.errorDetails.status}</div>
+                      <div><strong>Code:</strong> {signupTestResult.errorDetails.code}</div>
+                      <div><strong>Message:</strong> {signupTestResult.errorDetails.message}</div>
+                    </div>
+                  )}
+
+                  {signupTestResult.diagnosis && (
+                    <div className="mb-4">
+                      <div className="font-semibold text-red-800 mb-1">Diagnosis:</div>
+                      <p className="text-red-700">{signupTestResult.diagnosis}</p>
+                    </div>
+                  )}
+
+                  {signupTestResult.fix && (
+                    <div>
+                      <div className="font-semibold text-red-800 mb-2">Fix:</div>
+                      <div className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto">
+                        <pre className="text-sm whitespace-pre-wrap">{signupTestResult.fix}</pre>
+                      </div>
+                      <p className="text-sm text-red-600 mt-2">
+                        Copy and run this SQL in your Supabase Dashboard → SQL Editor
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Environment Variables */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">

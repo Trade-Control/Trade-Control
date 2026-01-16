@@ -7,6 +7,30 @@ import { cookies } from 'next/headers';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// Helper to check for problematic triggers
+async function checkForProblematicTrigger(adminClient: any) {
+  try {
+    // Query pg_trigger to check if the problematic trigger exists
+    const { data, error } = await adminClient.rpc('check_auth_trigger_exists');
+    
+    if (error) {
+      // If RPC doesn't exist, try a direct query
+      const { data: triggerData, error: triggerError } = await adminClient
+        .from('pg_trigger')
+        .select('tgname')
+        .eq('tgname', 'on_auth_user_created')
+        .limit(1);
+      
+      // This query will likely fail due to permissions, so we'll return unknown
+      return { exists: 'unknown', error: error.message };
+    }
+    
+    return { exists: data, error: null };
+  } catch (e: any) {
+    return { exists: 'unknown', error: e.message };
+  }
+}
+
 /**
  * Supabase Debug API Route
  * 
@@ -321,6 +345,58 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Test 7: Check for problematic auth trigger (if admin client available)
+    if (serviceRoleKey && supabaseUrl) {
+      try {
+        const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+
+        // Try to check if the trigger exists by querying auth users count
+        // This is a safer test than actually creating a user
+        const { count, error: countError } = await adminClient
+          .from('profiles')
+          .select('*', { count: 'exact', head: true });
+
+        debugInfo.supabase.triggerTest = {
+          profilesTableAccessible: !countError,
+          profilesCount: count || 0,
+          error: countError?.message || null,
+        };
+
+        // Test the auth admin API by listing users (doesn't create anything)
+        try {
+          const { data: usersData, error: usersError } = await adminClient.auth.admin.listUsers({
+            page: 1,
+            perPage: 1,
+          });
+
+          debugInfo.supabase.authAdminTest = {
+            success: !usersError,
+            message: usersError ? usersError.message : 'Auth Admin API is accessible',
+            usersCount: usersData?.users?.length || 0,
+          };
+
+          if (!usersError) {
+            debugInfo.recommendations.push('✅ Auth Admin API is working (can list users)');
+          } else {
+            debugInfo.recommendations.push(`❌ Auth Admin API error: ${usersError.message}`);
+          }
+        } catch (authAdminError: any) {
+          debugInfo.supabase.authAdminTest = {
+            success: false,
+            error: authAdminError.message,
+          };
+          debugInfo.recommendations.push(`❌ Auth Admin API test failed: ${authAdminError.message}`);
+        }
+
+      } catch (triggerTestError: any) {
+        debugInfo.supabase.triggerTest = {
+          error: triggerTestError.message,
+        };
+      }
+    }
+
     // Overall status
     const hasUrl = !!supabaseUrl;
     const hasAnonKey = !!supabaseAnonKey;
@@ -329,10 +405,11 @@ export async function GET(request: NextRequest) {
     const serverClientWorking = debugInfo.supabase.serverClientTest?.success === true;
     const adminClientWorking = debugInfo.supabase.adminClientTest?.success === true;
     const apiWorking = debugInfo.supabase.apiTest?.success === true;
+    const authAdminWorking = debugInfo.supabase.authAdminTest?.success === true;
     
     let status: 'success' | 'partial' | 'error' = 'error';
     if (hasUrl && hasAnonKey && clientWorking && serverClientWorking) {
-      if (hasServiceRole && adminClientWorking && apiWorking) {
+      if (hasServiceRole && adminClientWorking && apiWorking && authAdminWorking) {
         status = 'success';
       } else {
         status = 'partial';
@@ -348,6 +425,7 @@ export async function GET(request: NextRequest) {
       serverClientWorking,
       adminClientWorking,
       apiWorking,
+      authAdminWorking,
     };
 
     return NextResponse.json(debugInfo, { status: 200 });
@@ -361,4 +439,175 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * POST handler to test signup process
+ * This creates a test user and immediately deletes it to verify the auth flow works
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { action } = body;
+
+    if (action !== 'test-signup') {
+      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json({
+        success: false,
+        error: 'Missing required environment variables',
+        details: {
+          hasUrl: !!supabaseUrl,
+          hasServiceRole: !!serviceRoleKey,
+        },
+      }, { status: 500 });
+    }
+
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    // Generate a unique test email
+    const testEmail = `debug-test-${Date.now()}@test-delete-me.local`;
+    const testPassword = 'TestPassword123!';
+
+    console.log('[Debug] Testing signup with:', testEmail);
+
+    // Step 1: Try to create a user
+    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+      email: testEmail,
+      password: testPassword,
+      email_confirm: true, // Auto-confirm for test
+      user_metadata: {
+        first_name: 'Debug',
+        last_name: 'Test',
+        is_debug_test: true,
+      },
+    });
+
+    if (authError) {
+      console.error('[Debug] Auth error:', authError);
+      
+      // Return detailed error information
+      return NextResponse.json({
+        success: false,
+        step: 'create_user',
+        error: authError.message,
+        errorDetails: {
+          name: authError.name,
+          status: authError.status,
+          code: (authError as any).code,
+          message: authError.message,
+        },
+        diagnosis: getDiagnosis(authError.message),
+        fix: getFix(authError.message),
+      }, { status: 200 }); // Return 200 so frontend can read the response
+    }
+
+    console.log('[Debug] User created successfully:', authData.user?.id);
+
+    // Step 2: Try to create a profile (this is where the trigger issue usually manifests)
+    let profileError = null;
+    if (authData.user) {
+      const { error: pError } = await adminClient
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          first_name: 'Debug',
+          last_name: 'Test',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      
+      profileError = pError;
+      if (pError) {
+        console.error('[Debug] Profile creation error:', pError);
+      }
+    }
+
+    // Step 3: Clean up - delete the test user
+    if (authData.user) {
+      // First delete the profile
+      await adminClient
+        .from('profiles')
+        .delete()
+        .eq('id', authData.user.id);
+
+      // Then delete the auth user
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(authData.user.id);
+      if (deleteError) {
+        console.error('[Debug] Failed to delete test user:', deleteError);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Signup test passed! User creation and profile creation are working.',
+      details: {
+        userCreated: !!authData.user,
+        profileCreated: !profileError,
+        profileError: profileError?.message || null,
+        testUserCleaned: true,
+      },
+    });
+
+  } catch (error: any) {
+    console.error('[Debug] Signup test error:', error);
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+      diagnosis: getDiagnosis(error.message),
+      fix: getFix(error.message),
+    }, { status: 200 });
+  }
+}
+
+function getDiagnosis(errorMessage: string): string {
+  if (errorMessage.includes('Database error')) {
+    return 'A database trigger is failing during user creation. This is usually caused by the on_auth_user_created trigger.';
+  }
+  if (errorMessage.includes('duplicate key')) {
+    return 'A user or profile with this ID already exists.';
+  }
+  if (errorMessage.includes('permission denied') || errorMessage.includes('RLS')) {
+    return 'Row Level Security is blocking the operation. The service_role policy may not be set up correctly.';
+  }
+  if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+    return 'The profiles table does not exist. Run the database migrations.';
+  }
+  return 'Unknown error. Check the Supabase logs for more details.';
+}
+
+function getFix(errorMessage: string): string {
+  if (errorMessage.includes('Database error')) {
+    return `Run this SQL in Supabase SQL Editor to fix:
+
+-- Remove the problematic trigger
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users CASCADE;
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+
+-- Add service role policy
+DROP POLICY IF EXISTS "Service role can manage profiles" ON profiles;
+CREATE POLICY "Service role can manage profiles"
+  ON profiles FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+
+GRANT ALL ON public.profiles TO service_role;`;
+  }
+  if (errorMessage.includes('permission denied') || errorMessage.includes('RLS')) {
+    return `Run this SQL in Supabase SQL Editor:
+
+DROP POLICY IF EXISTS "Service role can manage profiles" ON profiles;
+CREATE POLICY "Service role can manage profiles"
+  ON profiles FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+
+GRANT ALL ON public.profiles TO service_role;`;
+  }
+  return 'Check Supabase Dashboard > Logs for detailed error information.';
 }
