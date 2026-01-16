@@ -52,7 +52,8 @@ function SignupForm() {
             phone: phone || null,
           },
           // Redirect URL after email verification
-          emailRedirectTo: `${window.location.origin}/login?verified=true`,
+          // Use callback route to properly process tokens, then redirect to login
+          emailRedirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent('/login?verified=true')}`,
         },
       });
 

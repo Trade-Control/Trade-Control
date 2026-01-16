@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -11,12 +11,133 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useSafeSupabaseClient();
   
-  // Get returnUrl from query params
+  // Get returnUrl, verified status, and error from query params
   const returnUrl = searchParams.get('returnUrl');
+  const verified = searchParams.get('verified');
+  const errorParam = searchParams.get('error');
+  const errorDescription = searchParams.get('error_description');
+  
+  // Check if user is already authenticated (e.g., after email verification)
+  useEffect(() => {
+    if (!supabase) {
+      setCheckingSession(false);
+      return;
+    }
+
+    const checkSession = async () => {
+      try {
+        // First, check if there are auth tokens in the URL hash (from email verification)
+        // Supabase includes tokens in the hash like #access_token=...&type=recovery
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const hasAuthTokens = hashParams.has('access_token') || hashParams.has('code');
+        
+        if (hasAuthTokens) {
+          // Get session to process the tokens
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError) {
+            console.error('Error processing auth tokens:', sessionError);
+            setError('Failed to verify email. Please try logging in manually.');
+            setCheckingSession(false);
+            // Clear the hash from URL
+            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+            return;
+          }
+          
+          // Clear the hash from URL after processing
+          if (session) {
+            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+          }
+        }
+        
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        
+        if (user && !authError) {
+          // User is authenticated - redirect them appropriately
+          console.log('User already authenticated, redirecting...');
+          
+          // Ensure profile exists
+          try {
+            await fetch('/api/auth/ensure-profile', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({}),
+            });
+          } catch (e) {
+            console.warn('Failed to ensure profile:', e);
+          }
+
+          // Check if user has an organization
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('organization_id')
+            .eq('id', user.id)
+            .single();
+
+          if (profile?.organization_id) {
+            // Has organization - check subscription and onboarding status
+            const { data: subscription } = await supabase
+              .from('subscriptions')
+              .select('status')
+              .eq('organization_id', profile.organization_id)
+              .single();
+
+            if (subscription && (subscription.status === 'active' || subscription.status === 'trialing')) {
+              const { data: org } = await supabase
+                .from('organizations')
+                .select('onboarding_completed')
+                .eq('id', profile.organization_id)
+                .single();
+
+              if (org?.onboarding_completed) {
+                router.push('/dashboard');
+              } else {
+                router.push('/onboarding');
+              }
+            } else {
+              router.push('/dashboard');
+            }
+          } else {
+            // No organization - redirect to subscribe
+            if (returnUrl) {
+              router.push(returnUrl);
+            } else {
+              router.push('/subscribe');
+            }
+          }
+        } else {
+          // Not authenticated - show login form
+          setCheckingSession(false);
+          
+          // Show success message if they just verified
+          if (verified === 'true') {
+            // Clear the verified param from URL
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete('verified');
+            window.history.replaceState({}, '', newUrl.toString());
+          }
+          
+          // Clear error params from URL after displaying
+          if (errorParam) {
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete('error');
+            newUrl.searchParams.delete('error_description');
+            window.history.replaceState({}, '', newUrl.toString());
+          }
+        }
+      } catch (err) {
+        console.error('Error checking session:', err);
+        setCheckingSession(false);
+      }
+    };
+
+    checkSession();
+  }, [supabase, router, returnUrl, verified]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,6 +288,24 @@ function LoginForm() {
             <p className="text-gray-600">Enter your credentials to access Trade Control</p>
           </div>
 
+          {checkingSession && (
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm mb-4">
+              Checking your session...
+            </div>
+          )}
+
+          {verified === 'true' && !checkingSession && !errorParam && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm mb-4">
+              ✓ Email verified successfully! Please log in to continue.
+            </div>
+          )}
+
+          {errorParam === 'verification_failed' && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+              {errorDescription || 'Email verification failed. Please try logging in manually or request a new verification email.'}
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -206,10 +345,10 @@ function LoginForm() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || checkingSession}
               className="w-full bg-primary hover:bg-primary-hover text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
-              {loading ? 'Logging in...' : 'Log In'}
+              {loading ? 'Logging in...' : checkingSession ? 'Checking...' : 'Log In'}
             </button>
           </form>
 
