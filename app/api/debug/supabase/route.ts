@@ -450,8 +450,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, email } = body;
 
-    if (!['test-signup', 'check-email', 'delete-user'].includes(action)) {
-      return NextResponse.json({ error: 'Invalid action. Use: test-signup, check-email, or delete-user' }, { status: 400 });
+    if (!['test-signup', 'check-email', 'delete-user', 'generate-verification-link'].includes(action)) {
+      return NextResponse.json({ error: 'Invalid action. Use: test-signup, check-email, delete-user, or generate-verification-link' }, { status: 400 });
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -540,6 +540,55 @@ export async function POST(request: NextRequest) {
         success: true,
         message: `User ${email} has been deleted. They can now sign up again.`,
         deletedUserId: result.user.id,
+      });
+    }
+
+    // Handle generate verification link action
+    if (action === 'generate-verification-link') {
+      if (!email) {
+        return NextResponse.json({ error: 'Email is required for generate-verification-link action' }, { status: 400 });
+      }
+
+      const result = await checkExistingUser(adminClient, email);
+
+      if (!result.exists || !result.user) {
+        return NextResponse.json({
+          success: false,
+          message: 'No user found with this email.',
+        });
+      }
+
+      if (result.user.emailConfirmed) {
+        return NextResponse.json({
+          success: false,
+          message: 'User is already verified. Please log in.',
+        });
+      }
+
+      const redirectUrl = process.env.NEXT_PUBLIC_SITE_URL
+        ? `${process.env.NEXT_PUBLIC_SITE_URL}/login?email=${encodeURIComponent(email)}`
+        : undefined;
+
+      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+        type: 'signup',
+        email,
+        options: {
+          redirectTo: redirectUrl,
+        },
+      });
+
+      if (linkError) {
+        return NextResponse.json({
+          success: false,
+          error: linkError.message,
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Verification link generated. Send it to the user.',
+        link: linkData?.action_link || linkData?.email_action_link,
+        redirectUrl,
       });
     }
 

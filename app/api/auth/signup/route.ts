@@ -64,12 +64,75 @@ export async function POST(request: NextRequest) {
     // Create admin client
     const supabase = createAdminClient();
 
+    // Helper: find existing user by email
+    const findExistingUserByEmail = async () => {
+      const { data, error } = await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 200,
+      });
+
+      if (error) {
+        console.warn('Failed to list users before signup:', error);
+        return null;
+      }
+
+      return data?.users?.find(
+        (u) => u.email?.toLowerCase() === email.toLowerCase()
+      );
+    };
+
+    // Pre-check: if user exists, decide path
+    const existingUser = await findExistingUserByEmail();
+
+    if (existingUser) {
+      const isConfirmed = !!existingUser.email_confirmed_at;
+
+      if (isConfirmed) {
+        return NextResponse.json(
+          {
+            error: 'This email is already registered. Please log in instead.',
+            code: 'EMAIL_EXISTS',
+          },
+          { status: 409 }
+        );
+      }
+
+      // Unconfirmed user exists: clean it up so we can recreate and re-trigger verification
+      try {
+        // Cascade will clean profile via FK
+        const { error: deleteError } = await supabase.auth.admin.deleteUser(
+          existingUser.id
+        );
+        if (deleteError) {
+          console.error('Failed to delete unverified user before re-signup:', deleteError);
+          return NextResponse.json(
+            {
+              error: 'A previous unverified account is blocking signup. Please try again.',
+              code: 'UNVERIFIED_EXISTS',
+              details: deleteError.message,
+            },
+            { status: 409 }
+          );
+        }
+      } catch (cleanupError: any) {
+        console.error('Error cleaning up unverified user:', cleanupError);
+        return NextResponse.json(
+          {
+            error: 'Cleanup failed for an existing unverified account. Please try again.',
+            code: 'UNVERIFIED_CLEANUP_FAILED',
+            details: cleanupError.message,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     // Step 1: Create user in Supabase Auth
     console.log('Creating user in Supabase Auth...');
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // TEMPORARY FIX: Auto-confirm to bypass "Database error checking email"
+      email_confirm: false, // Use Supabase built-in email confirmation
       user_metadata: {
         first_name: firstName,
         last_name: lastName,
@@ -173,8 +236,7 @@ export async function POST(request: NextRequest) {
       console.log('Profile created successfully');
     }
 
-    // Step 3: Email is auto-confirmed (temporary fix for "Database error checking email")
-    // TODO: Re-enable email verification once Supabase trigger issue is resolved
+    // Step 3: Built-in verification email sent by Supabase (email_confirm=false)
     
     // Return success response
     return NextResponse.json({
@@ -183,7 +245,7 @@ export async function POST(request: NextRequest) {
         id: authData.user.id,
         email: authData.user.email,
       },
-      message: 'Account created successfully. You can now log in.',
+      message: 'Account created successfully. Please check your email to verify your account.',
       profileCreated: !profileError,
     });
 

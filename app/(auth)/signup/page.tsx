@@ -270,13 +270,16 @@ function SignupForm() {
                   </div>
                   <div className="ml-3 flex-1">
                     <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                      Account Created Successfully!
+                      Step 3: Verify Your Email Address
                     </h3>
                     <p className="text-sm text-blue-800 mb-3">
-                      Your account <strong>{signupEmail}</strong> has been created and is ready to use.
+                      We've sent a verification email to <strong>{signupEmail}</strong>. Please check your inbox and click the verification link to activate your account.
                     </p>
                     <p className="text-sm text-blue-700 mb-4">
-                      <strong>Next steps:</strong> Log in to complete your subscription setup and start your 14-day free trial.
+                      <strong>Why verify?</strong> We need to verify your email address before you can set up billing and access your account. This keeps your account secure.
+                    </p>
+                    <p className="text-sm text-blue-700 mb-4">
+                      <strong>Next steps:</strong> After verifying your email, log in to complete your subscription setup and start your 14-day free trial.
                     </p>
                     <div className="flex gap-3">
                       <button
