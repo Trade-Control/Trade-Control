@@ -508,6 +508,13 @@ export default function ResendDebugPage() {
               <div className="text-sm text-gray-600">Check Stripe configuration status</div>
             </a>
             <a
+              href="/debug/supabase"
+              className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div className="font-semibold text-gray-900 mb-1">Supabase Debug Page</div>
+              <div className="text-sm text-gray-600">Check Supabase authentication status</div>
+            </a>
+            <a
               href="https://resend.com/docs"
               target="_blank"
               rel="noopener noreferrer"

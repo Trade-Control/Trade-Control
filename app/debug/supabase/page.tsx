@@ -10,7 +10,7 @@ interface DebugInfo {
     vercelEnv: string;
     vercelUrl: string;
   };
-  stripe: {
+  supabase: {
     envVars: Record<string, {
       exists: boolean;
       length: number;
@@ -21,31 +21,53 @@ interface DebugInfo {
       success: boolean;
       error?: string;
       message?: string;
-      keyType?: string;
+      url?: string;
+    } | null;
+    serverClientTest: {
+      success: boolean;
+      error?: string;
+      message?: string;
+    } | null;
+    adminClientTest: {
+      success: boolean;
+      error?: string;
+      message?: string;
+      apiTest?: {
+        success: boolean;
+        error?: string;
+        message?: string;
+      };
     } | null;
     apiTest: {
       success: boolean;
       error?: string;
       message?: string;
-      accountId?: string;
-      country?: string;
-      defaultCurrency?: string;
-      chargesEnabled?: boolean;
-      payoutsEnabled?: boolean;
-      type?: string;
       code?: string;
+      hasData?: boolean;
+    } | null;
+    authTest: {
+      success: boolean;
+      error?: string;
+      message?: string;
+      hasUser?: boolean;
+      userId?: string | null;
+      userEmail?: string | null;
     } | null;
   };
   recommendations: string[];
   status: 'success' | 'partial' | 'error';
   summary: {
-    hasSecretKey: boolean;
+    hasUrl: boolean;
+    hasAnonKey: boolean;
+    hasServiceRole: boolean;
+    clientWorking: boolean;
+    serverClientWorking: boolean;
+    adminClientWorking: boolean;
     apiWorking: boolean;
-    allPriceIdsSet: boolean;
   };
 }
 
-export default function StripeDebugPage() {
+export default function SupabaseDebugPage() {
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +80,7 @@ export default function StripeDebugPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/debug/stripe');
+      const response = await fetch('/api/debug/supabase');
       const data = await response.json();
       
       if (!response.ok) {
@@ -144,8 +166,8 @@ export default function StripeDebugPage() {
         <div className="mb-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Stripe API Debug</h1>
-              <p className="text-gray-600 mt-2">Diagnostic information for Stripe configuration</p>
+              <h1 className="text-3xl font-bold text-gray-900">Supabase Authentication Debug</h1>
+              <p className="text-gray-600 mt-2">Diagnostic information for Supabase configuration and authentication</p>
               <p className="text-sm text-gray-500 mt-1">Public debug page - no authentication required</p>
             </div>
             <button
@@ -169,18 +191,22 @@ export default function StripeDebugPage() {
               <p className="text-sm opacity-80">Last checked: {new Date(debugInfo.timestamp).toLocaleString()}</p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white/50 rounded p-3">
-              <div className="text-sm opacity-70">Secret Key</div>
-              <div className="font-semibold">{debugInfo.summary.hasSecretKey ? '✅ Set' : '❌ Missing'}</div>
+              <div className="text-sm opacity-70">Supabase URL</div>
+              <div className="font-semibold">{debugInfo.summary.hasUrl ? '✅ Set' : '❌ Missing'}</div>
+            </div>
+            <div className="bg-white/50 rounded p-3">
+              <div className="text-sm opacity-70">Anon Key</div>
+              <div className="font-semibold">{debugInfo.summary.hasAnonKey ? '✅ Set' : '❌ Missing'}</div>
+            </div>
+            <div className="bg-white/50 rounded p-3">
+              <div className="text-sm opacity-70">Service Role</div>
+              <div className="font-semibold">{debugInfo.summary.hasServiceRole ? '✅ Set' : '⚠️ Missing'}</div>
             </div>
             <div className="bg-white/50 rounded p-3">
               <div className="text-sm opacity-70">API Connection</div>
               <div className="font-semibold">{debugInfo.summary.apiWorking ? '✅ Working' : '❌ Failed'}</div>
-            </div>
-            <div className="bg-white/50 rounded p-3">
-              <div className="text-sm opacity-70">Price IDs (Required)</div>
-              <div className="font-semibold">{debugInfo.summary.allPriceIdsSet ? '✅ All Set' : '❌ Missing'}</div>
             </div>
           </div>
         </div>
@@ -214,121 +240,169 @@ export default function StripeDebugPage() {
           </div>
         </div>
 
-        {/* Stripe Client Test */}
-        {debugInfo.stripe.clientTest && (
+        {/* Browser Client Test */}
+        {debugInfo.supabase.clientTest && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Stripe Client Test</h2>
-            {debugInfo.stripe.clientTest.success ? (
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Browser Client Test</h2>
+            {debugInfo.supabase.clientTest.success ? (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-green-600 font-semibold">✅ Success</span>
-                  {debugInfo.stripe.clientTest.keyType && (
-                    <span className="text-xs bg-green-200 text-green-800 px-2 py-1 rounded">
-                      {debugInfo.stripe.clientTest.keyType.toUpperCase()} Mode
-                    </span>
-                  )}
-                </div>
-                <p className="text-green-700">{debugInfo.stripe.clientTest.message}</p>
+                <div className="text-green-600 font-semibold mb-2">✅ Success</div>
+                <p className="text-green-700 mb-2">{debugInfo.supabase.clientTest.message}</p>
+                {debugInfo.supabase.clientTest.url && (
+                  <div className="text-sm text-green-600">
+                    <span className="font-medium">URL:</span>{' '}
+                    <span className="font-mono">{debugInfo.supabase.clientTest.url}</span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <div className="text-red-600 font-semibold mb-2">❌ Failed</div>
-                <p className="text-red-700">{debugInfo.stripe.clientTest.error}</p>
+                <p className="text-red-700">{debugInfo.supabase.clientTest.error}</p>
               </div>
             )}
           </div>
         )}
 
-        {/* Stripe API Test */}
-        {debugInfo.stripe.apiTest && (
+        {/* Server Client Test */}
+        {debugInfo.supabase.serverClientTest && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Stripe API Connection Test</h2>
-            {debugInfo.stripe.apiTest.success ? (
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Server Client Test</h2>
+            {debugInfo.supabase.serverClientTest.success ? (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="text-green-600 font-semibold mb-3">✅ API Connection Successful</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-gray-600">Account ID:</span>
-                    <span className="ml-2 font-mono">{debugInfo.stripe.apiTest.accountId}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Country:</span>
-                    <span className="ml-2">{debugInfo.stripe.apiTest.country}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Currency:</span>
-                    <span className="ml-2">{debugInfo.stripe.apiTest.defaultCurrency?.toUpperCase()}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Charges Enabled:</span>
-                    <span className="ml-2">{debugInfo.stripe.apiTest.chargesEnabled ? '✅' : '❌'}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Payouts Enabled:</span>
-                    <span className="ml-2">{debugInfo.stripe.apiTest.payoutsEnabled ? '✅' : '❌'}</span>
-                  </div>
-                </div>
+                <div className="text-green-600 font-semibold mb-2">✅ Success</div>
+                <p className="text-green-700">{debugInfo.supabase.serverClientTest.message}</p>
               </div>
             ) : (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="text-red-600 font-semibold mb-2">❌ API Connection Failed</div>
-                <p className="text-red-700 mb-2">{debugInfo.stripe.apiTest.error}</p>
-                {debugInfo.stripe.apiTest.type && (
-                  <div className="text-sm text-red-600">
-                    <span className="font-medium">Error Type:</span> {debugInfo.stripe.apiTest.type}
-                  </div>
-                )}
-                {debugInfo.stripe.apiTest.code && (
-                  <div className="text-sm text-red-600">
-                    <span className="font-medium">Error Code:</span> {debugInfo.stripe.apiTest.code}
-                  </div>
-                )}
+                <div className="text-red-600 font-semibold mb-2">❌ Failed</div>
+                <p className="text-red-700">{debugInfo.supabase.serverClientTest.error}</p>
               </div>
             )}
           </div>
         )}
 
-        {/* Subscription Configuration */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Subscription Configuration</h2>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-            <p className="text-sm text-blue-800">
-              <strong>Note:</strong> This app uses Stripe Checkout Sessions (not Payment Links) for subscription signups. 
-              This ensures email validation and proper redirect flow.
-            </p>
-          </div>
-          <div className="space-y-3">
-            {['STRIPE_PRICE_ID_OPERATIONS_BASE', 'STRIPE_PRICE_ID_OPERATIONS_PRO_SCALE', 'STRIPE_PRICE_ID_OPERATIONS_PRO_UNLIMITED'].map((varName) => {
-              const info = debugInfo.stripe.envVars[varName];
-              if (!info) return null;
-              return (
-                <div key={varName} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="font-mono text-sm text-gray-900">{varName}</div>
-                    {info.exists ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        ✅ Set
-                      </span>
+        {/* Admin Client Test */}
+        {debugInfo.supabase.adminClientTest && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Admin Client Test (Service Role)</h2>
+            {debugInfo.supabase.adminClientTest.success ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="text-green-600 font-semibold mb-2">✅ Success</div>
+                <p className="text-green-700 mb-3">{debugInfo.supabase.adminClientTest.message}</p>
+                {debugInfo.supabase.adminClientTest.apiTest && (
+                  <div className="mt-3 pt-3 border-t border-green-300">
+                    {debugInfo.supabase.adminClientTest.apiTest.success ? (
+                      <div className="text-sm text-green-700">
+                        ✅ {debugInfo.supabase.adminClientTest.apiTest.message}
+                      </div>
                     ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        ❌ Missing
-                      </span>
+                      <div className="text-sm text-red-700">
+                        ❌ {debugInfo.supabase.adminClientTest.apiTest.error}
+                      </div>
                     )}
                   </div>
-                  <div className="text-sm text-gray-600">
-                    <div className="font-medium mb-1">Preview:</div>
-                    <div className="font-mono text-xs bg-gray-50 p-2 rounded break-all">{info.preview}</div>
-                    {info.exists && <div className="mt-1 text-xs text-gray-500">Length: {info.length} characters</div>}
-                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="text-yellow-600 font-semibold mb-2">⚠️ Service Role Key Missing</div>
+                <p className="text-yellow-700 mb-2">{debugInfo.supabase.adminClientTest.error}</p>
+                <div className="text-sm text-yellow-700 mt-2">
+                  <p className="font-medium">Required for:</p>
+                  <ul className="list-disc list-inside mt-1 space-y-1">
+                    <li>User signup (bypasses RLS)</li>
+                    <li>Server-side admin operations</li>
+                    <li>Profile creation during signup</li>
+                  </ul>
+                  <p className="mt-2">
+                    Get it from: Supabase Dashboard → Settings → API → service_role key
+                  </p>
                 </div>
-              );
-            })}
+              </div>
+            )}
           </div>
-        </div>
+        )}
+
+        {/* Authentication Test */}
+        {debugInfo.supabase.authTest && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Authentication Test</h2>
+            <div className={`rounded-lg p-4 ${
+              debugInfo.supabase.authTest.success 
+                ? 'bg-green-50 border border-green-200' 
+                : 'bg-yellow-50 border border-yellow-200'
+            }`}>
+              <div className="text-sm space-y-2">
+                <div>
+                  <span className="font-medium">Status:</span>{' '}
+                  {debugInfo.supabase.authTest.success ? '✅ Working' : '⚠️ No Session'}
+                </div>
+                <div>
+                  <span className="font-medium">Message:</span>{' '}
+                  {debugInfo.supabase.authTest.message}
+                </div>
+                {debugInfo.supabase.authTest.hasUser && (
+                  <>
+                    <div>
+                      <span className="font-medium">User ID:</span>{' '}
+                      <span className="font-mono text-xs">{debugInfo.supabase.authTest.userId}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Email:</span>{' '}
+                      {debugInfo.supabase.authTest.userEmail}
+                    </div>
+                  </>
+                )}
+                {debugInfo.supabase.authTest.error && (
+                  <div className="text-red-600">
+                    <span className="font-medium">Error:</span>{' '}
+                    {debugInfo.supabase.authTest.error}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Database API Test */}
+        {debugInfo.supabase.apiTest && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Database Connectivity Test</h2>
+            {debugInfo.supabase.apiTest.success ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="text-green-600 font-semibold mb-2">✅ Success</div>
+                <p className="text-green-700">{debugInfo.supabase.apiTest.message}</p>
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="text-yellow-600 font-semibold mb-2">⚠️ Query Result</div>
+                <p className="text-yellow-700 mb-2">{debugInfo.supabase.apiTest.message}</p>
+                {debugInfo.supabase.apiTest.error && (
+                  <div className="text-sm text-yellow-700">
+                    <div className="font-medium mb-1">Error Details:</div>
+                    <div className="font-mono text-xs bg-yellow-100 p-2 rounded break-all">
+                      {debugInfo.supabase.apiTest.error}
+                    </div>
+                    {debugInfo.supabase.apiTest.code && (
+                      <div className="mt-1">
+                        <span className="font-medium">Code:</span> {debugInfo.supabase.apiTest.code}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="mt-3 text-sm text-yellow-700">
+                  <p className="font-medium">Note:</p>
+                  <p>This is normal if you're not authenticated. RLS policies may block queries for unauthenticated users.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Environment Variables */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">All Environment Variables</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Environment Variables</h2>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -340,15 +414,8 @@ export default function StripeDebugPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {Object.entries(debugInfo.stripe.envVars)
-                  .sort(([a], [b]) => {
-                    // Sort price IDs to the top
-                    if (a.includes('PRICE_ID') && !b.includes('PRICE_ID')) return -1;
-                    if (!a.includes('PRICE_ID') && b.includes('PRICE_ID')) return 1;
-                    return a.localeCompare(b);
-                  })
-                  .map(([varName, info]: [string, any]) => (
-                  <tr key={varName} className={varName.includes('PRICE_ID') ? 'bg-green-50' : ''}>
+                {Object.entries(debugInfo.supabase.envVars).map(([varName, info]) => (
+                  <tr key={varName}>
                     <td className="px-4 py-3 text-sm font-mono text-gray-900">{varName}</td>
                     <td className="px-4 py-3">
                       {info.exists ? (
@@ -388,13 +455,13 @@ export default function StripeDebugPage() {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <a
-              href="https://dashboard.stripe.com/test/apikeys"
+              href="https://supabase.com/dashboard"
               target="_blank"
               rel="noopener noreferrer"
               className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <div className="font-semibold text-gray-900 mb-1">Stripe Dashboard</div>
-              <div className="text-sm text-gray-600">View your API keys and account settings</div>
+              <div className="font-semibold text-gray-900 mb-1">Supabase Dashboard</div>
+              <div className="text-sm text-gray-600">View your project settings and API keys</div>
             </a>
             <a
               href="https://vercel.com/docs/concepts/projects/environment-variables"
@@ -413,11 +480,11 @@ export default function StripeDebugPage() {
               <div className="text-sm text-gray-600">Check Resend email configuration status</div>
             </a>
             <a
-              href="/debug/supabase"
+              href="/debug/stripe"
               className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <div className="font-semibold text-gray-900 mb-1">Supabase Debug Page</div>
-              <div className="text-sm text-gray-600">Check Supabase authentication status</div>
+              <div className="font-semibold text-gray-900 mb-1">Stripe Debug Page</div>
+              <div className="text-sm text-gray-600">Check Stripe configuration status</div>
             </a>
           </div>
         </div>
