@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      email_confirm: false, // User must verify email
+      email_confirm: true, // TEMPORARY FIX: Auto-confirm to bypass "Database error checking email"
       user_metadata: {
         first_name: firstName,
         last_name: lastName,
@@ -173,9 +173,8 @@ export async function POST(request: NextRequest) {
       console.log('Profile created successfully');
     }
 
-    // Step 3: Send verification email
-    // Note: Supabase sends this automatically when email_confirm is false
-    // But we can manually trigger it if needed
+    // Step 3: Email is auto-confirmed (temporary fix for "Database error checking email")
+    // TODO: Re-enable email verification once Supabase trigger issue is resolved
     
     // Return success response
     return NextResponse.json({
@@ -184,7 +183,7 @@ export async function POST(request: NextRequest) {
         id: authData.user.id,
         email: authData.user.email,
       },
-      message: 'Account created successfully. Please check your email to verify your account.',
+      message: 'Account created successfully. You can now log in.',
       profileCreated: !profileError,
     });
 
