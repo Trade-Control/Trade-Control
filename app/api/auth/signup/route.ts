@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { email, password, firstName, lastName, phone, selectedTier } = body;
+    const { email, password, firstName, lastName, phone } = body;
 
     // Validate required fields
     if (!email || !password) {
@@ -137,7 +137,6 @@ export async function POST(request: NextRequest) {
         first_name: firstName,
         last_name: lastName,
         phone: phone || null,
-        selected_tier: selectedTier || null,
       },
     });
 

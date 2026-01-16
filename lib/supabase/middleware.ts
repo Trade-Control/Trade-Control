@@ -44,8 +44,7 @@ export async function updateSession(request: NextRequest) {
 
   // Check if user is authenticated
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') || 
-                     request.nextUrl.pathname.startsWith('/signup') ||
-                     request.nextUrl.pathname.startsWith('/get-started');
+                     request.nextUrl.pathname.startsWith('/signup');
   const isSubscribePage = request.nextUrl.pathname.startsWith('/subscribe');
   const isOnboardingPage = request.nextUrl.pathname.startsWith('/onboarding');
   const isSuccessPage = request.nextUrl.pathname.startsWith('/subscription/success') ||

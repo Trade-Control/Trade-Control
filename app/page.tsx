@@ -184,17 +184,17 @@ export default function HomePage() {
               <a href="#pricing" className="text-gray-600 hover:text-primary transition-colors font-medium">Pricing</a>
               <Link href="/login" className="text-gray-600 hover:text-primary transition-colors font-medium">Log In</Link>
               <Link
-                href="/get-started"
+                href="/signup"
                 className="bg-primary hover:bg-primary-hover text-white px-6 py-2.5 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5"
               >
-                Get Started
+                Sign Up
               </Link>
             </div>
             <Link
-              href="/get-started"
+              href="/signup"
               className="md:hidden bg-primary text-white px-4 py-2 rounded-lg font-semibold"
             >
-              Get Started
+              Sign Up
             </Link>
           </div>
         </div>
@@ -270,7 +270,7 @@ export default function HomePage() {
 
           <div className={`flex flex-col sm:flex-row gap-4 justify-center transition-all duration-1000 delay-500 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <Link
-              href="/get-started"
+              href="/signup"
               className="group relative bg-gradient-to-r from-primary to-primary-hover text-white px-8 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 shadow-xl shadow-primary/30 hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-1 overflow-hidden"
             >
               <span className="relative z-10 flex items-center justify-center">
@@ -484,7 +484,7 @@ export default function HomePage() {
                   ))}
                 </ul>
                 <Link
-                  href="/get-started"
+                  href="/signup"
                   className="block w-full text-center bg-gray-900 hover:bg-gray-800 text-white py-4 rounded-xl font-semibold transition-colors"
                 >
                   Start Free Trial
@@ -524,7 +524,7 @@ export default function HomePage() {
                   ))}
                 </ul>
                 <Link
-                  href="/get-started"
+                  href="/signup"
                   className="block w-full text-center bg-white text-primary hover:bg-gray-100 py-4 rounded-xl font-semibold transition-colors"
                 >
                   Start Free Trial
@@ -553,7 +553,7 @@ export default function HomePage() {
                 Join Australian trade businesses managing their workforce with Trade Control
               </p>
               <Link
-                href="/get-started"
+                href="/signup"
                 className="inline-flex items-center bg-primary hover:bg-primary-hover text-white px-10 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 shadow-xl shadow-primary/30 hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-1"
               >
                 Start Your Free Trial

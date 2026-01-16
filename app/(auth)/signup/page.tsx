@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -17,11 +17,6 @@ function SignupForm() {
   const [showEmailVerificationNotice, setShowEmailVerificationNotice] = useState(false);
   const [signupEmail, setSignupEmail] = useState('');
   const router = useRouter();
-  const searchParams = useSearchParams();
-  
-  // Get tier from URL params
-  const tierParam = searchParams.get('tier');
-  const [selectedTier] = useState<string | null>(tierParam);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +49,6 @@ function SignupForm() {
           firstName,
           lastName,
           phone: phone || null,
-          selectedTier: selectedTier || null,
         }),
       });
 
@@ -147,18 +141,8 @@ function SignupForm() {
           </div>
 
           <div className="mb-8">
-            <div className="inline-flex items-center px-4 py-2 bg-primary/10 rounded-full mb-4">
-              <span className="text-sm font-medium text-primary">Step 2 of 4: Create Your Account</span>
-            </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Create your account</h1>
             <p className="text-gray-600">Get started with Trade Control in minutes</p>
-            {selectedTier && (
-              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-800">
-                  <strong>Selected Plan:</strong> {selectedTier === 'operations' ? 'Operations' : 'Operations Pro'}
-                </p>
-              </div>
-            )}
           </div>
 
           <form onSubmit={handleSignup} className="space-y-5">
@@ -337,21 +321,6 @@ function SignupForm() {
   );
 }
 
-function SignupLoading() {
-  return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading...</p>
-      </div>
-    </div>
-  );
-}
-
 export default function SignupPage() {
-  return (
-    <Suspense fallback={<SignupLoading />}>
-      <SignupForm />
-    </Suspense>
-  );
+  return <SignupForm />;
 }

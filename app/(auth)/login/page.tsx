@@ -96,13 +96,8 @@ export default function LoginPage() {
             router.push('/dashboard');
           }
         } else {
-          // No organization - redirect to subscribe with tier from metadata if available
-          const tierFromMetadata = data.user.user_metadata?.selected_tier;
-          if (tierFromMetadata) {
-            router.push(`/subscribe?tier=${tierFromMetadata}`);
-          } else {
-            router.push('/subscribe');
-          }
+          // No organization - redirect to subscribe page
+          router.push('/subscribe');
         }
       }
     } catch (error: any) {
