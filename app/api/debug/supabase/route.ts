@@ -480,7 +480,7 @@ export async function POST(request: NextRequest) {
 
       const result = await checkExistingUser(adminClient, email);
       
-      if (result.exists) {
+      if (result.exists && result.user) {
         // Also check if profile exists
         const { data: profileData } = await adminClient
           .from('profiles')
@@ -513,7 +513,7 @@ export async function POST(request: NextRequest) {
 
       const result = await checkExistingUser(adminClient, email);
       
-      if (!result.exists) {
+      if (!result.exists || !result.user) {
         return NextResponse.json({
           success: false,
           message: 'No user found with this email.',
