@@ -12,12 +12,15 @@
     "@googlemaps/js-api-loader": "^2.0.2",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.3",
     "nanoid": "^5.1.6",
     "next": "^15.5.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "resend": "^4.8.0",
-    "stripe": "^17.7.0"
+    "stripe": "^17.7.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/google.maps": "^3.58.1",

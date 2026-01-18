@@ -326,15 +326,18 @@ export default function QuotesPage() {
       alert('Failed to convert quote to invoice: ' + (error.message || 'Unknown error'));
     }
   };
+
+  const handleDeleteQuote = async (quoteId: string) => {
     if (!confirm('Are you sure you want to delete this quote? This cannot be undone.')) return;
 
     try {
       // Soft delete by setting deleted_at
+      const { data: { user } } = await supabase.auth.getUser();
       await supabase
         .from('quotes')
         .update({ 
           deleted_at: new Date().toISOString(),
-          last_edited_by: (await supabase.auth.getUser()).data.user?.id,
+          last_edited_by: user?.id,
           last_edited_at: new Date().toISOString()
         })
         .eq('id', quoteId);
