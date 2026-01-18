@@ -75,7 +75,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[Stripe Webhook] Received event:', event.type);
 
     const supabase = await createClient();
 
@@ -85,7 +84,6 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
         
-        console.log('[Stripe Webhook] Updating subscription:', subscription.id);
 
         // Find organization by stripe_customer_id
         const { data: existingSubscription } = await supabase
@@ -129,7 +127,6 @@ export async function POST(request: NextRequest) {
                 })
                 .eq('id', license.id);
 
-              console.log('[Stripe Webhook] License marked for removal:', license.id);
             }
           }
         }
@@ -147,8 +144,6 @@ export async function POST(request: NextRequest) {
 
         if (updateError) {
           console.error('[Stripe Webhook] Error updating subscription:', updateError);
-        } else {
-          console.log('[Stripe Webhook] Subscription updated successfully');
         }
 
         break;
@@ -157,7 +152,6 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
         
-        console.log('[Stripe Webhook] Subscription deleted:', subscription.id);
 
         const { error: deleteError } = await supabase
           .from('subscriptions')
@@ -170,7 +164,6 @@ export async function POST(request: NextRequest) {
         if (deleteError) {
           console.error('[Stripe Webhook] Error cancelling subscription:', deleteError);
         } else {
-          console.log('[Stripe Webhook] Subscription cancelled successfully');
         }
 
         // Also mark all licenses as inactive
@@ -222,7 +215,6 @@ export async function POST(request: NextRequest) {
                 })
                 .in('id', licenseIds);
 
-              console.log('[Stripe Webhook] Deactivated licenses:', licenseIds.length);
             }
           }
         }
@@ -233,7 +225,6 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
         
-        console.log('[Stripe Webhook] Subscription deleted:', subscription.id);
 
         const { error: deleteError } = await supabase
           .from('subscriptions')
@@ -246,7 +237,6 @@ export async function POST(request: NextRequest) {
         if (deleteError) {
           console.error('[Stripe Webhook] Error cancelling subscription:', deleteError);
         } else {
-          console.log('[Stripe Webhook] Subscription cancelled successfully');
         }
 
         // Also mark all licenses as inactive
@@ -269,7 +259,6 @@ export async function POST(request: NextRequest) {
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object;
         
-        console.log('[Stripe Webhook] Payment succeeded for invoice:', invoice.id);
 
         // Update subscription status to active if it was past_due
         if (invoice.subscription) {
@@ -284,7 +273,6 @@ export async function POST(request: NextRequest) {
           if (updateError) {
             console.error('[Stripe Webhook] Error updating subscription after payment:', updateError);
           } else {
-            console.log('[Stripe Webhook] Subscription reactivated after payment');
           }
         }
 
@@ -294,7 +282,6 @@ export async function POST(request: NextRequest) {
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
         
-        console.log('[Stripe Webhook] Payment failed for invoice:', invoice.id);
 
         // Mark subscription as past_due
         if (invoice.subscription) {
@@ -309,7 +296,6 @@ export async function POST(request: NextRequest) {
           if (updateError) {
             console.error('[Stripe Webhook] Error updating subscription after failed payment:', updateError);
           } else {
-            console.log('[Stripe Webhook] Subscription marked as past_due');
           }
 
           // Optionally: Send notification email to organization owner
@@ -322,7 +308,6 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.trial_will_end': {
         const subscription = event.data.object;
         
-        console.log('[Stripe Webhook] Trial ending soon for:', subscription.id);
 
         // Optionally: Send reminder email about trial ending
         // Get organization email and send notification via Resend
@@ -333,9 +318,6 @@ export async function POST(request: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         
-        console.log('[Stripe Webhook] Checkout session completed:', session.id);
-        console.log('[Stripe Webhook] Session mode:', session.mode);
-        console.log('[Stripe Webhook] Session metadata:', session.metadata);
 
         const action = session.metadata?.action;
         const stripe = getStripeClient();
@@ -404,7 +386,6 @@ export async function POST(request: NextRequest) {
                 })
                 .eq('id', dbSubscription.id);
 
-              console.log('[Stripe Webhook] Trial upgrade completed successfully');
             } else {
               // User already paying - just add Pro tier to existing subscription
               const proPriceId = operationsProLevel === 'scale'
@@ -440,7 +421,6 @@ export async function POST(request: NextRequest) {
                 })
                 .eq('id', dbSubscription.id);
 
-              console.log('[Stripe Webhook] Upgrade completed successfully');
             }
           } catch (upgradeError: any) {
             console.error('[Stripe Webhook] Error processing upgrade:', upgradeError);
@@ -479,7 +459,6 @@ export async function POST(request: NextRequest) {
                 quantity: finalQuantity,
               });
               subscriptionItemId = existingItem.id;
-              console.log('[Stripe Webhook] Updated existing license subscription item quantity from', existingItem.quantity, 'to', finalQuantity);
             } else {
               // Create new subscription item
               const addedItem = await stripe.subscriptionItems.create({
@@ -489,7 +468,6 @@ export async function POST(request: NextRequest) {
               });
               subscriptionItemId = addedItem.id;
               finalQuantity = quantity;
-              console.log('[Stripe Webhook] Created new license subscription item');
             }
 
             // Create licenses in database
@@ -526,21 +504,19 @@ export async function POST(request: NextRequest) {
                 }
               }
 
-              console.log('[Stripe Webhook] License addition completed successfully');
             }
           } catch (licenseError: any) {
             console.error('[Stripe Webhook] Error processing license addition:', licenseError);
           }
         } else {
-          // New signup from Payment Link - handled by success page, but we can log it
-          console.log('[Stripe Webhook] New signup checkout completed (handled by success page)');
+          // New signup from Payment Link - handled by success page
         }
 
         break;
       }
 
       default:
-        console.log('[Stripe Webhook] Unhandled event type:', event.type);
+        // Unhandled event type - no action needed
     }
 
     return NextResponse.json({ received: true }, { status: 200 });

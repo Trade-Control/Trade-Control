@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
       trial_ends_at,
     } = body;
 
-    console.log('📝 Complete signup for user:', user_id);
 
     if (!user_id) {
       return NextResponse.json(
@@ -54,7 +53,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🔧 Calling complete_signup RPC function...');
 
     // Use the comprehensive database function
     const { data, error: funcError } = await supabase.rpc('complete_signup', {
@@ -99,7 +97,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Complete signup successful:', data);
 
     // Parse the result if it's a string
     const result = typeof data === 'string' ? JSON.parse(data) : data;

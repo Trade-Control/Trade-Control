@@ -94,12 +94,10 @@ function SignupForm() {
       // Check if email confirmation is required
       if (data?.user && !data.user.confirmed_at) {
         // User created but needs email verification
-        console.log('Signup successful, verification email sent:', data.user.email);
         setSignupEmail(email);
         setShowEmailVerificationNotice(true);
       } else if (data?.user?.confirmed_at) {
         // Email already confirmed (shouldn't happen for new signups, but handle it)
-        console.log('User already confirmed, redirecting to login');
         router.push('/login');
       } else {
         // Fallback - show verification notice

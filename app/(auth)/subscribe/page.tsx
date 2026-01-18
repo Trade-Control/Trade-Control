@@ -39,7 +39,6 @@ function SubscribeForm() {
         
         if (!user || authError) {
           // Not authenticated - redirect to signup
-          console.log('User not authenticated, redirecting to signup');
           router.push(`/signup${tierParam ? `?tier=${tierParam}` : ''}`);
           return;
         }
@@ -138,8 +137,6 @@ function SubscribeForm() {
     setLoading(true);
 
     try {
-      console.log('🔵 Starting subscription flow for authenticated user...');
-      console.log('User ID:', userId);
 
       // Step 2: Store subscription details temporarily for success page
       const pendingSubscription = {
@@ -152,10 +149,8 @@ function SubscribeForm() {
       };
       
       sessionStorage.setItem('pending_subscription', JSON.stringify(pendingSubscription));
-      console.log('✅ Subscription details stored');
 
       // Step 3: Create checkout session and redirect
-      console.log('Step 2: Creating Stripe Checkout Session...');
       const checkoutResponse = await fetch('/api/subscriptions/create-checkout-session', {
         method: 'POST',
         headers: {
@@ -181,7 +176,6 @@ function SubscribeForm() {
         throw new Error('Failed to create checkout session - no URL returned');
       }
 
-      console.log('✅ Checkout session created, redirecting to Stripe...');
       
       // Redirect to Stripe Checkout
       window.location.href = url;

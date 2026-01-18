@@ -144,7 +144,6 @@ export async function POST(request: NextRequest) {
       }
 
       priceId = price.id;
-      console.log(`Created/found ${productName} Price ID: ${priceId}`);
     }
 
     // Get subscription to calculate pro-rata amount

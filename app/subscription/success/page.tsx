@@ -37,7 +37,6 @@ function SuccessHandler() {
 
       // Verify checkout session FIRST to get user_id from metadata
       // This allows us to handle unauthenticated users
-      console.log('🔍 Verifying Stripe checkout session...');
       const session = await fetch('/api/subscriptions/verify-session', {
         method: 'POST',
         headers: {
@@ -50,8 +49,6 @@ function SuccessHandler() {
         throw new Error(session.error || 'Failed to verify checkout session');
       }
       
-      console.log('✅ Stripe session verified');
-      
       // Get user_id from Stripe metadata
       const userIdFromStripe = session.metadata?.user_id;
       if (!userIdFromStripe) {
@@ -63,7 +60,6 @@ function SuccessHandler() {
       
       // If not authenticated, redirect to login with return URL
       if (authError || !user) {
-        console.log('⚠️ User not authenticated, redirecting to login...');
         // Store session_id in sessionStorage so we can retrieve it after login
         sessionStorage.setItem('pending_stripe_session', sessionId);
         router.push(`/login?returnUrl=${encodeURIComponent('/subscription/success?session_id=' + sessionId)}`);
@@ -74,8 +70,6 @@ function SuccessHandler() {
       if (user.id !== userIdFromStripe) {
         throw new Error('User ID mismatch. Please contact support.');
       }
-      
-      console.log('✅ User authenticated:', user.id);
 
       // Check if this is an upgrade (action === 'upgrade_to_pro') or new signup
       const action = session.metadata?.action;
@@ -84,8 +78,6 @@ function SuccessHandler() {
       if (isUpgrade) {
         // Upgrade flow: Webhook should have already updated the subscription
         // Just verify the subscription was updated and redirect to dashboard
-        console.log('🔄 Processing upgrade flow...');
-        
         const { data: profile } = await supabase
           .from('profiles')
           .select('organization_id')
@@ -106,8 +98,6 @@ function SuccessHandler() {
         if (!subscription) {
           throw new Error('Subscription not found. Please contact support.');
         }
-
-        console.log('✅ Upgrade verified, subscription status:', subscription.status);
         
         setStatus('success');
         
@@ -131,10 +121,7 @@ function SuccessHandler() {
         throw new Error('User mismatch - please contact support');
       }
       
-      console.log('✅ Subscription data retrieved from session storage');
-
       // Complete signup via API route
-      console.log('📝 Creating organization and subscription...');
       const signupResponse = await fetch('/api/signup/complete', {
         method: 'POST',
         headers: {
@@ -165,9 +152,6 @@ function SuccessHandler() {
       if (!signupResult.success) {
         throw new Error('Signup failed - no success confirmation');
       }
-      
-      console.log('✅ Organization and subscription created successfully');
-      console.log('Organization ID:', signupResult.organization_id);
 
       // Verify profile was updated with organization_id
       const { data: verifyProfile } = await supabase
@@ -179,8 +163,6 @@ function SuccessHandler() {
       if (!verifyProfile?.organization_id) {
         throw new Error('Profile was not updated with organization. Please contact support.');
       }
-      
-      console.log('✅ Profile verified with organization_id:', verifyProfile.organization_id);
 
       // Clear pending subscription data
       sessionStorage.removeItem('pending_subscription');

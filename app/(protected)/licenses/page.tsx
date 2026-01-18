@@ -39,12 +39,9 @@ export default function LicensesPage() {
       }
       
       if (!user) {
-        console.log('No user found');
         setLoading(false);
         return;
       }
-
-      console.log('🔵 Fetching profile for user:', user.id);
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('organization_id, role')
@@ -58,13 +55,9 @@ export default function LicensesPage() {
       }
 
       if (!profile?.organization_id) {
-        console.log('⚠️ No organization_id found for user');
         setLoading(false);
         return;
       }
-
-      console.log('🔵 Fetching licenses for org:', profile.organization_id);
-      console.log('🔵 User role:', profile.role);
       
       // First try without the join to see if basic query works
       const { data: licensesData, error: licensesError } = await supabase
@@ -84,16 +77,6 @@ export default function LicensesPage() {
         return;
       }
 
-      console.log('✅ Basic licenses query successful:', licensesData?.length || 0);
-      console.log('🔵 Raw licenses data:', JSON.stringify(licensesData, null, 2));
-      
-      // Check if there are any licenses at all in the database for this org
-      const { count: totalCount } = await supabase
-        .from('licenses')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', profile.organization_id);
-      
-      console.log('🔵 Total licenses count for org:', totalCount);
 
       // Now try to fetch profile data for each license separately
       const licensesWithProfiles = await Promise.all(
@@ -106,7 +89,7 @@ export default function LicensesPage() {
               .single();
             
             if (profileErr) {
-              console.warn('⚠️ Could not fetch profile for license:', license.id, profileErr);
+              // Profile fetch failed, continue without profile data
             }
             
             return {
@@ -118,7 +101,6 @@ export default function LicensesPage() {
         })
       );
 
-      console.log('✅ Licenses with profiles:', licensesWithProfiles.length);
       setLicenses(licensesWithProfiles);
     } catch (err: any) {
       console.error('❌ Unexpected error:', err);

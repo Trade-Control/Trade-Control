@@ -53,7 +53,6 @@ export async function POST(request: NextRequest) {
     const supabase = createAdminClient();
 
     // Check if profile already exists
-    console.log('Checking if profile exists for user:', userId);
     const { data: existingProfile, error: checkError } = await supabase
       .from('profiles')
       .select('id, first_name, last_name')
@@ -71,7 +70,6 @@ export async function POST(request: NextRequest) {
 
     // If profile exists, return it
     if (existingProfile) {
-      console.log('Profile already exists:', existingProfile.id);
       return NextResponse.json({
         success: true,
         profileExists: true,
@@ -81,7 +79,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Profile doesn't exist, create it
-    console.log('Creating profile for user:', userId);
 
     // Get user details from the authenticated session's metadata
     const userMetadata = user.user_metadata || {};
@@ -131,7 +128,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Profile created successfully:', newProfile.id);
 
     return NextResponse.json({
       success: true,

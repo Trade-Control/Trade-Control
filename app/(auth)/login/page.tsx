@@ -59,7 +59,6 @@ function LoginForm() {
         
         if (user && !authError) {
           // User is authenticated - redirect them appropriately
-          console.log('User already authenticated, redirecting...');
           
           // Ensure profile exists
           try {
@@ -174,9 +173,7 @@ function LoginForm() {
             console.warn('Failed to ensure profile, continuing anyway');
           } else {
             const ensureData = await ensureResponse.json();
-            if (ensureData.profileCreated) {
-              console.log('Profile was created during login');
-            }
+            // Profile ensured during login
           }
         } catch (ensureError) {
           console.warn('Error ensuring profile:', ensureError);

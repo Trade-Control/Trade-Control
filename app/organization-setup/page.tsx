@@ -90,7 +90,6 @@ export default function OrganizationSetupPage() {
         throw new Error('Not authenticated');
       }
 
-      console.log('User authenticated:', user.id);
 
       // First, verify the profile exists
       const { data: profile, error: profileCheckError } = await supabase
@@ -99,11 +98,9 @@ export default function OrganizationSetupPage() {
         .eq('id', user.id)
         .single();
 
-      console.log('Profile check result:', profile, profileCheckError);
 
       if (profileCheckError) {
         // Profile doesn't exist, create it first
-        console.log('Creating profile...');
         const { error: profileCreateError } = await supabase
           .from('profiles')
           .insert([{
@@ -117,7 +114,6 @@ export default function OrganizationSetupPage() {
       }
 
       // Create organisation with created_by field
-      console.log('Creating organisation...');
       const { data: organisation, error: orgError } = await supabase
         .from('organizations')
         .insert([{
@@ -127,7 +123,6 @@ export default function OrganizationSetupPage() {
         .select()
         .single();
 
-      console.log('Organisation creation result:', organisation, orgError);
 
       if (orgError) {
         console.error('Organisation error:', orgError);
@@ -135,20 +130,17 @@ export default function OrganizationSetupPage() {
       }
 
       // Update user profile with organisation_id
-      console.log('Updating profile with organisation_id...');
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ organization_id: organisation.id })
         .eq('id', user.id);
 
-      console.log('Profile update result:', profileError);
 
       if (profileError) {
         console.error('Profile update error:', profileError);
         throw new Error(`Failed to link organisation to profile: ${profileError.message}`);
       }
 
-      console.log('Organisation setup complete!');
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (error: any) {

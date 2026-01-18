@@ -43,9 +43,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(errorUrl.toString());
       }
 
-      if (data.session) {
-        console.log('Session created successfully for user:', data.session.user.id);
-      }
+      // Session created successfully
 
       // Success - redirect to the next page (usually login with verified=true)
       return NextResponse.redirect(new URL(next, requestUrl.origin).toString());
