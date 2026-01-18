@@ -287,7 +287,7 @@ export default function QuotesPage() {
 
       // Copy quote items to invoice items
       if (quoteItems && quoteItems.length > 0) {
-        const invoiceItems = quoteItems.map(item => ({
+        const invoiceItems = quoteItems.map((item: any) => ({
           invoice_id: invoice.id,
           description: item.description,
           quantity: item.quantity,
