@@ -144,7 +144,7 @@ export default function JobDetailPage() {
           </div>
           <div className="flex items-center gap-2">
               <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${getStatusColor(job.status)}`}>
-                {job.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                {job.status.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
               </span>
             {job.status !== 'completed' && job.status !== 'cancelled' && (
               <button
