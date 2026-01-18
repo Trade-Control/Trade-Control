@@ -6,9 +6,12 @@ import { License, Profile } from '@/lib/types/database.types';
 import { getUserPermissions } from '@/lib/middleware/role-check';
 import { formatPrice, getLicenseTypeName, getLicensePrice } from '@/lib/services/stripe';
 import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 export default function LicensesPage() {
   const supabase = useSafeSupabaseClient();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [licenses, setLicenses] = useState<(License & { profiles?: Profile })[]>([]);
   const [loading, setLoading] = useState(true);
   const [canManage, setCanManage] = useState(false);
@@ -19,6 +22,31 @@ export default function LicensesPage() {
       fetchLicenses();
     }
   }, [supabase]);
+
+  // Refresh licenses when page becomes visible or when refresh param is present
+  useEffect(() => {
+    if (!supabase) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Re-fetch licenses when page becomes visible (e.g., after returning from purchase)
+        fetchLicenses();
+      }
+    };
+
+    // Check if refresh param is present (e.g., coming from license purchase success)
+    const shouldRefresh = searchParams?.get('refresh') === 'true';
+    if (shouldRefresh) {
+      fetchLicenses();
+      // Remove refresh param from URL
+      window.history.replaceState({}, '', pathname);
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [supabase, pathname, searchParams]);
 
   const checkPermissions = async () => {
     const permissions = await getUserPermissions();

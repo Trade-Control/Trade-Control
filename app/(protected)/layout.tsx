@@ -15,13 +15,29 @@ export default function ProtectedLayout({
   const supabase = useSafeSupabaseClient();
   const [loading, setLoading] = useState(true);
   const checkedRef = useRef(false);
+  const lastPathnameRef = useRef<string>('');
+
+  // Pro plan routes that require tier check
+  const proPlanRoutes = ['/contractors', '/compliance'];
 
   useEffect(() => {
-    if (supabase && !checkedRef.current) {
+    if (!supabase) return;
+    
+    // Check if this is a pro plan route
+    const isProPlanRoute = proPlanRoutes.some(route => pathname.startsWith(route));
+    const pathnameChanged = lastPathnameRef.current !== pathname;
+    
+    // Always check on first load, or if navigating to/from a pro plan route
+    if (!checkedRef.current || (isProPlanRoute && pathnameChanged)) {
       checkedRef.current = true;
+      lastPathnameRef.current = pathname;
       checkSubscriptionStatus();
+    } else if (pathnameChanged) {
+      // For other routes, just update the ref
+      lastPathnameRef.current = pathname;
+      setLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, pathname]);
 
   const checkSubscriptionStatus = async () => {
     if (!supabase) return;
@@ -57,10 +73,10 @@ export default function ProtectedLayout({
         return;
       }
 
-      // Check subscription status
+      // Check subscription status (include tier for pro plan route checks)
       const { data: subscription } = await supabase
         .from('subscriptions')
-        .select('id, status')
+        .select('id, status, tier')
         .eq('organization_id', profile.organization_id)
         .single();
 

@@ -12,6 +12,7 @@ function SuccessHandler() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
+  const [pollingMessage, setPollingMessage] = useState('');
 
   useEffect(() => {
     if (!supabase) return;
@@ -76,8 +77,7 @@ function SuccessHandler() {
       const isUpgrade = action === 'upgrade_to_pro';
 
       if (isUpgrade) {
-        // Upgrade flow: Webhook should have already updated the subscription
-        // Just verify the subscription was updated and redirect to dashboard
+        // Upgrade flow: Poll for webhook to update subscription tier
         const { data: profile } = await supabase
           .from('profiles')
           .select('organization_id')
@@ -88,22 +88,60 @@ function SuccessHandler() {
           throw new Error('Organization not found. Please contact support.');
         }
 
-        // Verify subscription was updated (webhook should have done this)
-        const { data: subscription } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('organization_id', profile.organization_id)
-          .single();
+        // Poll for subscription tier update (webhook may take a few seconds)
+        const pollForSubscriptionUpdate = async (maxAttempts = 5): Promise<boolean> => {
+          for (let i = 0; i < maxAttempts; i++) {
+            // Wait 2 seconds between attempts (except first attempt)
+            if (i > 0) {
+              setPollingMessage(`Waiting for upgrade to process... (${i}/${maxAttempts - 1})`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            } else {
+              setPollingMessage('Verifying upgrade...');
+            }
+            
+            const { data: subscription, error: subError } = await supabase
+              .from('subscriptions')
+              .select('tier, status')
+              .eq('organization_id', profile.organization_id)
+              .single();
 
-        if (!subscription) {
-          throw new Error('Subscription not found. Please contact support.');
+            if (subError) {
+              console.error('Error checking subscription:', subError);
+              continue;
+            }
+
+            if (!subscription) {
+              continue;
+            }
+
+            // Check if tier was updated to operations_pro
+            if (subscription.tier === 'operations_pro' && 
+                (subscription.status === 'active' || subscription.status === 'trialing')) {
+              setPollingMessage('');
+              return true;
+            }
+          }
+          setPollingMessage('');
+          return false;
+        };
+
+        const upgradeSuccessful = await pollForSubscriptionUpdate(5);
+        
+        if (!upgradeSuccessful) {
+          // Still show success but warn that it may take a moment
+          setStatus('success');
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 2000);
+          return;
         }
         
         setStatus('success');
         
-        // Redirect to dashboard after a short delay
+        // Redirect to contractors page (pro plan feature) with refresh param
+        // This ensures the page re-checks access immediately
         setTimeout(() => {
-          router.push('/dashboard');
+          router.push('/contractors?refresh=true');
         }, 2000);
         return;
       }
@@ -187,7 +225,7 @@ function SuccessHandler() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Processing your subscription...</p>
+          <p className="text-gray-600">{pollingMessage || 'Processing your subscription...'}</p>
         </div>
       </div>
     );

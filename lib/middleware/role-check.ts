@@ -165,11 +165,13 @@ export async function hasOperationsPro(): Promise<boolean> {
       return false;
     }
     
+    // Query subscription with fresh data (Supabase client queries are fresh by default)
+    // Using maybeSingle to handle cases where subscription might not exist yet
     const { data: subscription, error: subError } = await supabase
       .from('subscriptions')
       .select('tier, status')
       .eq('organization_id', profile.organization_id)
-      .single();
+      .maybeSingle();
     
     if (subError) {
       console.error('hasOperationsPro: Subscription error:', subError);

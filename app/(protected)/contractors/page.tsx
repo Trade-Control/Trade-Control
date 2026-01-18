@@ -5,9 +5,12 @@ import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { Contractor } from '@/lib/types/database.types';
 import { hasOperationsPro } from '@/lib/middleware/role-check';
 import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 export default function ContractorsPage() {
   const supabase = useSafeSupabaseClient();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [accessChecked, setAccessChecked] = useState(false);
@@ -30,11 +33,47 @@ export default function ContractorsPage() {
     compliance_notes: '',
   });
 
+  const checkAccess = async () => {
+    if (!supabase) return;
+    const hasPro = await hasOperationsPro();
+    setHasProAccess(hasPro);
+    
+    if (hasPro && contractors.length === 0) {
+      // If access granted but no contractors loaded, fetch them
+      await fetchContractors();
+    }
+  };
+
   useEffect(() => {
     if (supabase) {
       initializePage();
     }
   }, [supabase]);
+
+  // Re-check access when page becomes visible or when refresh param is present
+  useEffect(() => {
+    if (!supabase || !accessChecked) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Re-check access when page becomes visible (e.g., after returning from upgrade)
+        checkAccess();
+      }
+    };
+
+    // Check if refresh param is present (e.g., coming from upgrade success)
+    const shouldRefresh = searchParams?.get('refresh') === 'true';
+    if (shouldRefresh) {
+      checkAccess();
+      // Remove refresh param from URL
+      window.history.replaceState({}, '', pathname);
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [supabase, accessChecked, pathname, searchParams]);
 
   const initializePage = async () => {
     if (!supabase) return;

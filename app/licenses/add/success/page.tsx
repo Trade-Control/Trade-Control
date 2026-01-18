@@ -11,6 +11,7 @@ function LicenseSuccessHandler() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [verified, setVerified] = useState(false);
+  const [pollingMessage, setPollingMessage] = useState('Verifying license creation...');
 
   useEffect(() => {
     if (!supabase) return;
@@ -26,9 +27,6 @@ function LicenseSuccessHandler() {
     }
 
     try {
-      // Wait a bit for webhook to process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
       // Check if licenses were created
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -49,46 +47,55 @@ function LicenseSuccessHandler() {
         return;
       }
 
-      // Check for recently created licenses (within last 5 minutes)
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      const { data: recentLicenses, error: licenseError } = await supabase
-        .from('licenses')
-        .select('id')
-        .eq('organization_id', profile.organization_id)
-        .gte('created_at', fiveMinutesAgo)
-        .order('created_at', { ascending: false })
-        .limit(10);
+      // Poll for license creation with exponential backoff
+      const pollForLicenses = async (maxAttempts = 8): Promise<boolean> => {
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        
+        for (let i = 0; i < maxAttempts; i++) {
+          // Update polling message
+          if (i > 0) {
+            setPollingMessage(`Waiting for licenses to be created... (${i}/${maxAttempts - 1})`);
+          }
+          
+          // Wait before checking (except first attempt)
+          if (i > 0) {
+            // Exponential backoff: 1s, 2s, 2s, 2s, 2s, 2s, 2s, 2s
+            const delay = i === 1 ? 1000 : 2000;
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+          
+          const { data: recentLicenses, error: licenseError } = await supabase
+            .from('licenses')
+            .select('id')
+            .eq('organization_id', profile.organization_id)
+            .gte('created_at', fiveMinutesAgo)
+            .order('created_at', { ascending: false })
+            .limit(10);
 
-      if (licenseError) {
-        console.error('Error checking licenses:', licenseError);
-        // Don't fail - webhook might still be processing
-        setVerified(true);
-      } else if (recentLicenses && recentLicenses.length > 0) {
-        setVerified(true);
-      } else {
-        // Wait a bit more and check again
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        const { data: retryLicenses } = await supabase
-          .from('licenses')
-          .select('id')
-          .eq('organization_id', profile.organization_id)
-          .gte('created_at', fiveMinutesAgo)
-          .order('created_at', { ascending: false })
-          .limit(10);
+          if (licenseError) {
+            console.error('Error checking licenses:', licenseError);
+            // Continue polling
+            continue;
+          }
 
-        if (retryLicenses && retryLicenses.length > 0) {
-          setVerified(true);
-        } else {
-          // Still no licenses - might be processing
-          setVerified(true); // Show success anyway, webhook might be delayed
+          if (recentLicenses && recentLicenses.length > 0) {
+            setPollingMessage('');
+            return true;
+          }
         }
-      }
+        setPollingMessage('');
+        return false;
+      };
 
+      const licensesCreated = await pollForLicenses(8);
+      
+      // Always set verified to true - webhook might be delayed but payment succeeded
+      setVerified(true);
       setLoading(false);
       
-      // Redirect after showing success
+      // Redirect after showing success with refresh param
       setTimeout(() => {
-        router.push('/licenses');
+        router.push('/licenses?refresh=true');
       }, 3000);
     } catch (err: any) {
       console.error('Error verifying license creation:', err);
@@ -103,7 +110,7 @@ function LicenseSuccessHandler() {
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <h1 className="text-xl font-bold text-gray-900 mb-2">Processing...</h1>
-          <p className="text-gray-600">Verifying license creation...</p>
+          <p className="text-gray-600">{pollingMessage}</p>
         </div>
       </div>
     );
