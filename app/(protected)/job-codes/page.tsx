@@ -150,7 +150,7 @@ export default function JobCodesPage() {
     });
   };
 
-  const categories = Array.from(new Set(jobCodes.map(jc => jc.category).filter(Boolean)));
+  const categories = Array.from(new Set(jobCodes.map((jc: any) => jc.category).filter(Boolean)));
 
   const filteredJobCodes = jobCodes.filter(jobCode => {
     const matchesSearch = searchTerm === '' || 

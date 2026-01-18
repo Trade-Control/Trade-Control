@@ -145,8 +145,8 @@ export default function AuditTrailPage() {
     return matchesType && matchesAction && matchesSearch && matchesDate;
   });
 
-  const resourceTypes = Array.from(new Set(auditLogs.map(log => log.resource_type)));
-  const actions = Array.from(new Set(auditLogs.map(log => log.action)));
+  const resourceTypes = Array.from(new Set(auditLogs.map((log: any) => log.resource_type)));
+  const actions = Array.from(new Set(auditLogs.map((log: any) => log.action)));
 
   if (loading) {
     return (

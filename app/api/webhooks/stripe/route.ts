@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
               .lte('removal_date', subscription.current_period_end);
 
             if (licensesToDeactivate && licensesToDeactivate.length > 0) {
-              const licenseIds = licensesToDeactivate.map(l => l.id);
+              const licenseIds = licensesToDeactivate.map((l: any) => l.id);
               await supabase
                 .from('licenses')
                 .update({

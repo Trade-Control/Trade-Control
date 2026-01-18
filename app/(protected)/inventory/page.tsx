@@ -167,7 +167,7 @@ export default function InventoryPage() {
     });
   };
 
-  const categories = Array.from(new Set(inventory.map(item => item.category).filter(Boolean)));
+  const categories = Array.from(new Set(inventory.map((item: any) => item.category).filter(Boolean)));
 
   const isLowStock = (item: Inventory) => {
     return item.reorder_level !== null && item.quantity <= item.reorder_level;

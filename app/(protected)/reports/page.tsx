@@ -451,7 +451,7 @@ export default function ReportsPage() {
       if (jobs.data && jobs.data.length > 0) {
         sheets.push({
           name: 'Jobs',
-          data: jobs.data.map(j => ({
+          data: jobs.data.map((j: any) => ({
             'Job Number': j.job_number,
             'Title': j.title,
             'Status': j.status,
@@ -464,7 +464,7 @@ export default function ReportsPage() {
       if (invoices.data && invoices.data.length > 0) {
         sheets.push({
           name: 'Invoices',
-          data: invoices.data.map(i => ({
+          data: invoices.data.map((i: any) => ({
             'Invoice Number': i.invoice_number,
             'Date': new Date(i.invoice_date).toLocaleDateString(),
             'Status': i.status,
@@ -480,7 +480,7 @@ export default function ReportsPage() {
       if (payments.data && payments.data.length > 0) {
         sheets.push({
           name: 'Payments',
-          data: payments.data.map(p => ({
+          data: payments.data.map((p: any) => ({
             'Date': new Date(p.payment_date).toLocaleDateString(),
             'Amount': p.amount,
             'Method': p.payment_method,
@@ -492,7 +492,7 @@ export default function ReportsPage() {
       if (timesheets.data && timesheets.data.length > 0) {
         sheets.push({
           name: 'Timesheets',
-          data: timesheets.data.map(t => ({
+          data: timesheets.data.map((t: any) => ({
             'Date': new Date(t.entry_date).toLocaleDateString(),
             'Hours': t.hours || 0,
             'Description': t.description || 'N/A'
