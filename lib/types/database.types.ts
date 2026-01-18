@@ -281,6 +281,9 @@ export type License = {
   status: LicenseStatus;
   monthly_cost: number;
   assigned_at: string | null;
+  scheduled_for_removal: boolean;
+  removal_date: string | null;
+  removed_at: string | null;
   created_at: string;
   updated_at: string;
 };
