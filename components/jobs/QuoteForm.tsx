@@ -19,6 +19,7 @@ export default function QuoteForm({ jobId, onSuccess }: QuoteFormProps) {
   const [lineItems, setLineItems] = useState<any[]>([
     { description: '', quantity: 1, unit_price: 0, line_total: 0, job_code_id: null }
   ]);
+  const [gstInclusive, setGstInclusive] = useState(false);
   const [jobCodes, setJobCodes] = useState<any[]>([]);
   const [jobCodeSearch, setJobCodeSearch] = useState<{ [key: number]: string }>({});
   const [showJobCodeDropdown, setShowJobCodeDropdown] = useState<{ [key: number]: boolean }>({});
@@ -146,9 +147,22 @@ export default function QuoteForm({ jobId, onSuccess }: QuoteFormProps) {
   };
 
   const calculateTotals = () => {
-    const subtotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.line_total) || 0), 0);
-    const gst_amount = subtotal * 0.1; // 10% GST
-    const total_amount = subtotal + gst_amount;
+    const lineTotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.line_total) || 0), 0);
+    
+    let subtotal, gst_amount, total_amount;
+    
+    if (gstInclusive) {
+      // Prices are GST inclusive - reverse calculate
+      total_amount = lineTotal;
+      subtotal = lineTotal / 1.1;
+      gst_amount = total_amount - subtotal;
+    } else {
+      // Prices are GST exclusive - add GST
+      subtotal = lineTotal;
+      gst_amount = subtotal * 0.1; // 10% GST
+      total_amount = subtotal + gst_amount;
+    }
+    
     return { subtotal, gst_amount, total_amount };
   };
 
@@ -267,13 +281,27 @@ export default function QuoteForm({ jobId, onSuccess }: QuoteFormProps) {
         <div>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-gray-900">Line Items</h3>
-            <button
-              type="button"
-              onClick={addLineItem}
-              className="text-primary hover:text-primary-hover font-medium text-sm"
-            >
-              + Add Line Item
-            </button>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="gstInclusive"
+                  checked={gstInclusive}
+                  onChange={(e) => setGstInclusive(e.target.checked)}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <label htmlFor="gstInclusive" className="text-sm font-medium text-gray-700">
+                  Prices are GST Inclusive
+                </label>
+              </div>
+              <button
+                type="button"
+                onClick={addLineItem}
+                className="text-primary hover:text-primary-hover font-medium text-sm"
+              >
+                + Add Line Item
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -409,18 +437,37 @@ export default function QuoteForm({ jobId, onSuccess }: QuoteFormProps) {
         {/* Totals */}
         <div className="bg-gray-50 rounded-lg p-4">
           <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Subtotal:</span>
-              <span className="font-medium">${totals.subtotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">GST (10%):</span>
-              <span className="font-medium">${totals.gst_amount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-lg font-bold border-t pt-2">
-              <span>Total:</span>
-              <span className="text-primary">${totals.total_amount.toFixed(2)}</span>
-            </div>
+            {gstInclusive ? (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total (inc GST):</span>
+                  <span className="font-medium">${totals.total_amount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Includes GST:</span>
+                  <span className="text-gray-700">${totals.gst_amount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Subtotal (ex GST):</span>
+                  <span className="text-gray-700">${totals.subtotal.toFixed(2)}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Subtotal:</span>
+                  <span className="font-medium">${totals.subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">GST (10%):</span>
+                  <span className="font-medium">${totals.gst_amount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold border-t pt-2">
+                  <span>Total:</span>
+                  <span className="text-primary">${totals.total_amount.toFixed(2)}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

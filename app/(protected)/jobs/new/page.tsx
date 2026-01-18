@@ -11,7 +11,6 @@ export default function NewJobPage() {
     description: '',
     client_id: '',
     priority: 'normal',
-    service_area: '',
     site_address: '',
     site_city: '',
     site_state: '',
@@ -19,8 +18,10 @@ export default function NewJobPage() {
     start_date: '',
     end_date: '',
     notes: '',
+    assigned_to: '',
   });
   const [contacts, setContacts] = useState<any[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [showNewContactForm, setShowNewContactForm] = useState(false);
   const [newContact, setNewContact] = useState({
     contact_name: '',
@@ -50,7 +51,74 @@ export default function NewJobPage() {
       if (data) setContacts(data);
     };
 
+    const fetchAvailableUsers = async () => {
+      if (!supabase) return;
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.organization_id) return;
+
+      // Get all active licenses (users) in the organization
+      const { data: users } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, role')
+        .eq('organization_id', profile.organization_id)
+        .not('license_id', 'is', null)
+        .order('first_name');
+
+      if (users) {
+        setAvailableUsers(users);
+        
+        // Auto-assign if only one user
+        if (users.length === 1) {
+          setFormData(prev => ({ ...prev, assigned_to: users[0].id }));
+        }
+      }
+    };
+
+    const generateJobNumber = async () => {
+      if (!supabase) return;
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.organization_id) return;
+
+      // Get organization to use custom prefix
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('job_prefix')
+        .eq('id', profile.organization_id)
+        .single();
+
+      const prefix = org?.job_prefix || 'JOB';
+
+      // Get count of existing jobs
+      const { count } = await supabase
+        .from('jobs')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', profile.organization_id);
+      
+      const jobNum = `${prefix}-${String((count || 0) + 1).padStart(4, '0')}`;
+      setFormData(prev => ({ ...prev, job_number: jobNum }));
+    };
+
     fetchContacts();
+    fetchAvailableUsers();
+    generateJobNumber();
   }, [supabase]);
 
   const handleContactSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -163,6 +231,7 @@ export default function NewJobPage() {
       const jobData = {
         ...formData,
         client_id: formData.client_id || null,
+        assigned_to: formData.assigned_to || null,
         organization_id: profile.organization_id,
         created_by: user.id,
         completion_status: 'active',
@@ -425,22 +494,27 @@ export default function NewJobPage() {
               <h3 className="text-lg font-medium text-gray-900 mb-4">Site Details</h3>
             </div>
 
-            <div>
-              <label htmlFor="service_area" className="block text-sm font-medium text-gray-700 mb-2">
-                Service Area
-              </label>
-              <input
-                id="service_area"
-                name="service_area"
-                type="text"
-                value={formData.service_area}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none transition"
-                placeholder="e.g., North Sydney, Eastern Suburbs"
-              />
-            </div>
-
-            <div></div>
+            {availableUsers.length > 1 && (
+              <div className="md:col-span-2">
+                <label htmlFor="assigned_to" className="block text-sm font-medium text-gray-700 mb-2">
+                  Assign Job To
+                </label>
+                <select
+                  id="assigned_to"
+                  name="assigned_to"
+                  value={formData.assigned_to}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none transition"
+                >
+                  <option value="">Unassigned</option>
+                  {availableUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.first_name} {user.last_name} - {user.role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="md:col-span-2">
               <label htmlFor="site_address" className="block text-sm font-medium text-gray-700 mb-2">

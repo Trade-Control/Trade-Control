@@ -157,7 +157,20 @@ export default function QuotesPage() {
   };
 
   const handleAcceptQuote = async (quoteId: string) => {
-    if (!confirm('Accept this quote and convert to invoice?')) return;
+    const acceptanceDate = prompt('Enter acceptance date (YYYY-MM-DD) or leave blank for today:');
+    
+    let finalDate: string;
+    if (acceptanceDate && acceptanceDate.trim() !== '') {
+      // Validate date format
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(acceptanceDate)) {
+        alert('Invalid date format. Please use YYYY-MM-DD format.');
+        return;
+      }
+      finalDate = new Date(acceptanceDate).toISOString();
+    } else {
+      finalDate = new Date().toISOString();
+    }
 
     try {
       // Update quote status
@@ -165,7 +178,7 @@ export default function QuotesPage() {
         .from('quotes')
         .update({ 
           status: 'accepted',
-          accepted_at: new Date().toISOString()
+          accepted_at: finalDate
         })
         .eq('id', quoteId);
 
@@ -207,7 +220,112 @@ export default function QuotesPage() {
     router.push(`/jobs/${jobId}/quotes/${quoteId}/edit`);
   };
 
-  const handleDeleteQuote = async (quoteId: string) => {
+  const handleConvertToInvoice = async (quote: any) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.organization_id) throw new Error('Organization not found');
+
+      // Get organization for invoice numbering
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', profile.organization_id)
+        .single();
+
+      // Generate invoice number
+      const { data: existingInvoices } = await supabase
+        .from('invoices')
+        .select('invoice_number')
+        .eq('organization_id', profile.organization_id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      let invoiceNumber;
+      if (existingInvoices && existingInvoices.length > 0) {
+        const lastNumber = parseInt(existingInvoices[0].invoice_number.replace(/\D/g, ''));
+        invoiceNumber = `${org?.invoice_prefix || 'INV'}-${String(lastNumber + 1).padStart(4, '0')}`;
+      } else {
+        invoiceNumber = `${org?.invoice_prefix || 'INV'}-0001`;
+      }
+
+      // Get quote line items
+      const { data: quoteItems } = await supabase
+        .from('quote_items')
+        .select('*')
+        .eq('quote_id', quote.id);
+
+      // Create invoice
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert({
+          organization_id: profile.organization_id,
+          created_by: user.id,
+          job_id: jobId,
+          invoice_number: invoiceNumber,
+          invoice_date: new Date().toISOString().split('T')[0],
+          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+          status: 'draft',
+          subtotal: quote.subtotal,
+          gst_amount: quote.gst_amount,
+          total_amount: quote.total_amount,
+          amount_paid: 0,
+          notes: quote.notes,
+          terms: quote.terms,
+        })
+        .select()
+        .single();
+
+      if (invoiceError) throw invoiceError;
+
+      // Copy quote items to invoice items
+      if (quoteItems && quoteItems.length > 0) {
+        const invoiceItems = quoteItems.map(item => ({
+          invoice_id: invoice.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total: item.total,
+          job_code_id: item.job_code_id,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('invoice_items')
+          .insert(invoiceItems);
+
+        if (itemsError) throw itemsError;
+      }
+
+      // Log activity
+      await supabase.from('activity_feed').insert({
+        organization_id: profile.organization_id,
+        job_id: jobId,
+        activity_type: 'invoice_created',
+        actor_type: 'user',
+        actor_id: user.id,
+        description: `Invoice ${invoiceNumber} created from quote ${quote.quote_number}`,
+        metadata: {
+          invoice_id: invoice.id,
+          invoice_number: invoiceNumber,
+          quote_id: quote.id,
+          quote_number: quote.quote_number,
+        },
+      });
+
+      alert(`Invoice ${invoiceNumber} created successfully!`);
+      router.push(`/jobs/${jobId}/invoices`);
+    } catch (error: any) {
+      console.error('Error converting quote to invoice:', error);
+      alert('Failed to convert quote to invoice: ' + (error.message || 'Unknown error'));
+    }
+  };
     if (!confirm('Are you sure you want to delete this quote? This cannot be undone.')) return;
 
     try {
@@ -339,12 +457,20 @@ export default function QuotesPage() {
                   </>
                 )}
                 {quote.status === 'accepted' && (
-                  <button
-                    onClick={() => handleUnacceptQuote(quote.id)}
-                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-md text-sm font-medium transition-colors"
-                  >
-                    Unaccept
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleConvertToInvoice(quote)}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
+                    >
+                      📄 Convert to Invoice
+                    </button>
+                    <button
+                      onClick={() => handleUnacceptQuote(quote.id)}
+                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-md text-sm font-medium transition-colors"
+                    >
+                      Unaccept
+                    </button>
+                  </>
                 )}
               </div>
             </div>

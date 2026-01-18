@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { addLicense } from '@/lib/services/stripe';
 import Stripe from 'stripe';
 
 // Vercel Serverless Runtime
@@ -78,67 +77,105 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if subscription has payment method
+    // Always create Stripe checkout session for license additions
+    // This ensures payment authorization and proper billing through Stripe
     const stripe = getStripeClient();
-    const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
-    const hasPaymentMethod = stripeSubscription.default_payment_method !== null;
-
-    if (hasPaymentMethod) {
-      // Payment method exists - add license directly via API
-      const licenseItem = await addLicense({
-        subscriptionId: subscription.stripe_subscription_id,
-        licenseType: licenseType as 'management' | 'field_staff',
-        quantity: quantity || 1,
-      });
-
-      // Create licenses in database
-      const licensesToCreate = Array.from({ length: quantity || 1 }, () => ({
-        organization_id: profile.organization_id,
-        license_type: licenseType,
-        stripe_subscription_item_id: licenseItem.id,
-        status: 'active' as const,
-        monthly_cost: licenseType === 'management' ? 35 : 15,
-      }));
-
-      const { error: insertError } = await supabase
-        .from('licenses')
-        .insert(licensesToCreate);
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      // Update subscription total price
-      const licensePrice = licenseType === 'management' ? 35 : 15;
-      const newTotalPrice = subscription.total_price + (licensePrice * (quantity || 1));
-      await supabase
-        .from('subscriptions')
-        .update({ total_price: newTotalPrice })
-        .eq('id', subscription.id);
-
-      return NextResponse.json({ 
-        success: true, 
-        licenseItem,
-        message: 'License added successfully' 
-      });
-    }
-
-    // No payment method - create checkout session to collect it
-    const priceId = licenseType === 'management'
+    
+    // Try to get Price ID from environment, or create product/price programmatically
+    let priceId = licenseType === 'management'
       ? process.env.STRIPE_PRICE_ID_MANAGEMENT_LICENSE
       : process.env.STRIPE_PRICE_ID_FIELD_STAFF_LICENSE;
 
+    // If Price ID not configured, create product and price programmatically
     if (!priceId) {
-      return NextResponse.json(
-        { error: `Price ID not configured for ${licenseType} license` },
-        { status: 500 }
+      const productName = licenseType === 'management' 
+        ? 'Management License' 
+        : 'Field Staff License';
+      const unitAmount = licenseType === 'management' ? 3500 : 1500; // in cents AUD
+
+      // Check if product already exists
+      const products = await stripe.products.list({ 
+        limit: 100,
+        active: true 
+      });
+      
+      let product = products.data.find(p => 
+        p.name === productName && p.metadata?.license_type === licenseType
       );
+
+      // Create product if it doesn't exist
+      if (!product) {
+        product = await stripe.products.create({
+          name: productName,
+          description: `Monthly subscription for ${productName.toLowerCase()}`,
+          metadata: {
+            license_type: licenseType,
+            created_by: 'trade_control_app',
+          },
+        });
+      }
+
+      // Check if price already exists for this product
+      const prices = await stripe.prices.list({
+        product: product.id,
+        active: true,
+        type: 'recurring',
+      });
+
+      let price = prices.data.find(p => 
+        p.unit_amount === unitAmount && 
+        p.currency === 'aud' &&
+        p.recurring?.interval === 'month'
+      );
+
+      // Create price if it doesn't exist
+      if (!price) {
+        price = await stripe.prices.create({
+          product: product.id,
+          unit_amount: unitAmount,
+          currency: 'aud',
+          recurring: {
+            interval: 'month',
+          },
+          metadata: {
+            license_type: licenseType,
+          },
+        });
+      }
+
+      priceId = price.id;
+      console.log(`Created/found ${productName} Price ID: ${priceId}`);
     }
 
+    // Get subscription to calculate pro-rata amount
+    const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
+    const periodStart = new Date(stripeSubscription.current_period_start * 1000);
+    const periodEnd = new Date(stripeSubscription.current_period_end * 1000);
+    const daysRemaining = Math.ceil((periodEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    const totalDays = Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24));
+    const licensePrice = licenseType === 'management' ? 35 : 15; // in dollars
+    const monthlyPriceCents = licensePrice * 100;
+    const proRataAmount = Math.round((monthlyPriceCents * daysRemaining / totalDays) * (quantity || 1));
+
+    // Create checkout session in payment mode to charge pro-rata amount immediately
+    // After payment, webhook will add subscription items to existing subscription using the Price ID
     const session = await stripe.checkout.sessions.create({
       customer: subscription.stripe_customer_id || '',
-      mode: 'setup', // Collect payment method without charging
+      mode: 'payment',
       payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'aud',
+            product_data: {
+              name: `${licenseType === 'management' ? 'Management' : 'Field Staff'} License${(quantity || 1) > 1 ? 's' : ''} (Pro-rated)`,
+              description: `Add ${quantity || 1} ${licenseType === 'management' ? 'Management' : 'Field Staff'} license${(quantity || 1) > 1 ? 's' : ''} to your subscription. Pro-rated charge for ${daysRemaining} days remaining in billing period.`,
+            },
+            unit_amount: proRataAmount / (quantity || 1),
+          },
+          quantity: quantity || 1,
+        },
+      ],
       metadata: {
         action: 'add_license',
         subscription_id: subscription.stripe_subscription_id,
@@ -146,6 +183,8 @@ export async function POST(request: NextRequest) {
         quantity: (quantity || 1).toString(),
         organization_id: profile.organization_id,
         db_subscription_id: subscription.id,
+        price_id: priceId, // This Price ID will be used to add recurring subscription item
+        user_id: user.id,
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://trade-control.vercel.app'}/licenses/add/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://trade-control.vercel.app'}/licenses/add`,

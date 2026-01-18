@@ -99,6 +99,41 @@ export async function POST(request: NextRequest) {
           break;
         }
 
+        // Check for removed subscription items (license removals)
+        const previousSubscription = event.data.previous_attributes as any;
+        if (previousSubscription?.items) {
+          const previousItems = previousSubscription.items.data || [];
+          const currentItems = subscription.items.data || [];
+          
+          // Find items that were removed
+          const removedItems = previousItems.filter((prevItem: any) => 
+            !currentItems.find((currItem: any) => currItem.id === prevItem.id)
+          );
+
+          for (const removedItem of removedItems) {
+            // Find license with this subscription item ID
+            const { data: license } = await supabase
+              .from('licenses')
+              .select('*')
+              .eq('stripe_subscription_item_id', removedItem.id)
+              .single();
+
+            if (license && !license.scheduled_for_removal) {
+              // Mark license as scheduled for removal
+              await supabase
+                .from('licenses')
+                .update({
+                  scheduled_for_removal: true,
+                  removal_date: new Date(subscription.current_period_end * 1000).toISOString(),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', license.id);
+
+              console.log('[Stripe Webhook] License marked for removal:', license.id);
+            }
+          }
+        }
+
         // Update subscription status and dates
         const { error: updateError } = await supabase
           .from('subscriptions')
@@ -114,6 +149,82 @@ export async function POST(request: NextRequest) {
           console.error('[Stripe Webhook] Error updating subscription:', updateError);
         } else {
           console.log('[Stripe Webhook] Subscription updated successfully');
+        }
+
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object;
+        
+        console.log('[Stripe Webhook] Subscription deleted:', subscription.id);
+
+        const { error: deleteError } = await supabase
+          .from('subscriptions')
+          .update({
+            status: 'cancelled',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('stripe_subscription_id', subscription.id);
+
+        if (deleteError) {
+          console.error('[Stripe Webhook] Error cancelling subscription:', deleteError);
+        } else {
+          console.log('[Stripe Webhook] Subscription cancelled successfully');
+        }
+
+        // Also mark all licenses as inactive
+        const { data: subData } = await supabase
+          .from('subscriptions')
+          .select('organization_id')
+          .eq('stripe_subscription_id', subscription.id)
+          .single();
+
+        if (subData) {
+          await supabase
+            .from('licenses')
+            .update({ status: 'inactive' })
+            .eq('organization_id', subData.organization_id);
+        }
+
+        break;
+      }
+
+      case 'invoice.created': {
+        const invoice = event.data.object;
+        
+        // Check if this is the start of a new billing period
+        // If so, mark licenses scheduled for removal as inactive
+        if (invoice.subscription && invoice.billing_reason === 'subscription_cycle') {
+          const { data: subscription } = await supabase
+            .from('subscriptions')
+            .select('organization_id, current_period_end')
+            .eq('stripe_subscription_id', invoice.subscription)
+            .single();
+
+          if (subscription) {
+            // Find licenses scheduled for removal that should now be inactive
+            const { data: licensesToDeactivate } = await supabase
+              .from('licenses')
+              .select('*')
+              .eq('organization_id', subscription.organization_id)
+              .eq('scheduled_for_removal', true)
+              .lte('removal_date', subscription.current_period_end);
+
+            if (licensesToDeactivate && licensesToDeactivate.length > 0) {
+              const licenseIds = licensesToDeactivate.map(l => l.id);
+              await supabase
+                .from('licenses')
+                .update({
+                  status: 'inactive',
+                  removed_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                })
+                .in('id', licenseIds);
+
+              console.log('[Stripe Webhook] Deactivated licenses:', licenseIds.length);
+            }
+          }
         }
 
         break;
@@ -234,13 +345,14 @@ export async function POST(request: NextRequest) {
           const existingSubscriptionId = session.metadata?.existing_subscription_id;
           const newTier = session.metadata?.new_tier;
           const operationsProLevel = session.metadata?.operations_pro_level;
+          const isTrialing = session.metadata?.is_trialing === 'true';
           
           if (!existingSubscriptionId || !operationsProLevel) {
             console.error('[Stripe Webhook] Missing metadata for upgrade');
             break;
           }
 
-          // Get the new subscription created by checkout (we'll cancel it)
+          // Get the new subscription created by checkout
           const newSubscriptionId = typeof session.subscription === 'string' 
             ? session.subscription 
             : session.subscription?.id;
@@ -250,35 +362,71 @@ export async function POST(request: NextRequest) {
             break;
           }
 
-          // Get Pro tier price ID
-          const proPriceId = operationsProLevel === 'scale'
-            ? process.env.STRIPE_PRICE_ID_OPERATIONS_PRO_SCALE
-            : process.env.STRIPE_PRICE_ID_OPERATIONS_PRO_UNLIMITED;
-
-          if (!proPriceId) {
-            console.error('[Stripe Webhook] Pro tier price ID not configured');
-            break;
-          }
-
           try {
-            // Add Pro tier subscription item to existing subscription
-            await stripe.subscriptionItems.create({
-              subscription: existingSubscriptionId,
-              price: proPriceId,
-              quantity: 1,
-            });
-
-            // Cancel the temporary subscription created by checkout
-            await stripe.subscriptions.cancel(newSubscriptionId);
-
-            // Update subscription in database
             const { data: dbSubscription } = await supabase
               .from('subscriptions')
               .select('*')
               .eq('stripe_subscription_id', existingSubscriptionId)
               .single();
 
-            if (dbSubscription) {
+            if (!dbSubscription) {
+              console.error('[Stripe Webhook] Database subscription not found');
+              break;
+            }
+
+            if (isTrialing) {
+              // User was on trial - replace the trial subscription with the new paid subscription
+              // The new subscription already has both base and Pro tier
+              const newSubscription = await stripe.subscriptions.retrieve(newSubscriptionId);
+              
+              // Cancel the old trial subscription
+              await stripe.subscriptions.cancel(existingSubscriptionId);
+
+              // Calculate total price from new subscription items
+              const totalPrice = newSubscription.items.data.reduce((sum, item) => {
+                const price = item.price.unit_amount || 0;
+                return sum + (price * (item.quantity || 1));
+              }, 0) / 100; // Convert from cents to dollars
+
+              // Update database subscription to use new subscription ID
+              await supabase
+                .from('subscriptions')
+                .update({
+                  stripe_subscription_id: newSubscriptionId,
+                  tier: newTier,
+                  operations_pro_level: operationsProLevel,
+                  status: 'active',
+                  total_price: totalPrice,
+                  current_period_start: new Date(newSubscription.current_period_start * 1000).toISOString(),
+                  current_period_end: new Date(newSubscription.current_period_end * 1000).toISOString(),
+                  trial_ends_at: null, // Trial ended
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', dbSubscription.id);
+
+              console.log('[Stripe Webhook] Trial upgrade completed successfully');
+            } else {
+              // User already paying - just add Pro tier to existing subscription
+              const proPriceId = operationsProLevel === 'scale'
+                ? process.env.STRIPE_PRICE_ID_OPERATIONS_PRO_SCALE
+                : process.env.STRIPE_PRICE_ID_OPERATIONS_PRO_UNLIMITED;
+
+              if (!proPriceId) {
+                console.error('[Stripe Webhook] Pro tier price ID not configured');
+                break;
+              }
+
+              // Add Pro tier subscription item to existing subscription
+              await stripe.subscriptionItems.create({
+                subscription: existingSubscriptionId,
+                price: proPriceId,
+                quantity: 1,
+              });
+
+              // Cancel the temporary subscription created by checkout
+              await stripe.subscriptions.cancel(newSubscriptionId);
+
+              // Update subscription in database
               const proPrice = operationsProLevel === 'scale' ? 99 : 199;
               const newTotalPrice = dbSubscription.total_price + proPrice;
 
@@ -298,76 +446,87 @@ export async function POST(request: NextRequest) {
             console.error('[Stripe Webhook] Error processing upgrade:', upgradeError);
           }
         } else if (action === 'add_license') {
-          // Handle license addition: Attach payment method and add license
+          // Handle license addition from payment checkout
           const subscriptionId = session.metadata?.subscription_id;
           const licenseType = session.metadata?.license_type;
           const quantity = parseInt(session.metadata?.quantity || '1');
           const organizationId = session.metadata?.organization_id;
           const dbSubscriptionId = session.metadata?.db_subscription_id;
+          const priceId = session.metadata?.price_id;
 
-          if (!subscriptionId || !licenseType || !organizationId) {
+          if (!subscriptionId || !licenseType || !organizationId || !priceId) {
             console.error('[Stripe Webhook] Missing metadata for license addition');
             break;
           }
 
           try {
-            // Get setup intent to attach payment method
-            const setupIntentId = session.setup_intent;
-            if (setupIntentId && typeof setupIntentId === 'string') {
-              const setupIntent = await stripe.setupIntents.retrieve(setupIntentId);
-              const paymentMethodId = setupIntent.payment_method;
+            // Payment was successful, now add subscription items to existing subscription
+            const stripe = getStripeClient();
+            
+            // Check if subscription item with this price already exists
+            const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+            const existingItem = stripeSubscription.items.data.find(
+              item => item.price.id === priceId
+            );
 
-              if (paymentMethodId && typeof paymentMethodId === 'string') {
-                // Attach payment method to subscription
-                await stripe.subscriptions.update(subscriptionId, {
-                  default_payment_method: paymentMethodId,
-                });
+            let subscriptionItemId: string;
+            let finalQuantity: number;
 
-                // Add license via API
-                const stripeService = await import('@/lib/services/stripe');
-                const licenseItem = await stripeService.addLicense({
-                  subscriptionId,
-                  licenseType: licenseType as 'management' | 'field_staff',
-                  quantity,
-                });
+            if (existingItem) {
+              // Update existing item quantity instead of creating duplicate
+              finalQuantity = (existingItem.quantity || 1) + quantity;
+              await stripe.subscriptionItems.update(existingItem.id, {
+                quantity: finalQuantity,
+              });
+              subscriptionItemId = existingItem.id;
+              console.log('[Stripe Webhook] Updated existing license subscription item quantity from', existingItem.quantity, 'to', finalQuantity);
+            } else {
+              // Create new subscription item
+              const addedItem = await stripe.subscriptionItems.create({
+                subscription: subscriptionId,
+                price: priceId,
+                quantity: quantity,
+              });
+              subscriptionItemId = addedItem.id;
+              finalQuantity = quantity;
+              console.log('[Stripe Webhook] Created new license subscription item');
+            }
 
-                // Create licenses in database
-                const licensesToCreate = Array.from({ length: quantity }, () => ({
-                  organization_id: organizationId,
-                  license_type: licenseType,
-                  stripe_subscription_item_id: licenseItem.id,
-                  status: 'active' as const,
-                  monthly_cost: licenseType === 'management' ? 35 : 15,
-                }));
+            // Create licenses in database
+            const licensePrice = licenseType === 'management' ? 35 : 15;
+            const licensesToCreate = Array.from({ length: quantity }, () => ({
+              organization_id: organizationId,
+              license_type: licenseType,
+              stripe_subscription_item_id: subscriptionItemId,
+              status: 'active' as const,
+              monthly_cost: licensePrice,
+            }));
 
-                const { error: insertError } = await supabase
-                  .from('licenses')
-                  .insert(licensesToCreate);
+            const { error: insertError } = await supabase
+              .from('licenses')
+              .insert(licensesToCreate);
 
-                if (insertError) {
-                  console.error('[Stripe Webhook] Error creating licenses:', insertError);
-                } else {
-                  // Update subscription total price
-                  if (dbSubscriptionId) {
-                    const { data: dbSubscription } = await supabase
-                      .from('subscriptions')
-                      .select('total_price')
-                      .eq('id', dbSubscriptionId)
-                      .single();
+            if (insertError) {
+              console.error('[Stripe Webhook] Error creating licenses:', insertError);
+            } else {
+              // Update subscription total price
+              if (dbSubscriptionId) {
+                const { data: dbSubscription } = await supabase
+                  .from('subscriptions')
+                  .select('total_price')
+                  .eq('id', dbSubscriptionId)
+                  .single();
 
-                    if (dbSubscription) {
-                      const licensePrice = licenseType === 'management' ? 35 : 15;
-                      const newTotalPrice = dbSubscription.total_price + (licensePrice * quantity);
-                      await supabase
-                        .from('subscriptions')
-                        .update({ total_price: newTotalPrice })
-                        .eq('id', dbSubscriptionId);
-                    }
-                  }
-
-                  console.log('[Stripe Webhook] License addition completed successfully');
+                if (dbSubscription) {
+                  const newTotalPrice = dbSubscription.total_price + (licensePrice * quantity);
+                  await supabase
+                    .from('subscriptions')
+                    .update({ total_price: newTotalPrice })
+                    .eq('id', dbSubscriptionId);
                 }
               }
+
+              console.log('[Stripe Webhook] License addition completed successfully');
             }
           } catch (licenseError: any) {
             console.error('[Stripe Webhook] Error processing license addition:', licenseError);

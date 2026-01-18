@@ -58,7 +58,8 @@ export default function AddLicensePage() {
     const periodStart = new Date(subscription.current_period_start!);
     const periodEnd = new Date(subscription.current_period_end!);
 
-    const proRataCalc = calculateProRata(monthlyPrice * quantity, periodStart, periodEnd);
+    // Calculate pro-rata for single license, then multiply by quantity for display
+    const proRataCalc = calculateProRata(monthlyPrice, periodStart, periodEnd);
     setProRata(proRataCalc);
   };
 
@@ -105,13 +106,7 @@ export default function AddLicensePage() {
 
       const result = await checkoutResponse.json();
 
-      // If payment method exists, license was added directly
-      if (result.success) {
-        router.push('/licenses');
-        return;
-      }
-
-      // Otherwise, redirect to checkout session to collect payment method
+      // Always redirect to Stripe checkout for payment authorization
       if (result.url) {
         window.location.href = result.url;
       } else {
@@ -132,21 +127,19 @@ export default function AddLicensePage() {
         <p className="text-gray-600 mt-2">Add management or field staff licenses to your team</p>
       </div>
 
-      {subscription?.status === 'trialing' && (
-        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-6">
-          <div className="flex items-start gap-3">
-            <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div>
-              <h3 className="font-semibold text-blue-900 mb-1">Trial Period Active</h3>
-              <p className="text-sm text-blue-700">
-                You can add licenses during your trial. If you don't have a payment method on file, you'll be asked to add one securely through Stripe's checkout page.
-              </p>
-            </div>
+      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-6">
+        <div className="flex items-start gap-3">
+          <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <h3 className="font-semibold text-blue-900 mb-1">Payment Authorization Required</h3>
+            <p className="text-sm text-blue-700">
+              All license additions require payment authorization through Stripe's secure checkout. You'll be redirected to complete the payment before the license is added to your account.
+            </p>
           </div>
         </div>
-      )}
+      </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8 space-y-6">
         {/* License Type Selection */}

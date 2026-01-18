@@ -163,6 +163,15 @@ export default function TimesheetClock({
   };
 
   if (showManualEntry) {
+    // Calculate hours from clock on/off if available
+    const calculateHours = (clockOn: string, clockOff: string) => {
+      if (!clockOn || !clockOff) return '';
+      const start = new Date(clockOn);
+      const end = new Date(clockOff);
+      const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      return hours.toFixed(2);
+    };
+
     return (
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Manual Time Entry</h2>
@@ -182,7 +191,59 @@ export default function TimesheetClock({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Hours <span className="text-red-500">*</span>
+                Start Time
+              </label>
+              <input
+                type="time"
+                value={manualEntry.clock_on ? new Date(manualEntry.clock_on).toTimeString().slice(0, 5) : ''}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const date = manualEntry.entry_date || new Date().toISOString().split('T')[0];
+                    const clockOn = `${date}T${e.target.value}:00`;
+                    setManualEntry({ ...manualEntry, clock_on: clockOn });
+                    
+                    // Auto-calculate hours if clock off is set
+                    if (manualEntry.clock_off) {
+                      const hours = calculateHours(clockOn, manualEntry.clock_off);
+                      setManualEntry({ ...manualEntry, clock_on: clockOn, hours });
+                    }
+                  } else {
+                    setManualEntry({ ...manualEntry, clock_on: '' });
+                  }
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                End Time
+              </label>
+              <input
+                type="time"
+                value={manualEntry.clock_off ? new Date(manualEntry.clock_off).toTimeString().slice(0, 5) : ''}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const date = manualEntry.entry_date || new Date().toISOString().split('T')[0];
+                    const clockOff = `${date}T${e.target.value}:00`;
+                    setManualEntry({ ...manualEntry, clock_off: clockOff });
+                    
+                    // Auto-calculate hours if clock on is set
+                    if (manualEntry.clock_on) {
+                      const hours = calculateHours(manualEntry.clock_on, clockOff);
+                      setManualEntry({ ...manualEntry, clock_off: clockOff, hours });
+                    }
+                  } else {
+                    setManualEntry({ ...manualEntry, clock_off: '' });
+                  }
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Duration (hours) <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -193,7 +254,11 @@ export default function TimesheetClock({
                 min="0"
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                 placeholder="8.0"
+                readOnly={!!(manualEntry.clock_on && manualEntry.clock_off)}
               />
+              {manualEntry.clock_on && manualEntry.clock_off && (
+                <p className="text-xs text-gray-500 mt-1">Auto-calculated from start and end time</p>
+              )}
             </div>
           </div>
           <div>

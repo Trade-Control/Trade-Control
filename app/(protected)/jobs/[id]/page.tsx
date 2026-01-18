@@ -143,9 +143,9 @@ export default function JobDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${getStatusColor(job.status)}`}>
-              {job.status.replace('_', ' ')}
-            </span>
+              <span className={`px-3 py-1.5 text-xs font-medium rounded-full ${getStatusColor(job.status)}`}>
+                {job.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </span>
             {job.status !== 'completed' && job.status !== 'cancelled' && (
               <button
                 onClick={() => setShowCompletionModal(true)}
@@ -216,12 +216,6 @@ function DetailsTab({ job }: { job: any }) {
           <div>
             <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Priority</p>
             <p className="text-sm font-medium text-gray-900 capitalize">{job.priority}</p>
-          </div>
-        )}
-        {job.service_area && (
-          <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Service Area</p>
-            <p className="text-sm font-medium text-gray-900">{job.service_area}</p>
           </div>
         )}
         <div>

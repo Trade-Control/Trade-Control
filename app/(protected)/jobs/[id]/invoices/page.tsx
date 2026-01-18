@@ -208,6 +208,21 @@ export default function InvoicesPage() {
 
       if (paymentError) throw paymentError;
 
+      // Update invoice amount_paid and status
+      const newAmountPaid = invoice.amount_paid + parseFloat(paymentAmount);
+      const newStatus = newAmountPaid >= invoice.total_amount ? 'paid' : invoice.status;
+
+      const { error: updateError } = await supabase
+        .from('invoices')
+        .update({ 
+          amount_paid: newAmountPaid,
+          status: newStatus,
+          paid_at: newStatus === 'paid' ? new Date().toISOString() : null
+        })
+        .eq('id', invoiceId);
+
+      if (updateError) throw updateError;
+
       alert('Payment recorded successfully!');
       fetchData();
     } catch (error) {

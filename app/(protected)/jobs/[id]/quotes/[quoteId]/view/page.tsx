@@ -5,6 +5,7 @@ import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { redirect, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { generateQuotePDF } from '@/lib/services/pdf-generator';
 
 export default function QuoteViewPage() {
   const params = useParams();
@@ -16,6 +17,7 @@ export default function QuoteViewPage() {
   const [lineItems, setLineItems] = useState<any[]>([]);
   const [organization, setOrganization] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -69,6 +71,36 @@ export default function QuoteViewPage() {
     fetchData();
   }, [jobId, quoteId, supabase]);
 
+  const handleDownloadPDF = async () => {
+    if (!quote || !organization) return;
+    
+    setDownloadingPDF(true);
+    try {
+      const pdfBlob = await generateQuotePDF({
+        organization,
+        quote,
+        lineItems,
+        job: quote.jobs,
+        contact: quote.jobs?.contacts
+      });
+      
+      // Create download link
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Quote-${quote.quote_number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF');
+    } finally {
+      setDownloadingPDF(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -94,7 +126,14 @@ export default function QuoteViewPage() {
 
       <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl mx-auto print:shadow-none">
         {/* Print Button */}
-        <div className="mb-6 flex justify-end print:hidden">
+        <div className="mb-6 flex justify-end gap-3 print:hidden">
+          <button
+            onClick={handleDownloadPDF}
+            disabled={downloadingPDF}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+          >
+            {downloadingPDF ? '⏳ Generating PDF...' : '📥 Download PDF'}
+          </button>
           <button
             onClick={() => window.print()}
             className="bg-primary hover:bg-primary-hover text-white px-6 py-2 rounded-lg font-medium transition-colors"

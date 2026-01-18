@@ -23,6 +23,7 @@ export default function OrganizationSettingsPage() {
     website_url: '',
     logo_url: '',
     brand_color: '#2563eb',
+    job_prefix: 'JOB',
     job_code_prefix: 'JOB',
     quote_prefix: 'QT',
     invoice_prefix: 'INV',
@@ -107,6 +108,7 @@ export default function OrganizationSettingsPage() {
           website_url: org.website_url || '',
           logo_url: org.logo_url || '',
           brand_color: org.brand_color || '#2563eb',
+          job_prefix: org.job_prefix || 'JOB',
           job_code_prefix: org.job_code_prefix || 'JOB',
           quote_prefix: org.quote_prefix || 'QT',
           invoice_prefix: org.invoice_prefix || 'INV',
@@ -223,6 +225,7 @@ export default function OrganizationSettingsPage() {
           website_url: formData.website_url,
           logo_url: formData.logo_url,
           brand_color: formData.brand_color,
+          job_prefix: formData.job_prefix,
           job_code_prefix: formData.job_code_prefix,
           quote_prefix: formData.quote_prefix,
           invoice_prefix: formData.invoice_prefix,
@@ -606,7 +609,25 @@ export default function OrganizationSettingsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label htmlFor="job_prefix" className="block text-sm font-medium text-gray-700 mb-2">
+                    Job Number Prefix <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="job_prefix"
+                    name="job_prefix"
+                    type="text"
+                    value={formData.job_prefix}
+                    onChange={handleChange}
+                    required
+                    maxLength={10}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder="JOB"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">For job numbers</p>
+                </div>
+
                 <div>
                   <label htmlFor="job_code_prefix" className="block text-sm font-medium text-gray-700 mb-2">
                     Job Code Prefix <span className="text-red-500">*</span>
@@ -621,6 +642,7 @@ export default function OrganizationSettingsPage() {
                     className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="JOB"
                   />
+                  <p className="text-xs text-gray-500 mt-1">For job codes</p>
                 </div>
 
                 <div>
@@ -637,6 +659,7 @@ export default function OrganizationSettingsPage() {
                     className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="QT"
                   />
+                  <p className="text-xs text-gray-500 mt-1">For quotes</p>
                 </div>
 
                 <div>
@@ -653,6 +676,7 @@ export default function OrganizationSettingsPage() {
                     className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="INV"
                   />
+                  <p className="text-xs text-gray-500 mt-1">For invoices</p>
                 </div>
               </div>
 

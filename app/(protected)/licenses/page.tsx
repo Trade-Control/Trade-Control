@@ -119,22 +119,51 @@ export default function LicensesPage() {
   };
 
   const handleRemoveLicense = async (license: License) => {
-    if (!license.profile_id) {
-      // Unassigned license can be deleted
-      if (confirm('Remove this unassigned license? This cannot be undone.')) {
-        const { error } = await supabase
-          .from('licenses')
-          .delete()
-          .eq('id', license.id);
-
-        if (error) {
-          alert('Error removing license: ' + error.message);
-        } else {
-          fetchLicenses();
-        }
-      }
-    } else {
+    if (license.profile_id) {
       alert('Please unassign the license before removing it.');
+      return;
+    }
+
+    if (license.scheduled_for_removal) {
+      alert('This license is already scheduled for removal.');
+      return;
+    }
+
+    const removalDate = license.removal_date 
+      ? new Date(license.removal_date).toLocaleDateString()
+      : 'the end of the current billing period';
+
+    const confirmMessage = `Remove this license?\n\n` +
+      `The license will remain active until ${removalDate}.\n` +
+      `Stripe will automatically calculate a pro-rata credit/refund.\n` +
+      `After ${removalDate}, the license will be deactivated.\n\n` +
+      `This action cannot be undone.`;
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/licenses/remove', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          licenseId: license.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to remove license');
+      }
+
+      const result = await response.json();
+      alert(`License scheduled for removal. It will remain active until ${new Date(result.removalDate).toLocaleDateString()}.`);
+      fetchLicenses();
+    } catch (err: any) {
+      alert('Error removing license: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -354,6 +383,12 @@ function LicenseCard({
             </div>
           ) : (
             <div className="text-gray-500 italic">Unassigned</div>
+          )}
+          
+          {license.scheduled_for_removal && (
+            <div className="mt-2 text-xs text-orange-600 font-medium">
+              Scheduled for removal: {license.removal_date ? new Date(license.removal_date).toLocaleDateString() : 'End of billing period'}
+            </div>
           )}
         </div>
 

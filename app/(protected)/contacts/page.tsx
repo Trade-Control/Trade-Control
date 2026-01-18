@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { Contact } from '@/lib/types/database.types';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
+import { exportToExcel, importFromExcel } from '@/lib/services/excel-service';
 
 export default function ContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -11,7 +13,7 @@ export default function ContactsPage() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'customer' | 'supplier'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = useSafeSupabaseClient();
 
   const [formData, setFormData] = useState({
@@ -445,14 +447,20 @@ export default function ContactsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Address
-                  </label>
-                  <input
-                    type="text"
+                  <AddressAutocomplete
+                    label="Address"
                     value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    onChange={(value) => setFormData({ ...formData, address: value })}
+                    onAddressSelect={(components) => {
+                      setFormData({
+                        ...formData,
+                        address: components.address,
+                        city: components.city,
+                        state: components.state,
+                        postcode: components.postcode,
+                      });
+                    }}
+                    placeholder="123 Main St"
                   />
                 </div>
 

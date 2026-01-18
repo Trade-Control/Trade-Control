@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import { getUserPermissions } from '@/lib/middleware/role-check';
+import { exportToExcel, exportMultiSheetExcel } from '@/lib/services/excel-service';
 
 interface ReportData {
   jobs: {
@@ -68,6 +69,8 @@ export default function ReportsPage() {
     return date.toISOString().split('T')[0];
   });
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+  const [detailedView, setDetailedView] = useState<'jobs' | 'invoices' | 'timesheets' | 'travel' | null>(null);
+  const [detailedData, setDetailedData] = useState<any[]>([]);
 
   useEffect(() => {
     if (supabase) {
@@ -399,6 +402,115 @@ export default function ReportsPage() {
     });
   };
 
+  const handleExportAll = async () => {
+    if (!reportData || !supabase) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.organization_id) return;
+
+      // Fetch detailed data for all sections
+      const [jobs, invoices, payments, timesheets] = await Promise.all([
+        supabase
+          .from('jobs')
+          .select('job_number, title, status, created_at, site_city')
+          .eq('organization_id', profile.organization_id)
+          .gte('created_at', dateFrom)
+          .lte('created_at', dateTo + 'T23:59:59'),
+        supabase
+          .from('invoices')
+          .select('invoice_number, invoice_date, status, subtotal, gst_amount, total_amount, amount_paid')
+          .eq('organization_id', profile.organization_id)
+          .is('deleted_at', null)
+          .gte('invoice_date', dateFrom)
+          .lte('invoice_date', dateTo),
+        supabase
+          .from('invoice_payments')
+          .select('payment_date, amount, payment_method, reference_number')
+          .eq('organization_id', profile.organization_id)
+          .gte('payment_date', dateFrom)
+          .lte('payment_date', dateTo + 'T23:59:59'),
+        supabase
+          .from('timesheets')
+          .select('entry_date, hours, description')
+          .eq('organization_id', profile.organization_id)
+          .gte('entry_date', dateFrom)
+          .lte('entry_date', dateTo),
+      ]);
+
+      const sheets = [];
+
+      if (jobs.data && jobs.data.length > 0) {
+        sheets.push({
+          name: 'Jobs',
+          data: jobs.data.map(j => ({
+            'Job Number': j.job_number,
+            'Title': j.title,
+            'Status': j.status,
+            'Created': new Date(j.created_at).toLocaleDateString(),
+            'Location': j.site_city || 'N/A'
+          }))
+        });
+      }
+
+      if (invoices.data && invoices.data.length > 0) {
+        sheets.push({
+          name: 'Invoices',
+          data: invoices.data.map(i => ({
+            'Invoice Number': i.invoice_number,
+            'Date': new Date(i.invoice_date).toLocaleDateString(),
+            'Status': i.status,
+            'Subtotal': i.subtotal,
+            'GST': i.gst_amount,
+            'Total': i.total_amount,
+            'Paid': i.amount_paid,
+            'Balance': i.total_amount - i.amount_paid
+          }))
+        });
+      }
+
+      if (payments.data && payments.data.length > 0) {
+        sheets.push({
+          name: 'Payments',
+          data: payments.data.map(p => ({
+            'Date': new Date(p.payment_date).toLocaleDateString(),
+            'Amount': p.amount,
+            'Method': p.payment_method,
+            'Reference': p.reference_number || 'N/A'
+          }))
+        });
+      }
+
+      if (timesheets.data && timesheets.data.length > 0) {
+        sheets.push({
+          name: 'Timesheets',
+          data: timesheets.data.map(t => ({
+            'Date': new Date(t.entry_date).toLocaleDateString(),
+            'Hours': t.hours || 0,
+            'Description': t.description || 'N/A'
+          }))
+        });
+      }
+
+      if (sheets.length > 0) {
+        exportMultiSheetExcel(sheets, `Reports_${dateFrom}_to_${dateTo}`);
+      } else {
+        alert('No data available for export');
+      }
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      alert('Failed to export data');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -481,6 +593,12 @@ export default function ReportsPage() {
             className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-medium transition-colors"
           >
             Year to Date
+          </button>
+          <button
+            onClick={handleExportAll}
+            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+          >
+            <span>📊</span> Export to Excel
           </button>
         </div>
       </div>

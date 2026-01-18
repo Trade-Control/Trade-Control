@@ -391,13 +391,58 @@ export default function TravelTrackingPage() {
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <AddressAutocomplete
-                  label="From (Origin)"
-                  value={formData.origin_address}
-                  onChange={(value) => setFormData({ ...formData, origin_address: value })}
-                  placeholder="Enter starting address"
-                  required
-                />
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <AddressAutocomplete
+                      label="From (Origin)"
+                      value={formData.origin_address}
+                      onChange={(value) => setFormData({ ...formData, origin_address: value })}
+                      placeholder="Enter starting address"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if ('geolocation' in navigator) {
+                          navigator.geolocation.getCurrentPosition(
+                            async (position) => {
+                              const { latitude, longitude } = position.coords;
+                              
+                              // Reverse geocode to get address
+                              try {
+                                const response = await fetch(
+                                  `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
+                                );
+                                const data = await response.json();
+                                
+                                if (data.results && data.results[0]) {
+                                  setFormData({ 
+                                    ...formData, 
+                                    origin_address: data.results[0].formatted_address 
+                                  });
+                                } else {
+                                  alert('Could not determine address from location');
+                                }
+                              } catch (error) {
+                                console.error('Geocoding error:', error);
+                                alert('Failed to get address from location');
+                              }
+                            },
+                            (error) => {
+                              console.error('Geolocation error:', error);
+                              alert('Failed to get current location. Please ensure location permissions are enabled.');
+                            }
+                          );
+                        } else {
+                          alert('Geolocation is not supported by your browser');
+                        }
+                      }}
+                      className="mt-7 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors whitespace-nowrap"
+                    >
+                      📍 Use Current Location
+                    </button>
+                  </div>
+                </div>
 
                 <AddressAutocomplete
                   label="To (Destination)"
@@ -510,6 +555,34 @@ export default function TravelTrackingPage() {
                     className="px-6 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg font-medium transition-colors"
                   >
                     Save Travel Log
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      // Trigger form submit first
+                      const form = e.currentTarget.closest('form');
+                      if (form) {
+                        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                        const formValid = form.reportValidity();
+                        
+                        if (formValid) {
+                          // Submit the form
+                          form.dispatchEvent(submitEvent);
+                          
+                          // Wait a bit for submission to complete
+                          setTimeout(() => {
+                            // Open Google Maps with directions
+                            const origin = encodeURIComponent(formData.origin_address);
+                            const destination = encodeURIComponent(formData.destination_address);
+                            const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+                            window.open(mapsUrl, '_blank');
+                          }, 500);
+                        }
+                      }
+                    }}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    🗺️ Save & Open Maps
                   </button>
                 </div>
               </form>

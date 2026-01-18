@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSafeSupabaseClient } from '@/lib/supabase/safe-client';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -14,15 +14,18 @@ export default function ProtectedLayout({
   const pathname = usePathname();
   const supabase = useSafeSupabaseClient();
   const [loading, setLoading] = useState(true);
+  const checkedRef = useRef(false);
 
   useEffect(() => {
-    if (supabase) {
+    if (supabase && !checkedRef.current) {
+      checkedRef.current = true;
       checkSubscriptionStatus();
     }
-  }, [pathname, supabase]);
+  }, [supabase]);
 
   const checkSubscriptionStatus = async () => {
     if (!supabase) return;
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -31,7 +34,7 @@ export default function ProtectedLayout({
         return;
       }
 
-      // Skip checks for onboarding, migration, subscription management pages
+      // Skip checks for these pages
       if (pathname.startsWith('/onboarding') || 
           pathname.startsWith('/migration') ||
           pathname.startsWith('/subscription')) {
@@ -46,7 +49,6 @@ export default function ProtectedLayout({
         .single();
 
       if (!profile?.organization_id) {
-        // No organization - redirect to subscribe (but avoid loop)
         if (pathname !== '/subscribe') {
           router.push('/subscribe');
         } else {
@@ -55,7 +57,7 @@ export default function ProtectedLayout({
         return;
       }
 
-      // Check if organization has subscription
+      // Check subscription status
       const { data: subscription } = await supabase
         .from('subscriptions')
         .select('id, status')
@@ -63,19 +65,16 @@ export default function ProtectedLayout({
         .single();
 
       if (!subscription) {
-        // No subscription - redirect to migration for existing users
         router.push('/migration');
         return;
       }
 
-      // Check if subscription is active
       if (subscription.status !== 'active' && subscription.status !== 'trialing') {
-        // Inactive subscription
         router.push('/subscription/manage');
         return;
       }
 
-      // Check if onboarding is complete
+      // Check onboarding
       const { data: org } = await supabase
         .from('organizations')
         .select('onboarding_completed')
@@ -83,7 +82,6 @@ export default function ProtectedLayout({
         .single();
 
       if (!org?.onboarding_completed) {
-        // Redirect to onboarding
         router.push('/onboarding');
         return;
       }
@@ -99,8 +97,8 @@ export default function ProtectedLayout({
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-sm text-gray-500">Loading...</p>
         </div>
       </div>
     );

@@ -178,8 +178,9 @@ export async function POST(request: NextRequest) {
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
+          console.error('Profile creation details:', { userId, firstName, lastName, email, phone, role: license.license_type, license_id: license.id, organization_id: license.organization_id });
           return NextResponse.json(
-            { error: 'Failed to create user profile' },
+            { error: `Failed to create user profile: ${profileError.message}` },
             { status: 500 }
           );
         }
@@ -233,10 +234,11 @@ export async function POST(request: NextRequest) {
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
+          console.error('Profile creation details:', { userId, firstName, lastName, email, phone, role: license.license_type, license_id: license.id, organization_id: license.organization_id });
           // Try to clean up the auth user
           await supabaseAdmin.auth.admin.deleteUser(userId);
           return NextResponse.json(
-            { error: 'Failed to create user profile' },
+            { error: `Failed to create user profile: ${profileError.message}` },
             { status: 500 }
           );
         }

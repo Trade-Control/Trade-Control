@@ -74,6 +74,8 @@ export async function POST(request: NextRequest) {
       customerId: subscription.stripe_customer_id || '',
       newTier: newTier as SubscriptionTier,
       operationsProLevel: operationsProLevel as OperationsProLevel,
+      isTrialing: subscription.status === 'trialing',
+      userId: user.id,
     });
 
     return NextResponse.json({

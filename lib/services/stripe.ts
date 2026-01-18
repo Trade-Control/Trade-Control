@@ -391,6 +391,8 @@ export async function createUpgradeCheckoutSession(params: {
   customerId: string;
   newTier: SubscriptionTier;
   operationsProLevel: OperationsProLevel;
+  isTrialing?: boolean;
+  userId?: string;
 }) {
   const stripe = getStripeClient();
   const subscription = await stripe.subscriptions.retrieve(params.subscriptionId);
@@ -403,21 +405,39 @@ export async function createUpgradeCheckoutSession(params: {
   if (!proPriceId) {
     throw new Error(`Price ID not configured for Operations Pro ${params.operationsProLevel}`);
   }
+
+  // If user is on trial, they need to pay for base plan + Pro tier
+  // If user is already paying, they only need to pay for Pro tier addon
+  const isTrialing = params.isTrialing ?? (subscription.status === 'trialing');
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+
+  if (isTrialing) {
+    // Trial user needs to pay for both base and Pro
+    if (!STRIPE_PRICE_IDS.OPERATIONS_BASE) {
+      throw new Error('STRIPE_PRICE_ID_OPERATIONS_BASE is not configured');
+    }
+    lineItems.push(
+      { price: STRIPE_PRICE_IDS.OPERATIONS_BASE, quantity: 1 },
+      { price: proPriceId, quantity: 1 }
+    );
+  } else {
+    // Active subscription - only add Pro tier
+    lineItems.push({ price: proPriceId, quantity: 1 });
+  }
   
   // Create checkout session to add Pro tier to existing subscription
   // Note: We'll add the Pro tier subscription item via API after checkout completes
   const session = await stripe.checkout.sessions.create({
     customer: params.customerId,
     mode: 'subscription',
-    line_items: [{
-      price: proPriceId, // Only the Pro tier price (base is already in subscription)
-      quantity: 1,
-    }],
+    line_items: lineItems,
     metadata: {
       action: 'upgrade_to_pro',
       existing_subscription_id: params.subscriptionId,
       new_tier: params.newTier,
       operations_pro_level: params.operationsProLevel,
+      is_trialing: isTrialing.toString(),
+      user_id: params.userId || '',
     },
     success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://trade-control.vercel.app'}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://trade-control.vercel.app'}/subscription/manage`,

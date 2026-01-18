@@ -96,13 +96,7 @@ export default function ManageSubscriptionPage() {
       return;
     }
 
-    const proLevelName = selectedProLevel === 'scale' ? 'Scale (50 contractors)' : 'Unlimited Contractors';
-    const proPrice = selectedProLevel === 'scale' ? PRICING.OPERATIONS_PRO_SCALE : PRICING.OPERATIONS_PRO_UNLIMITED;
-
-    if (!confirm(`Upgrade to Operations Pro ${proLevelName}? This will add contractor management features for ${formatPrice(proPrice)}/mo.`)) {
-      return;
-    }
-
+    // No confirmation popup - user will consent through Stripe checkout
     setUpgrading(true);
 
     try {
@@ -165,8 +159,12 @@ export default function ManageSubscriptionPage() {
     );
   }
 
-  const managementCount = licenses.filter(l => l.license_type === 'management').length;
-  const fieldStaffCount = licenses.filter(l => l.license_type === 'field_staff').length;
+  const managementLicenses = licenses.filter(l => l.license_type === 'management');
+  const fieldStaffLicenses = licenses.filter(l => l.license_type === 'field_staff');
+  const managementCount = managementLicenses.length;
+  const fieldStaffCount = fieldStaffLicenses.length;
+  const managementScheduledForRemoval = managementLicenses.filter(l => l.scheduled_for_removal).length;
+  const fieldStaffScheduledForRemoval = fieldStaffLicenses.filter(l => l.scheduled_for_removal).length;
 
   return (
     <div>
@@ -225,6 +223,11 @@ export default function ManageSubscriptionPage() {
         {subscription.current_period_end && (
           <div className="text-sm text-gray-600 mb-6">
             Current billing period ends: {new Date(subscription.current_period_end).toLocaleDateString()}
+            {subscription.current_period_end && (
+              <span className="ml-2 text-xs text-gray-500">
+                (Next billing date: {new Date(subscription.current_period_end).toLocaleDateString()})
+              </span>
+            )}
           </div>
         )}
 
@@ -247,16 +250,42 @@ export default function ManageSubscriptionPage() {
             )}
 
             {managementCount > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Management Licenses ({managementCount}):</span>
-                <span className="font-medium">{formatPrice(PRICING.MANAGEMENT_LICENSE * managementCount)}</span>
+              <div className="space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">
+                    Management Licenses ({managementCount}
+                    {managementScheduledForRemoval > 0 && (
+                      <span className="text-orange-600">, {managementScheduledForRemoval} scheduled for removal</span>
+                    )}
+                    ):
+                  </span>
+                  <span className="font-medium">{formatPrice(PRICING.MANAGEMENT_LICENSE * managementCount)}</span>
+                </div>
+                {managementScheduledForRemoval > 0 && (
+                  <div className="text-xs text-orange-600 ml-4">
+                    {managementScheduledForRemoval} license{managementScheduledForRemoval > 1 ? 's' : ''} will be removed at end of billing period
+                  </div>
+                )}
               </div>
             )}
 
             {fieldStaffCount > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Field Staff Licenses ({fieldStaffCount}):</span>
-                <span className="font-medium">{formatPrice(PRICING.FIELD_STAFF_LICENSE * fieldStaffCount)}</span>
+              <div className="space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">
+                    Field Staff Licenses ({fieldStaffCount}
+                    {fieldStaffScheduledForRemoval > 0 && (
+                      <span className="text-orange-600">, {fieldStaffScheduledForRemoval} scheduled for removal</span>
+                    )}
+                    ):
+                  </span>
+                  <span className="font-medium">{formatPrice(PRICING.FIELD_STAFF_LICENSE * fieldStaffCount)}</span>
+                </div>
+                {fieldStaffScheduledForRemoval > 0 && (
+                  <div className="text-xs text-orange-600 ml-4">
+                    {fieldStaffScheduledForRemoval} license{fieldStaffScheduledForRemoval > 1 ? 's' : ''} will be removed at end of billing period
+                  </div>
+                )}
               </div>
             )}
 
@@ -287,32 +316,48 @@ export default function ManageSubscriptionPage() {
             <p className="text-sm mb-4 opacity-90">Add contractor management and compliance tracking</p>
             
             {/* Operations Pro Level Selection */}
-            <div className="mb-4 space-y-2">
-              <label className="flex items-center cursor-pointer">
+            <div className="mb-4 space-y-3">
+              <label className="flex items-start cursor-pointer p-3 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition-colors">
                 <input
                   type="radio"
                   name="proLevel"
                   value="scale"
                   checked={selectedProLevel === 'scale'}
                   onChange={(e) => setSelectedProLevel(e.target.value as 'scale')}
-                  className="mr-2"
+                  className="mr-3 mt-1"
                 />
-                <span className="text-sm">
-                  Scale (50 contractors) - {formatPrice(PRICING.OPERATIONS_PRO_SCALE)}/mo
-                </span>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold">
+                    Scale (50 contractors) - {formatPrice(PRICING.OPERATIONS_PRO_SCALE)}/mo
+                  </div>
+                  <div className="text-sm font-bold mt-1">
+                    Combined Total: {formatPrice(PRICING.OPERATIONS_BASE + PRICING.OPERATIONS_PRO_SCALE)}/mo
+                  </div>
+                  <div className="text-xs opacity-75 mt-1">
+                    Includes Base ({formatPrice(PRICING.OPERATIONS_BASE)}) + Pro ({formatPrice(PRICING.OPERATIONS_PRO_SCALE)})
+                  </div>
+                </div>
               </label>
-              <label className="flex items-center cursor-pointer">
+              <label className="flex items-start cursor-pointer p-3 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition-colors">
                 <input
                   type="radio"
                   name="proLevel"
                   value="unlimited"
                   checked={selectedProLevel === 'unlimited'}
                   onChange={(e) => setSelectedProLevel(e.target.value as 'unlimited')}
-                  className="mr-2"
+                  className="mr-3 mt-1"
                 />
-                <span className="text-sm">
-                  Unlimited Contractors - {formatPrice(PRICING.OPERATIONS_PRO_UNLIMITED)}/mo
-                </span>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold">
+                    Unlimited Contractors - {formatPrice(PRICING.OPERATIONS_PRO_UNLIMITED)}/mo
+                  </div>
+                  <div className="text-sm font-bold mt-1">
+                    Combined Total: {formatPrice(PRICING.OPERATIONS_BASE + PRICING.OPERATIONS_PRO_UNLIMITED)}/mo
+                  </div>
+                  <div className="text-xs opacity-75 mt-1">
+                    Includes Base ({formatPrice(PRICING.OPERATIONS_BASE)}) + Pro ({formatPrice(PRICING.OPERATIONS_PRO_UNLIMITED)})
+                  </div>
+                </div>
               </label>
             </div>
 
@@ -324,11 +369,15 @@ export default function ManageSubscriptionPage() {
               {upgrading ? 'Redirecting to Checkout...' : 'Upgrade Now →'}
             </button>
             
-            {subscription.status === 'trialing' && (
-              <p className="text-xs mt-3 opacity-75">
-                You'll be asked to add a payment method during checkout. Your trial will continue until it ends.
+            <div className="mt-3 p-3 bg-white bg-opacity-20 rounded-lg">
+              <p className="text-xs opacity-90">
+                {subscription.status === 'trialing' ? (
+                  <>💳 Checkout will charge the full combined monthly amount (Base + Pro). Your trial continues until it ends, then regular billing begins.</>
+                ) : (
+                  <>💳 Checkout will charge the combined monthly amount (Base + Pro) starting immediately.</>
+                )}
               </p>
-            )}
+            </div>
           </div>
         )}
       </div>
