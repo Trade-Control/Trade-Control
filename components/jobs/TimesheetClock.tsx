@@ -19,7 +19,13 @@ export default function TimesheetClock({
   onCancelManual 
 }: TimesheetClockProps) {
   const [elapsedTime, setElapsedTime] = useState<string>('00:00:00');
-  const [manualEntry, setManualEntry] = useState({
+  const [manualEntry, setManualEntry] = useState<{
+    entry_date: string;
+    hours: string;
+    description: string;
+    clock_on?: string;
+    clock_off?: string;
+  }>({
     entry_date: new Date().toISOString().split('T')[0],
     hours: '',
     description: '',
@@ -152,6 +158,8 @@ export default function TimesheetClock({
         entry_date: new Date().toISOString().split('T')[0],
         hours: '',
         description: '',
+        clock_on: undefined,
+        clock_off: undefined,
       });
       onCancelManual();
       onUpdate();
