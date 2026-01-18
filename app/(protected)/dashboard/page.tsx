@@ -34,7 +34,7 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6 max-w-7xl">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+        <h1 className="text-lg font-semibold text-gray-900">Dashboard</h1>
         <p className="text-sm text-gray-500 mt-1">
           Welcome back to Trade Control
         </p>
@@ -45,8 +45,8 @@ export default async function DashboardPage() {
         <div className="bg-white border border-gray-200 rounded-md p-4 hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Jobs</p>
-              <p className="text-2xl font-semibold text-gray-900 mt-1">{jobsCount || 0}</p>
+              <p className="text-sm text-gray-600">Total Jobs</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{jobsCount || 0}</p>
             </div>
             <div className="h-10 w-10 bg-blue-50 rounded-md flex items-center justify-center">
               <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,8 +59,8 @@ export default async function DashboardPage() {
         <div className="bg-white border border-gray-200 rounded-md p-4 hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Contacts</p>
-              <p className="text-2xl font-semibold text-gray-900 mt-1">{contactsCount || 0}</p>
+              <p className="text-sm text-gray-600">Contacts</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{contactsCount || 0}</p>
             </div>
             <div className="h-10 w-10 bg-green-50 rounded-md flex items-center justify-center">
               <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,8 +73,8 @@ export default async function DashboardPage() {
         <div className="bg-white border border-gray-200 rounded-md p-4 hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Pending Quotes</p>
-              <p className="text-2xl font-semibold text-gray-900 mt-1">{quotesCount || 0}</p>
+              <p className="text-sm text-gray-600">Pending Quotes</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{quotesCount || 0}</p>
             </div>
             <div className="h-10 w-10 bg-amber-50 rounded-md flex items-center justify-center">
               <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -87,8 +87,8 @@ export default async function DashboardPage() {
         <div className="bg-white border border-gray-200 rounded-md p-4 hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Organisation</p>
-              <p className="text-base font-semibold text-gray-900 mt-1 truncate">
+              <p className="text-sm text-gray-600">Organisation</p>
+              <p className="text-lg font-semibold text-gray-900 mt-1 truncate">
                 {(profile?.organizations as any)?.name || 'N/A'}
               </p>
             </div>
@@ -103,7 +103,7 @@ export default async function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="bg-white border border-gray-200 rounded-md p-5">
-        <h2 className="text-base font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <a
             href="/jobs/new"
@@ -116,7 +116,7 @@ export default async function DashboardPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-900 group-hover:text-white transition-colors">New Job</p>
-              <p className="text-xs text-gray-500 group-hover:text-white/80 transition-colors">Create a new job</p>
+              <p className="text-sm text-gray-500 group-hover:text-white/80 transition-colors">Create a new job</p>
             </div>
           </a>
 
@@ -131,7 +131,7 @@ export default async function DashboardPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-900">Add Contact</p>
-              <p className="text-xs text-gray-500">Add a new customer</p>
+              <p className="text-sm text-gray-500">Add a new customer</p>
             </div>
           </a>
 
@@ -146,7 +146,7 @@ export default async function DashboardPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-900">Manage Inventory</p>
-              <p className="text-xs text-gray-500">View stock levels</p>
+              <p className="text-sm text-gray-500">View stock levels</p>
             </div>
           </a>
         </div>

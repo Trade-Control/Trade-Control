@@ -77,7 +77,48 @@ function SuccessHandler() {
       
       console.log('✅ User authenticated:', user.id);
 
-      // Get pending subscription details from sessionStorage
+      // Check if this is an upgrade (action === 'upgrade_to_pro') or new signup
+      const action = session.metadata?.action;
+      const isUpgrade = action === 'upgrade_to_pro';
+
+      if (isUpgrade) {
+        // Upgrade flow: Webhook should have already updated the subscription
+        // Just verify the subscription was updated and redirect to dashboard
+        console.log('🔄 Processing upgrade flow...');
+        
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('organization_id')
+          .eq('id', user.id)
+          .single();
+
+        if (!profile?.organization_id) {
+          throw new Error('Organization not found. Please contact support.');
+        }
+
+        // Verify subscription was updated (webhook should have done this)
+        const { data: subscription } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('organization_id', profile.organization_id)
+          .single();
+
+        if (!subscription) {
+          throw new Error('Subscription not found. Please contact support.');
+        }
+
+        console.log('✅ Upgrade verified, subscription status:', subscription.status);
+        
+        setStatus('success');
+        
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 2000);
+        return;
+      }
+
+      // New signup flow: Get pending subscription details from sessionStorage
       const pendingData = sessionStorage.getItem('pending_subscription');
       if (!pendingData) {
         throw new Error('Pending subscription data not found. Please contact support if you were charged.');
@@ -192,8 +233,8 @@ function SuccessHandler() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
         <div className="text-green-600 text-5xl mb-4">✅</div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Subscription Created!</h1>
-        <p className="text-gray-600 mb-6">Your account has been set up successfully. Redirecting to onboarding...</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Success!</h1>
+        <p className="text-gray-600 mb-6">Your subscription has been updated successfully. Redirecting...</p>
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
       </div>
     </div>

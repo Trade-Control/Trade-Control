@@ -31,11 +31,13 @@ export default function OnboardingPage() {
     website_url: '',
     logo_url: '',
     brand_color: '#2563eb',
+    job_prefix: 'JOB',
     job_code_prefix: 'JOB',
     quote_prefix: 'QT',
     invoice_prefix: 'INV',
     payment_details: '',
   });
+  const [tradingNameSame, setTradingNameSame] = useState(false);
   
   // Logo upload state
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -88,6 +90,7 @@ export default function OnboardingPage() {
           website_url: org.website_url || '',
           logo_url: org.logo_url || '',
           brand_color: org.brand_color || '#2563eb',
+          job_prefix: org.job_prefix || 'JOB',
           job_code_prefix: org.job_code_prefix || 'JOB',
           quote_prefix: org.quote_prefix || 'QT',
           invoice_prefix: org.invoice_prefix || 'INV',
@@ -249,7 +252,12 @@ export default function OnboardingPage() {
                   type="text"
                   required
                   value={businessData.name}
-                  onChange={(e) => setBusinessData({ ...businessData, name: e.target.value })}
+                  onChange={(e) => {
+                    setBusinessData({ ...businessData, name: e.target.value });
+                    if (tradingNameSame) {
+                      setBusinessData(prev => ({ ...prev, name: e.target.value, trading_name: e.target.value }));
+                    }
+                  }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                   placeholder="Your Business Pty Ltd"
                 />
@@ -259,12 +267,34 @@ export default function OnboardingPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Trading Name <span className="text-red-500">*</span>
                 </label>
+                <div className="mb-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={tradingNameSame}
+                      onChange={(e) => {
+                        setTradingNameSame(e.target.checked);
+                        if (e.target.checked) {
+                          setBusinessData({ ...businessData, trading_name: businessData.name });
+                        }
+                      }}
+                      className="mr-2 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    />
+                    <span className="text-sm text-gray-600">Trading name is the same as business name</span>
+                  </label>
+                </div>
                 <input
                   type="text"
                   required
                   value={businessData.trading_name}
-                  onChange={(e) => setBusinessData({ ...businessData, trading_name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                  onChange={(e) => {
+                    setBusinessData({ ...businessData, trading_name: e.target.value });
+                    if (tradingNameSame && e.target.value !== businessData.name) {
+                      setTradingNameSame(false);
+                    }
+                  }}
+                  disabled={tradingNameSame}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="Your Trading Name"
                 />
               </div>
@@ -479,7 +509,22 @@ export default function OnboardingPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 mt-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Job Prefix <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={businessData.job_prefix}
+                      onChange={(e) => setBusinessData({ ...businessData, job_prefix: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                      placeholder="JOB"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">For job numbers</p>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Job Code Prefix <span className="text-red-500">*</span>
@@ -492,6 +537,7 @@ export default function OnboardingPage() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                       placeholder="JOB"
                     />
+                    <p className="text-xs text-gray-500 mt-1">For job codes</p>
                   </div>
 
                   <div>

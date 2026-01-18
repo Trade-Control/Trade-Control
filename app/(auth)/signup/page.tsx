@@ -270,7 +270,7 @@ function SignupForm() {
                   </div>
                   <div className="ml-3 flex-1">
                     <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                      Step 3: Verify Your Email Address
+                      Verify Your Email Address
                     </h3>
                     <p className="text-sm text-blue-800 mb-3">
                       We've sent a verification email to <strong>{signupEmail}</strong>. Please check your inbox and click the verification link to activate your account.

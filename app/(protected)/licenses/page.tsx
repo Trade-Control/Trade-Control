@@ -85,6 +85,15 @@ export default function LicensesPage() {
       }
 
       console.log('✅ Basic licenses query successful:', licensesData?.length || 0);
+      console.log('🔵 Raw licenses data:', JSON.stringify(licensesData, null, 2));
+      
+      // Check if there are any licenses at all in the database for this org
+      const { count: totalCount } = await supabase
+        .from('licenses')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', profile.organization_id);
+      
+      console.log('🔵 Total licenses count for org:', totalCount);
 
       // Now try to fetch profile data for each license separately
       const licensesWithProfiles = await Promise.all(
@@ -314,7 +323,11 @@ export default function LicensesPage() {
 
       {licenses.length === 0 && (
         <div className="bg-white rounded-lg shadow-lg p-12 text-center">
-          <div className="text-6xl mb-4">🎫</div>
+          <div className="flex justify-center mb-4">
+            <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+            </svg>
+          </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">No Licenses Yet</h2>
           <p className="text-gray-600 mb-6">
             Add licenses to give team members access to the system
