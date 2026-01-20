@@ -3,11 +3,16 @@ import { stripe } from './client'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
 
-// Create admin client for server-side operations
-const supabaseAdmin = createAdminClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Create admin client for server-side operations (lazy initialization)
+function getSupabaseAdmin() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Supabase configuration is missing')
+  }
+  return createAdminClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  )
+}
 
 export async function handleCheckoutSessionCompleted(
   session: Stripe.Checkout.Session
@@ -35,6 +40,7 @@ export async function handleCheckoutSessionCompleted(
   const isInitialSubscription = session.metadata?.type === 'initial_subscription'
 
   if (isInitialSubscription) {
+    const supabaseAdmin = getSupabaseAdmin()
     // Create organization
     const { data: organization, error: orgError } = await (supabaseAdmin
       .from('organizations') as any)
@@ -111,6 +117,7 @@ export async function handleCheckoutSessionCompleted(
     // Get the subscription item ID
     const subscriptionItemId = subscription.items.data[0]?.id
 
+    const supabaseAdmin = getSupabaseAdmin()
     // Create license record
     const { error: licenseError } = await (supabaseAdmin
       .from('licenses') as any)
@@ -132,6 +139,7 @@ export async function handleSubscriptionUpdated(
   subscription: Stripe.Subscription
 ) {
   const sub = subscription as any
+  const supabaseAdmin = getSupabaseAdmin()
   // Update subscription status in database
   const { error } = await (supabaseAdmin
     .from('subscriptions') as any)
@@ -154,6 +162,7 @@ export async function handleSubscriptionDeleted(
   subscription: Stripe.Subscription
 ) {
   const sub = subscription as any
+  const supabaseAdmin = getSupabaseAdmin()
   // Mark subscription as cancelled
   const { error } = await (supabaseAdmin
     .from('subscriptions') as any)
@@ -176,6 +185,7 @@ export async function handleInvoicePaymentFailed(
 
   if (!subscriptionId) return
 
+  const supabaseAdmin = getSupabaseAdmin()
   // Update subscription status to past_due
   const { error } = await (supabaseAdmin
     .from('subscriptions') as any)

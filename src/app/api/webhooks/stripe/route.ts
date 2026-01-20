@@ -9,12 +9,24 @@ import {
   handleInvoicePaymentFailed,
 } from '@/lib/stripe/webhooks'
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+// Force dynamic rendering for webhook route
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
 export async function POST(req: Request) {
   const body = await req.text()
   const headersList = await headers()
   const signature = headersList.get('stripe-signature')!
+
+  if (!stripe) {
+    return NextResponse.json({ error: 'Stripe is not configured' }, { status: 500 })
+  }
+
+  if (!webhookSecret) {
+    return NextResponse.json({ error: 'Webhook secret is not configured' }, { status: 500 })
+  }
 
   let event: Stripe.Event
 

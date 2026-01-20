@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createCustomer, createCheckoutSession, STRIPE_PRICES } from '@/lib/stripe/client'
 
+// Force dynamic rendering for checkout route
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function POST(req: Request) {
   try {
     const { userId, email, name } = await req.json()
