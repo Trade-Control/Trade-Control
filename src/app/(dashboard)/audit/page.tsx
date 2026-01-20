@@ -30,7 +30,7 @@ export default async function AuditTrailPage() {
     redirect('/dashboard')
   }
 
-  const auditLogs = await getAuditTrail(user.organizationId!)
+  const auditLogs = await getAuditTrail(user.organization_id!)
 
   const actionLabels: Record<string, string> = {
     create: 'Created',

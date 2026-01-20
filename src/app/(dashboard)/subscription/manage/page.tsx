@@ -22,7 +22,7 @@ export default async function SubscriptionManagePage() {
     redirect('/dashboard')
   }
 
-  const subscription = await getSubscriptionDetails(user.organizationId!)
+  const subscription = await getSubscriptionDetails(user.organization_id!)
 
   if (!subscription) {
     redirect('/dashboard')

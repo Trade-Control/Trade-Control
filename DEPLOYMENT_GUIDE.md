@@ -45,7 +45,11 @@ If implementing document uploads:
 3. Add Redirect URLs:
    - `https://yourdomain.com/auth/callback`
    - `https://yourdomain.com/onboarding`
-4. Configure email templates (optional)
+4. **Configure email templates (REQUIRED for signup):**
+   - Go to Authentication → Email Templates
+   - Edit "Confirm signup" template
+   - Ensure confirmation URL redirects to: `https://yourdomain.com/auth/callback`
+   - **Email verification must be enabled** for the signup flow to work correctly
 
 ## Step 2: Stripe Setup
 

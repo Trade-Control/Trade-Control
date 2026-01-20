@@ -61,11 +61,11 @@ async function getDashboardStats(organizationId: string) {
 export default async function DashboardPage() {
   const user = await getCurrentUser()
   
-  if (!user || !user.organizationId) {
+  if (!user || !user.organization_id) {
     return null
   }
 
-  const stats = await getDashboardStats(user.organizationId)
+  const stats = await getDashboardStats(user.organization_id)
 
   return (
     <div className="space-y-6">

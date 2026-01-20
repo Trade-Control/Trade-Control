@@ -28,8 +28,8 @@ export default function NewContactPage() {
 
     try {
       const contact = await createContact({
-        ...formData,
-        company: formData.company || undefined,
+        type: formData.type as 'customer' | 'supplier',
+        name: formData.name,
         email: formData.email || undefined,
         phone: formData.phone || undefined,
         address: formData.address || undefined,

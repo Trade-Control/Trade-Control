@@ -2,55 +2,61 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { requireAuth, requirePermissions } from '@/lib/auth/get-user'
-import { permissions } from '@/lib/auth/permissions'
-import { Database } from '@/types/database'
+import { getCurrentUser } from '@/lib/auth/get-user'
 
 export async function getContacts(type?: 'customer' | 'supplier'): Promise<any[]> {
-  const user = await requireAuth()
+  const user = await getCurrentUser()
+  if (!user?.organization_id) {
+    return []
+  }
   const supabase = await createClient()
 
   let query = (supabase
     .from('contacts') as any)
     .select('*')
-    .eq('organization_id', user.organizationId)
-    .order('name')
+    .eq('organization_id', user.organization_id)
 
   if (type) {
     query = query.eq('type', type)
   }
 
-  const { data, error } = await query as any
+  query = query.order('name', { ascending: true })
+
+  const { data, error } = await query
 
   if (error) {
-    throw new Error(error.message)
+    console.error('Error fetching contacts:', error)
+    return []
   }
 
   return (data || []) as any[]
 }
 
 export async function getContact(id: string) {
-  const user = await requireAuth()
+  const user = await getCurrentUser()
+  if (!user?.organization_id) {
+    return null
+  }
   const supabase = await createClient()
 
   const { data, error } = await (supabase
     .from('contacts') as any)
     .select('*')
     .eq('id', id)
-    .eq('organization_id', user.organizationId)
+    .eq('organization_id', user.organization_id)
     .single() as any
 
   if (error) {
-    throw new Error(error.message)
+    console.error('Error fetching contact:', error)
+    return null
   }
 
-  return data
+  return data as any
 }
 
-export async function createContact(formData: {
+export async function createContact(data: {
   type: 'customer' | 'supplier'
   name: string
-  company?: string
   email?: string
   phone?: string
   address?: string
@@ -59,67 +65,45 @@ export async function createContact(formData: {
   postcode?: string
   abn?: string
 }) {
-  const user = await requireAuth()
-  const userPerms = await requirePermissions()
-
-  if (!permissions.canManageContacts(userPerms)) {
-    throw new Error('Unauthorized')
-  }
-
-  if (!user.organizationId) {
-    throw new Error('Organization not found')
+  const user = await getCurrentUser()
+  if (!user?.organization_id || !user.permissions?.canManageContacts) {
+    return { error: 'Unauthorized' }
   }
 
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('contacts')
+  const { data: contact, error } = await (supabase
+    .from('contacts') as any)
     .insert({
-      organization_id: user.organizationId,
-      type: formData.type,
-      name: formData.name,
-      company: formData.company,
-      email: formData.email,
-      phone: formData.phone,
-      address: formData.address,
-      city: formData.city,
-      state: formData.state,
-      postcode: formData.postcode,
-      abn: formData.abn,
-    } as any)
+      organization_id: user.organization_id,
+      ...data,
+    })
     .select()
-    .single() as any
+    .single()
 
   if (error) {
-    throw new Error(error.message)
+    console.error('Error creating contact:', error)
+    return { error: 'Failed to create contact' }
   }
 
-  if (!data) {
-    throw new Error('Failed to create contact')
-  }
-
-  // Log to audit trail
-  await supabase.from('audit_trail').insert({
-    organization_id: user.organizationId,
+  // Log audit trail
+  await (supabase.from('audit_trail') as any).insert({
+    organization_id: user.organization_id,
     user_id: user.id,
     action: 'create',
-    resource_type: 'contact',
-    resource_id: data.id,
-    details: { name: formData.name, type: formData.type },
-  } as any)
+    entity_type: 'contact',
+    entity_id: contact.id,
+    details: { name: data.name, type: data.type },
+  })
 
   revalidatePath('/contacts')
-  revalidatePath('/dashboard')
-
-  return data
+  return { success: true, id: contact.id }
 }
 
 export async function updateContact(
   id: string,
-  formData: {
-    type?: 'customer' | 'supplier'
+  data: {
     name?: string
-    company?: string
     email?: string
     phone?: string
     address?: string
@@ -129,71 +113,67 @@ export async function updateContact(
     abn?: string
   }
 ) {
-  const user = await requireAuth()
-  const userPerms = await requirePermissions()
-
-  if (!permissions.canManageContacts(userPerms)) {
-    throw new Error('Unauthorized')
+  const user = await getCurrentUser()
+  if (!user?.organization_id || !user.permissions?.canManageContacts) {
+    return { error: 'Unauthorized' }
   }
 
   const supabase = await createClient()
 
-  const { data, error } = await (supabase
+  const { error } = await (supabase
     .from('contacts') as any)
-    .update(formData)
+    .update({ ...data, updated_at: new Date().toISOString() })
     .eq('id', id)
-    .eq('organization_id', user.organizationId)
-    .select()
-    .single()
+    .eq('organization_id', user.organization_id)
 
   if (error) {
-    throw new Error(error.message)
+    console.error('Error updating contact:', error)
+    return { error: 'Failed to update contact' }
   }
 
-  // Log to audit trail
-  await supabase.from('audit_trail').insert({
-    organization_id: user.organizationId,
+  // Log audit trail
+  await (supabase.from('audit_trail') as any).insert({
+    organization_id: user.organization_id,
     user_id: user.id,
     action: 'update',
-    resource_type: 'contact',
-    resource_id: id,
-    details: formData,
-  } as any)
+    entity_type: 'contact',
+    entity_id: id,
+    details: data,
+  })
 
   revalidatePath('/contacts')
   revalidatePath(`/contacts/${id}`)
-
-  return data
+  return { success: true }
 }
 
 export async function deleteContact(id: string) {
-  const user = await requireAuth()
-  const userPerms = await requirePermissions()
-
-  if (!permissions.canManageContacts(userPerms)) {
-    throw new Error('Unauthorized')
+  const user = await getCurrentUser()
+  if (!user?.organization_id || !user.permissions?.canManageContacts) {
+    return { error: 'Unauthorized' }
   }
 
   const supabase = await createClient()
 
-  const { error } = await supabase
-    .from('contacts')
+  const { error } = await (supabase
+    .from('contacts') as any)
     .delete()
     .eq('id', id)
-    .eq('organization_id', user.organizationId)
+    .eq('organization_id', user.organization_id)
 
   if (error) {
-    throw new Error(error.message)
+    console.error('Error deleting contact:', error)
+    return { error: 'Failed to delete contact' }
   }
 
-  // Log to audit trail
-  await supabase.from('audit_trail').insert({
-    organization_id: user.organizationId,
+  // Log audit trail
+  await (supabase.from('audit_trail') as any).insert({
+    organization_id: user.organization_id,
     user_id: user.id,
     action: 'delete',
-    resource_type: 'contact',
-    resource_id: id,
-  } as any)
+    entity_type: 'contact',
+    entity_id: id,
+  })
 
   revalidatePath('/contacts')
+  return { success: true }
 }

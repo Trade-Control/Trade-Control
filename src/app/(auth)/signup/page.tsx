@@ -24,11 +24,12 @@ export default function SignupPage() {
     try {
       const supabase = createClient()
 
-      // Create auth user
+      // Create auth user with email confirmation
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             first_name: formData.firstName,
             last_name: formData.lastName,
@@ -48,42 +49,16 @@ export default function SignupPage() {
         return
       }
 
-      // Create profile
-      const { error: profileError } = await (supabase.from('profiles') as any).insert({
-        id: authData.user.id,
+      // Store user details in sessionStorage for after verification
+      sessionStorage.setItem('pendingSignup', JSON.stringify({
+        userId: authData.user.id,
         email: formData.email,
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        role: 'owner', // Will be assigned owner role after subscription
-      })
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+      }))
 
-      if (profileError) {
-        console.error('Profile creation error:', profileError)
-      }
-
-      // Create Stripe checkout session via API
-      const response = await fetch('/api/checkout/create-subscription', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: authData.user.id,
-          email: formData.email,
-          name: `${formData.firstName} ${formData.lastName}`,
-        }),
-      })
-
-      const { url, error: checkoutError } = await response.json()
-
-      if (checkoutError) {
-        setError(checkoutError)
-        setLoading(false)
-        return
-      }
-
-      // Redirect to Stripe Checkout
-      window.location.href = url
+      // Redirect to verification page
+      router.push('/auth/verify-email')
     } catch (err) {
       setError('An unexpected error occurred')
       setLoading(false)

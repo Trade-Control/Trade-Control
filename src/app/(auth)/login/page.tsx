@@ -39,8 +39,8 @@ export default function LoginPage() {
         .single() as any
 
       if (!profile?.organization_id) {
-        // No organization, redirect to migration flow
-        router.push('/migration')
+        // No organization, redirect to checkout flow
+        router.push('/auth/checkout')
         return
       }
 
@@ -64,7 +64,8 @@ export default function LoginPage() {
         .single() as any
 
       if (!subscription) {
-        router.push('/migration')
+        // No subscription, redirect to checkout
+        router.push('/auth/checkout')
         return
       }
 
