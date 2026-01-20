@@ -41,9 +41,18 @@ function OnboardingContent() {
         },
       })
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('API error:', response.status, errorData)
+        setError(errorData.error || `Server error (${response.status}). Please try again or contact support.`)
+        setVerifying(false)
+        return
+      }
+
       const result = await response.json()
 
       if (result.error) {
+        console.error('Organization ensure error:', result.error)
         setError(result.error)
         setVerifying(false)
         return

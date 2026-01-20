@@ -6,93 +6,140 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
 
 function getSupabaseAdmin() {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error('Missing Supabase config:', { 
+      hasUrl: !!supabaseUrl, 
+      hasKey: !!serviceRoleKey 
+    })
     throw new Error('Supabase admin configuration is missing')
   }
-  return createAdminClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
+  
+  return createAdminClient<Database>(supabaseUrl, serviceRoleKey)
 }
 
 export async function ensureOrganization() {
-  const user = await getCurrentUser()
-  if (!user) {
-    return { error: 'Unauthorized' }
-  }
+  try {
+    const user = await getCurrentUser()
+    if (!user) {
+      console.error('ensureOrganization: No user found - getCurrentUser returned null')
+      return { error: 'Unauthorized - please log in' }
+    }
 
-  const supabase = await createClient()
+    if (!user.id) {
+      console.error('ensureOrganization: User has no ID', user)
+      return { error: 'Invalid user session' }
+    }
 
-  // Check if user already has organization
-  const { data: profile } = await (supabase
-    .from('profiles') as any)
-    .select('organization_id')
-    .eq('id', user.id)
-    .single()
+    console.log('ensureOrganization: User found', { userId: user.id, email: user.email, hasOrgId: !!user.organization_id })
 
-  if (profile?.organization_id) {
-    // Verify organization exists
-    const { data: org } = await (supabase
-      .from('organizations') as any)
-      .select('id, onboarding_completed')
-      .eq('id', profile.organization_id)
+    const supabase = await createClient()
+
+    // Check if user already has organization
+    const { data: profile, error: profileError } = await (supabase
+      .from('profiles') as any)
+      .select('organization_id')
+      .eq('id', user.id)
       .single()
 
-    if (org) {
-      return { success: true, organization_id: org.id, onboarding_completed: org.onboarding_completed }
+    if (profileError) {
+      console.error('Error fetching profile:', profileError)
     }
-  }
 
-  // Use admin client to check for subscription and create org if needed
-  const supabaseAdmin = getSupabaseAdmin()
-  
-  // Check if profile was updated recently (webhook might have run)
-  const { data: updatedProfile } = await (supabaseAdmin
-    .from('profiles') as any)
-    .select('organization_id')
-    .eq('id', user.id)
-    .single()
+    if (profile?.organization_id) {
+      // Verify organization exists
+      const { data: org, error: orgError } = await (supabase
+        .from('organizations') as any)
+        .select('id, onboarding_completed')
+        .eq('id', profile.organization_id)
+        .single()
 
-  if (updatedProfile?.organization_id) {
-    const { data: org } = await (supabaseAdmin
-      .from('organizations') as any)
-      .select('id, onboarding_completed')
-      .eq('id', updatedProfile.organization_id)
+      if (orgError) {
+        console.error('Error fetching organization:', orgError)
+      }
+
+      if (org) {
+        console.log('Organization found:', org.id)
+        return { success: true, organization_id: org.id, onboarding_completed: org.onboarding_completed }
+      }
+    }
+
+    // Use admin client to check for subscription and create org if needed
+    let supabaseAdmin
+    try {
+      supabaseAdmin = getSupabaseAdmin()
+    } catch (adminError: any) {
+      console.error('Failed to get admin client:', adminError)
+      return { error: 'Server configuration error. Please contact support.' }
+    }
+    
+    // Check if profile was updated recently (webhook might have run)
+    const { data: updatedProfile, error: updatedProfileError } = await (supabaseAdmin
+      .from('profiles') as any)
+      .select('organization_id')
+      .eq('id', user.id)
       .single()
 
-    if (org) {
-      return { success: true, organization_id: org.id, onboarding_completed: org.onboarding_completed }
+    if (updatedProfileError) {
+      console.error('Error fetching updated profile:', updatedProfileError)
     }
+
+    if (updatedProfile?.organization_id) {
+      const { data: org, error: orgError } = await (supabaseAdmin
+        .from('organizations') as any)
+        .select('id, onboarding_completed')
+        .eq('id', updatedProfile.organization_id)
+        .single()
+
+      if (orgError) {
+        console.error('Error fetching organization from admin:', orgError)
+      }
+
+      if (org) {
+        console.log('Organization found via admin:', org.id)
+        return { success: true, organization_id: org.id, onboarding_completed: org.onboarding_completed }
+      }
+    }
+
+    // Create new organization (fallback if webhook hasn't fired yet)
+    // Use admin client to bypass RLS
+    console.log('Creating new organization for user:', user.id)
+    const { data: newOrg, error: orgError } = await (supabaseAdmin
+      .from('organizations') as any)
+      .insert({
+        name: 'My Organization',
+        onboarding_completed: false,
+      })
+      .select()
+      .single()
+
+    if (orgError || !newOrg) {
+      console.error('Failed to create organization:', orgError)
+      return { error: `Failed to create organization: ${orgError?.message || 'Unknown error'}` }
+    }
+
+    console.log('Organization created:', newOrg.id)
+
+    // Update profile with new organization using admin client
+    const { error: updateError } = await (supabaseAdmin
+      .from('profiles') as any)
+      .update({ organization_id: newOrg.id })
+      .eq('id', user.id)
+
+    if (updateError) {
+      console.error('Failed to update profile:', updateError)
+      return { error: `Failed to link organization: ${updateError.message || 'Unknown error'}` }
+    }
+
+    console.log('Profile updated with organization:', newOrg.id)
+    return { success: true, organization_id: newOrg.id, onboarding_completed: false }
+  } catch (error: any) {
+    console.error('ensureOrganization exception:', error)
+    console.error('Error stack:', error.stack)
+    return { error: `Unexpected error: ${error.message || error.toString()}` }
   }
-
-  // Create new organization (fallback if webhook hasn't fired yet)
-  // Use admin client to bypass RLS
-  const { data: newOrg, error: orgError } = await (supabaseAdmin
-    .from('organizations') as any)
-    .insert({
-      name: 'My Organization',
-      onboarding_completed: false,
-    })
-    .select()
-    .single()
-
-  if (orgError || !newOrg) {
-    console.error('Failed to create organization:', orgError)
-    return { error: 'Failed to create organization. Please try again or contact support.' }
-  }
-
-  // Update profile with new organization using admin client
-  const { error: updateError } = await (supabaseAdmin
-    .from('profiles') as any)
-    .update({ organization_id: newOrg.id })
-    .eq('id', user.id)
-
-  if (updateError) {
-    console.error('Failed to update profile:', updateError)
-    return { error: 'Failed to link organization. Please contact support.' }
-  }
-
-  return { success: true, organization_id: newOrg.id, onboarding_completed: false }
 }
 
 export async function updateOrganization(data: {
