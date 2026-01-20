@@ -33,33 +33,30 @@ function OnboardingContent() {
         return
       }
 
-      // Check if user has organization
-      const { data: profile } = await (supabase
-        .from('profiles') as any)
-        .select('organization_id')
-        .eq('id', user.id)
-        .single() as any
+      // Use server action to ensure organization exists
+      const response = await fetch('/api/organizations/ensure', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
 
-      if (!profile?.organization_id) {
-        setError('Organization not found. Please contact support.')
+      const result = await response.json()
+
+      if (result.error) {
+        setError(result.error)
         setVerifying(false)
         return
       }
 
-      // Check if onboarding is already completed
-      const { data: org } = await (supabase
-        .from('organizations') as any)
-        .select('onboarding_completed')
-        .eq('id', profile.organization_id)
-        .single() as any
-
-      if (org?.onboarding_completed) {
+      if (result.onboarding_completed) {
         router.push('/dashboard')
         return
       }
 
       setVerifying(false)
     } catch (err) {
+      console.error('Verification error:', err)
       setError('Failed to verify session')
       setVerifying(false)
     }
@@ -76,44 +73,19 @@ function OnboardingContent() {
     setLoading(true)
 
     try {
-      const supabase = createClient()
+      // Use server action to update organization
+      const response = await fetch('/api/organizations/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
 
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
+      const result = await response.json()
 
-      const { data: profile } = await (supabase
-        .from('profiles') as any)
-        .select('organization_id')
-        .eq('id', user.id)
-        .single() as any
-
-      if (!profile?.organization_id) {
-        setError('Organization not found')
-        setLoading(false)
-        return
-      }
-
-      // Update organization with onboarding data
-      const { error: updateError } = await (supabase
-        .from('organizations') as any)
-        .update({
-          name: formData.name,
-          abn: formData.abn,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          postcode: formData.postcode,
-          phone: formData.phone,
-          email: formData.email,
-          onboarding_completed: true,
-        })
-        .eq('id', profile.organization_id)
-
-      if (updateError) {
-        setError(updateError.message)
+      if (result.error) {
+        setError(result.error)
         setLoading(false)
         return
       }
@@ -121,6 +93,7 @@ function OnboardingContent() {
       // Redirect to dashboard
       router.push('/dashboard')
     } catch (err) {
+      console.error('Submit error:', err)
       setError('An unexpected error occurred')
       setLoading(false)
     }
