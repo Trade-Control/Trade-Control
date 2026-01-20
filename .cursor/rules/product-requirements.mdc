@@ -1,0 +1,214 @@
+---
+alwaysApply: true
+---
+# Overview
+
+# Product Requirements Document: Trade Control
+
+**Version:** 1.0  
+**Date:** 2024  
+**Purpose:** Source of truth for total rebuild
+
+---
+
+## 1. Core Concept
+
+**Trade Control** is a comprehensive SaaS platform designed specifically for Australian trade businesses to manage their entire operations lifecycle. The platform enables trade companies to manage jobs from quote to completion, handle team members and external contractors, generate professional quotes and invoices, track inventory and travel, and maintain compliance—all while providing role-based access control and flexible subscription tiers that scale with business needs.
+
+---
+
+## 2. Feature & Tier Mapping
+
+| Feature | Operations | Operations Pro Scale | Operations Pro Unlimited | Owner License | Management License | Field Staff License |
+|---------|-----------|---------------------|------------------------|---------------|-------------------|-------------------|
+| **Core Job Management** |
+| Create/Edit/Delete Jobs | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| View All Jobs | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| View Assigned Jobs Only | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ |
+| Update Job Status (Assigned Jobs) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Job Details & Notes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (Assigned Only) |
+| Job Prefix/Numbering | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **Quotes & Invoicing** |
+| Create/Edit Quotes | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Send Quotes via Email | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Create/Edit Invoices | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Send Invoices via Email | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Track Invoice Payments | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Quote/Invoice PDF Generation | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **Timesheets & Documents** |
+| Clock In/Out | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (Assigned Jobs) |
+| Manual Timesheet Entry | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (Assigned Jobs) |
+| Upload Documents | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (Assigned Jobs) |
+| View Documents | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (Assigned Jobs) |
+| **Inventory & Travel** |
+| Inventory Management | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Inventory Allocation to Jobs | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Travel Logging | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (Assigned Jobs) |
+| Google Maps Integration | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Contacts & Job Codes** |
+| Manage Contacts (Customers/Suppliers) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Manage Job Codes | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **Contractor Management** |
+| Add/Edit Contractors | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Contractor Compliance Tracking | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Insurance/License Expiry Tracking | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Compliance Dashboard | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Auto-Flag Expired Credentials | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Compliance Reminder Emails | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Assign Contractors to Jobs | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Token-Based Contractor Access | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Contractor Submission Review | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **Activity & Communication** |
+| Activity Feed (Job Timeline) | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ (Assigned Jobs) |
+| Email Communication Log | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ (Assigned Jobs) |
+| **Reporting** |
+| View Reports | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (Limited) |
+| Export Reports | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **Administration** |
+| Manage Licenses | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Manage Subscription | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| View Audit Trail | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Organization Settings | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Assign Field Staff to Jobs | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **Scheduling** |
+| View Schedule/Calendar | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (Assigned Jobs) |
+| **Contractor Limits** |
+| Maximum Contractors | N/A | 50 | Unlimited | N/A | N/A | N/A |
+
+**Legend:**
+- ✅ = Full access
+- ❌ = No access
+- ✅ (Assigned Jobs) = Access limited to assigned jobs only
+- ✅ (Limited) = Limited access (e.g., own data only)
+
+---
+
+## 3. The License Model
+
+### Subscription Structure
+
+Trade Control uses a **hybrid subscription model** combining base tier subscriptions with seat-based license add-ons:
+
+#### Base Subscriptions
+
+1. **Operations** - $49 AUD/month
+   - Base platform access
+   - Includes one Owner license (free)
+   - All core features except contractor management
+
+2. **Operations Pro Scale** - $49 + $99 = $148 AUD/month
+   - Everything in Operations
+   - Contractor management (up to 50 contractors)
+   - Compliance Shield features
+   - Token-based contractor access
+   - Activity feed
+
+3. **Operations Pro Unlimited** - $49 + $199 = $248 AUD/month
+   - Everything in Operations Pro Scale
+   - Unlimited contractors
+
+#### License Add-Ons (Monthly Recurring)
+
+Licenses are purchased separately and added to any base subscription:
+
+- **Management License** - $35 AUD/month per seat
+  - Full job, quote, and invoice management
+  - Can assign contractors (if Operations Pro)
+  - Cannot manage licenses or subscriptions
+  - Cannot access audit trail or organization settings
+
+- **Field Staff License** - $15 AUD/month per seat
+  - View-only access to assigned jobs
+  - Can update job status and notes for assigned jobs
+  - Can clock in/out and submit timesheets for assigned jobs
+  - Can upload documents and log travel for assigned jobs
+  - Cannot access quotes, invoices, or other jobs
+
+#### License Assignment Model
+
+- **Owner License**: Automatically assigned to the organization creator. Free and unlimited. Cannot be purchased separately.
+- **Management & Field Staff Licenses**: Purchased as subscription items through Stripe. Can be assigned/unassigned to users dynamically. When unassigned, the license remains available for reassignment (billing continues). When removed entirely, billing stops at next billing cycle with pro-rata adjustments.
+
+#### Billing Characteristics
+
+- **14-day free trial** on only the base package, however once the package is upgraded or a license is added in the 14 day period then the user is charged in full
+- **Pro-rata billing** for mid-cycle license additions/removals
+- **Monthly recurring** subscriptions (AUD currency)
+- **Upgrade/downgrade** between tiers anytime (pro-rata adjustments)
+- **Cancel anytime** (access continues until period end)
+- **Trial period**: Full access during trial, no payment required until trial ends
+
+#### License Lifecycle
+
+1. **Purchase**: Owner purchases license through Stripe checkout
+2. **Assignment**: Owner assigns license to existing user or creates new user account
+3. **Active**: User has full access based on license type
+4. **Unassignment**: Owner can unassign (license becomes available, billing continues)
+5. **Reassignment**: Owner can reassign to different user
+6. **Removal**: Owner removes license entirely (billing stops, pro-rata refund if mid-cycle)
+
+---
+
+## 4. API Dependencies
+
+### Required External Services
+
+1. **Stripe** (Payment Processing)
+   - Purpose: Subscription management, checkout sessions, webhook handling
+   - Key Functions:
+     - Create customers
+     - Create/update/cancel subscriptions
+     - Add/remove subscription items (licenses)
+     - Handle checkout all sessions through a Stripe link
+
+2. **Resend** (Email Service)
+   - Purpose: Transactional email delivery
+   - Key Functions:
+     - Send job assignment emails to contractors
+     - Send quote/invoice emails to customers
+     - Send compliance reminder emails
+     - Send password reset emails
+     - Send welcome/onboarding emails
+     - For clients to communicate back to users
+
+   - Email Types:
+     - Job assignment notifications
+     - Quote/invoice delivery
+     - Compliance reminders (insurance/license expiry)
+     - System notifications
+     - User invitations
+
+3. **Supabase** (Backend-as-a-Service)
+   - Purpose: Database, authentication, storage, real-time features
+   - Key Functions:
+     - User authentication (email/password)
+     - Row Level Security (RLS) policies
+     - Database operations (PostgreSQL)
+     - File storage (contractor submissions, documents)
+   - Components Used:
+     - Auth (user management)
+     - Database (all tables)
+     - Storage (document uploads, contractor submissions)
+
+### Optional External Services
+
+4. **Google Maps API** (Optional)
+   - Purpose: Address autocomplete and travel route calculation
+   - Key Functions:
+     - Address autocomplete for all address fields in the app
+     - Calculate travel distance/duration
+     - Geocoding (address to coordinates)
+   - Libraries Used:
+     - Places API (autocomplete)
+     - Routes API (directions)
+   - Note: Application functions without this, but with reduced functionality
+
+---
+
+## 5. Design System
+
+- **Font**: Segoe UI (with fallbacks: Tahoma, Geneva, Verdana, sans-serif)
+- **Primary Color**: #2391cd (Blue)
+- **Background**: White (#ffffff)
+- Modern simple user friendly
+---

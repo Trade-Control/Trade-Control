@@ -1,0 +1,181 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { createClient } from '@/lib/supabase/server'
+import { requireAuth, requirePermissions } from '@/lib/auth/get-user'
+import { permissions } from '@/lib/auth/permissions'
+
+export async function getContacts(type?: 'customer' | 'supplier') {
+  const user = await requireAuth()
+  const supabase = await createClient()
+
+  let query = supabase
+    .from('contacts')
+    .select('*')
+    .eq('organization_id', user.organizationId)
+    .order('name')
+
+  if (type) {
+    query = query.eq('type', type)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return data
+}
+
+export async function getContact(id: string) {
+  const user = await requireAuth()
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('contacts')
+    .select('*')
+    .eq('id', id)
+    .eq('organization_id', user.organizationId)
+    .single()
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return data
+}
+
+export async function createContact(formData: {
+  type: 'customer' | 'supplier'
+  name: string
+  company?: string
+  email?: string
+  phone?: string
+  address?: string
+  city?: string
+  state?: string
+  postcode?: string
+  abn?: string
+}) {
+  const user = await requireAuth()
+  const userPerms = await requirePermissions()
+
+  if (!permissions.canManageContacts(userPerms)) {
+    throw new Error('Unauthorized')
+  }
+
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('contacts')
+    .insert({
+      organization_id: user.organizationId,
+      ...formData,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  // Log to audit trail
+  await supabase.from('audit_trail').insert({
+    organization_id: user.organizationId,
+    user_id: user.id,
+    action: 'create',
+    resource_type: 'contact',
+    resource_id: data.id,
+    details: { name: formData.name, type: formData.type },
+  })
+
+  revalidatePath('/contacts')
+  revalidatePath('/dashboard')
+
+  return data
+}
+
+export async function updateContact(
+  id: string,
+  formData: {
+    type?: 'customer' | 'supplier'
+    name?: string
+    company?: string
+    email?: string
+    phone?: string
+    address?: string
+    city?: string
+    state?: string
+    postcode?: string
+    abn?: string
+  }
+) {
+  const user = await requireAuth()
+  const userPerms = await requirePermissions()
+
+  if (!permissions.canManageContacts(userPerms)) {
+    throw new Error('Unauthorized')
+  }
+
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('contacts')
+    .update(formData)
+    .eq('id', id)
+    .eq('organization_id', user.organizationId)
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  // Log to audit trail
+  await supabase.from('audit_trail').insert({
+    organization_id: user.organizationId,
+    user_id: user.id,
+    action: 'update',
+    resource_type: 'contact',
+    resource_id: id,
+    details: formData,
+  })
+
+  revalidatePath('/contacts')
+  revalidatePath(`/contacts/${id}`)
+
+  return data
+}
+
+export async function deleteContact(id: string) {
+  const user = await requireAuth()
+  const userPerms = await requirePermissions()
+
+  if (!permissions.canManageContacts(userPerms)) {
+    throw new Error('Unauthorized')
+  }
+
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('contacts')
+    .delete()
+    .eq('id', id)
+    .eq('organization_id', user.organizationId)
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  // Log to audit trail
+  await supabase.from('audit_trail').insert({
+    organization_id: user.organizationId,
+    user_id: user.id,
+    action: 'delete',
+    resource_type: 'contact',
+    resource_id: id,
+  })
+
+  revalidatePath('/contacts')
+}
