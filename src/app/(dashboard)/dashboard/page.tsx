@@ -6,36 +6,36 @@ async function getDashboardStats(organizationId: string) {
   const supabase = await createClient()
 
   // Get total jobs
-  const { count: totalJobs } = await supabase
-    .from('jobs')
+  const { count: totalJobs } = await (supabase
+    .from('jobs') as any)
     .select('*', { count: 'exact', head: true })
-    .eq('organization_id', organizationId)
+    .eq('organization_id', organizationId) as any
 
   // Get jobs by status
-  const { data: jobs } = await supabase
-    .from('jobs')
+  const { data: jobs } = await (supabase
+    .from('jobs') as any)
     .select('status')
-    .eq('organization_id', organizationId)
+    .eq('organization_id', organizationId) as any
 
-  const inProgressJobs = jobs?.filter((j) => j.status === 'in_progress').length || 0
-  const completedJobs = jobs?.filter((j) => j.status === 'completed').length || 0
+  const inProgressJobs = (jobs as any)?.filter((j: any) => j.status === 'in_progress').length || 0
+  const completedJobs = (jobs as any)?.filter((j: any) => j.status === 'completed').length || 0
 
   // Get total contacts
-  const { count: totalContacts } = await supabase
-    .from('contacts')
+  const { count: totalContacts } = await (supabase
+    .from('contacts') as any)
     .select('*', { count: 'exact', head: true })
-    .eq('organization_id', organizationId)
+    .eq('organization_id', organizationId) as any
 
   // Get pending quotes
-  const { count: pendingQuotes } = await supabase
-    .from('quotes')
+  const { count: pendingQuotes } = await (supabase
+    .from('quotes') as any)
     .select('*', { count: 'exact', head: true })
     .eq('organization_id', organizationId)
-    .eq('status', 'sent')
+    .eq('status', 'sent') as any
 
   // Get recent jobs
-  const { data: recentJobs } = await supabase
-    .from('jobs')
+  const { data: recentJobs } = await (supabase
+    .from('jobs') as any)
     .select(`
       id,
       job_number,
@@ -46,7 +46,7 @@ async function getDashboardStats(organizationId: string) {
     `)
     .eq('organization_id', organizationId)
     .order('created_at', { ascending: false })
-    .limit(5)
+    .limit(5) as any
 
   return {
     totalJobs: totalJobs || 0,
@@ -74,7 +74,7 @@ export default async function DashboardPage() {
           Welcome back, {user.firstName}!
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Here's what's happening with your business today.
+          Here&apos;s what&apos;s happening with your business today.
         </p>
       </div>
 

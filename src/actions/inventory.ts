@@ -5,21 +5,21 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAuth, requirePermissions } from '@/lib/auth/get-user'
 import { permissions } from '@/lib/auth/permissions'
 
-export async function getInventoryItems() {
+export async function getInventoryItems(): Promise<any[]> {
   const user = await requireAuth()
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('inventory_items')
+  const { data, error } = await (supabase
+    .from('inventory_items') as any)
     .select('*')
     .eq('organization_id', user.organizationId)
-    .order('name')
+    .order('name') as any
 
   if (error) {
     throw new Error(error.message)
   }
 
-  return data
+  return (data || []) as any[]
 }
 
 export async function createInventoryItem(formData: {
@@ -40,8 +40,8 @@ export async function createInventoryItem(formData: {
 
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('inventory_items')
+  const { data, error } = await (supabase
+    .from('inventory_items') as any)
     .insert({
       organization_id: user.organizationId,
       ...formData,
@@ -72,19 +72,19 @@ export async function allocateInventoryToJob(params: {
   const supabase = await createClient()
 
   // Check available quantity
-  const { data: item } = await supabase
-    .from('inventory_items')
+  const { data: item } = await (supabase
+    .from('inventory_items') as any)
     .select('quantity')
     .eq('id', params.inventory_item_id)
-    .single()
+    .single() as any
 
   if (!item || item.quantity < params.quantity) {
     throw new Error('Insufficient inventory quantity')
   }
 
   // Create allocation
-  const { data, error } = await supabase
-    .from('inventory_allocations')
+  const { data, error } = await (supabase
+    .from('inventory_allocations') as any)
     .insert({
       inventory_item_id: params.inventory_item_id,
       job_id: params.job_id,
@@ -99,8 +99,8 @@ export async function allocateInventoryToJob(params: {
   }
 
   // Update inventory quantity
-  await supabase
-    .from('inventory_items')
+  await (supabase
+    .from('inventory_items') as any)
     .update({ quantity: item.quantity - params.quantity })
     .eq('id', params.inventory_item_id)
 

@@ -49,7 +49,7 @@ export default function SignupPage() {
       }
 
       // Create profile
-      const { error: profileError } = await supabase.from('profiles').insert({
+      const { error: profileError } = await (supabase.from('profiles') as any).insert({
         id: authData.user.id,
         email: formData.email,
         first_name: formData.firstName,

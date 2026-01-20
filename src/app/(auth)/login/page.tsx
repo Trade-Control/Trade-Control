@@ -32,11 +32,11 @@ export default function LoginPage() {
       }
 
       // Get user profile to check status
-      const { data: profile } = await supabase
-        .from('profiles')
+      const { data: profile } = await (supabase
+        .from('profiles') as any)
         .select('organization_id, role')
         .eq('id', data.user.id)
-        .single()
+        .single() as any
 
       if (!profile?.organization_id) {
         // No organization, redirect to migration flow
@@ -45,11 +45,11 @@ export default function LoginPage() {
       }
 
       // Check if organization has completed onboarding
-      const { data: org } = await supabase
-        .from('organizations')
+      const { data: org } = await (supabase
+        .from('organizations') as any)
         .select('onboarding_completed')
         .eq('id', profile.organization_id)
-        .single()
+        .single() as any
 
       if (!org?.onboarding_completed) {
         router.push('/onboarding')
@@ -57,11 +57,11 @@ export default function LoginPage() {
       }
 
       // Check subscription status
-      const { data: subscription } = await supabase
-        .from('subscriptions')
+      const { data: subscription } = await (supabase
+        .from('subscriptions') as any)
         .select('status')
         .eq('organization_id', profile.organization_id)
-        .single()
+        .single() as any
 
       if (!subscription) {
         router.push('/migration')

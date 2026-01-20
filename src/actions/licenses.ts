@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAuth, requirePermissions } from '@/lib/auth/get-user'
 import { permissions } from '@/lib/auth/permissions'
 
-export async function getLicenses() {
+export async function getLicenses(): Promise<any[]> {
   const user = await requireAuth()
   const userPerms = await requirePermissions()
 
@@ -15,37 +15,37 @@ export async function getLicenses() {
 
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('licenses')
+  const { data, error } = await (supabase
+    .from('licenses') as any)
     .select(`
       *,
       assigned_user:profiles(id, first_name, last_name, email, role)
     `)
     .eq('organization_id', user.organizationId)
-    .order('created_at')
+    .order('created_at') as any
 
   if (error) {
     throw new Error(error.message)
   }
 
-  return data
+  return (data || []) as any[]
 }
 
-export async function getAvailableUsers() {
+export async function getAvailableUsers(): Promise<any[]> {
   const user = await requireAuth()
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('profiles')
+  const { data, error } = await (supabase
+    .from('profiles') as any)
     .select('id, first_name, last_name, email, role')
     .eq('organization_id', user.organizationId)
-    .neq('role', 'owner')
+    .neq('role', 'owner') as any
 
   if (error) {
     throw new Error(error.message)
   }
 
-  return data
+  return (data || []) as any[]
 }
 
 export async function assignLicense(licenseId: string, userId: string) {
@@ -59,8 +59,8 @@ export async function assignLicense(licenseId: string, userId: string) {
   const supabase = await createClient()
 
   // Update license
-  const { error: licenseError } = await supabase
-    .from('licenses')
+  const { error: licenseError } = await (supabase
+    .from('licenses') as any)
     .update({
       assigned_to: userId,
       status: 'active',
@@ -73,21 +73,21 @@ export async function assignLicense(licenseId: string, userId: string) {
   }
 
   // Get license type to update user role
-  const { data: license } = await supabase
-    .from('licenses')
+  const { data: license } = await (supabase
+    .from('licenses') as any)
     .select('type')
     .eq('id', licenseId)
-    .single()
+    .single() as any
 
   if (license) {
-    await supabase
-      .from('profiles')
+    await (supabase
+      .from('profiles') as any)
       .update({ role: license.type })
       .eq('id', userId)
   }
 
   // Log to audit trail
-  await supabase.from('audit_trail').insert({
+  await (supabase.from('audit_trail') as any).insert({
     organization_id: user.organizationId,
     user_id: user.id,
     action: 'assign_license',
@@ -110,15 +110,15 @@ export async function unassignLicense(licenseId: string) {
   const supabase = await createClient()
 
   // Get current assignment
-  const { data: license } = await supabase
-    .from('licenses')
+  const { data: license } = await (supabase
+    .from('licenses') as any)
     .select('assigned_to')
     .eq('id', licenseId)
-    .single()
+    .single() as any
 
   // Update license
-  const { error } = await supabase
-    .from('licenses')
+  const { error } = await (supabase
+    .from('licenses') as any)
     .update({
       assigned_to: null,
       status: 'unassigned',
@@ -131,7 +131,7 @@ export async function unassignLicense(licenseId: string) {
   }
 
   // Log to audit trail
-  await supabase.from('audit_trail').insert({
+  await (supabase.from('audit_trail') as any).insert({
     organization_id: user.organizationId,
     user_id: user.id,
     action: 'unassign_license',

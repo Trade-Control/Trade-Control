@@ -21,10 +21,6 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
   const [verifying, setVerifying] = useState(true)
 
-  useEffect(() => {
-    verifySession()
-  }, [])
-
   const verifySession = async () => {
     try {
       const supabase = createClient()
@@ -38,11 +34,11 @@ export default function OnboardingPage() {
       }
 
       // Check if user has organization
-      const { data: profile } = await supabase
-        .from('profiles')
+      const { data: profile } = await (supabase
+        .from('profiles') as any)
         .select('organization_id')
         .eq('id', user.id)
-        .single()
+        .single() as any
 
       if (!profile?.organization_id) {
         setError('Organization not found. Please contact support.')
@@ -51,11 +47,11 @@ export default function OnboardingPage() {
       }
 
       // Check if onboarding is already completed
-      const { data: org } = await supabase
-        .from('organizations')
+      const { data: org } = await (supabase
+        .from('organizations') as any)
         .select('onboarding_completed')
         .eq('id', profile.organization_id)
-        .single()
+        .single() as any
 
       if (org?.onboarding_completed) {
         router.push('/dashboard')
@@ -68,6 +64,11 @@ export default function OnboardingPage() {
       setVerifying(false)
     }
   }
+
+  useEffect(() => {
+    verifySession()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,11 +84,11 @@ export default function OnboardingPage() {
         return
       }
 
-      const { data: profile } = await supabase
-        .from('profiles')
+      const { data: profile } = await (supabase
+        .from('profiles') as any)
         .select('organization_id')
         .eq('id', user.id)
-        .single()
+        .single() as any
 
       if (!profile?.organization_id) {
         setError('Organization not found')
@@ -96,8 +97,8 @@ export default function OnboardingPage() {
       }
 
       // Update organization with onboarding data
-      const { error: updateError } = await supabase
-        .from('organizations')
+      const { error: updateError } = await (supabase
+        .from('organizations') as any)
         .update({
           name: formData.name,
           abn: formData.abn,

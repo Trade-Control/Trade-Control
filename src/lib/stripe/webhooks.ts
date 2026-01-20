@@ -22,7 +22,10 @@ export async function handleCheckoutSessionCompleted(
   }
 
   // Get subscription details from Stripe
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+  if (!stripe) {
+    throw new Error('Stripe is not configured')
+  }
+  const subscription = (await stripe.subscriptions.retrieve(subscriptionId)) as any
 
   // Determine tier based on price ID
   const priceId = subscription.items.data[0]?.price.id
@@ -33,13 +36,13 @@ export async function handleCheckoutSessionCompleted(
 
   if (isInitialSubscription) {
     // Create organization
-    const { data: organization, error: orgError } = await supabaseAdmin
-      .from('organizations')
+    const { data: organization, error: orgError } = await (supabaseAdmin
+      .from('organizations') as any)
       .insert({
         name: session.metadata?.organization_name || 'My Organization',
       })
       .select()
-      .single()
+      .single() as any
 
     if (orgError || !organization) {
       console.error('Failed to create organization:', orgError)
@@ -47,16 +50,16 @@ export async function handleCheckoutSessionCompleted(
     }
 
     // Create subscription record
-    const { error: subError } = await supabaseAdmin
-      .from('subscriptions')
+    const { error: subError } = await (supabaseAdmin
+      .from('subscriptions') as any)
       .insert({
         organization_id: organization.id,
         stripe_customer_id: customerId,
         stripe_subscription_id: subscriptionId,
         tier,
         status: subscription.status === 'trialing' ? 'trialing' : 'active',
-        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        current_period_start: new Date((subscription.current_period_start || 0) * 1000).toISOString(),
+        current_period_end: new Date((subscription.current_period_end || 0) * 1000).toISOString(),
         trial_end: subscription.trial_end
           ? new Date(subscription.trial_end * 1000).toISOString()
           : null,
@@ -68,8 +71,8 @@ export async function handleCheckoutSessionCompleted(
     }
 
     // Update user profile to link to organization
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
+    const { error: profileError } = await (supabaseAdmin
+      .from('profiles') as any)
       .update({
         organization_id: organization.id,
         role: 'owner',
@@ -82,8 +85,8 @@ export async function handleCheckoutSessionCompleted(
     }
 
     // Create owner license (free, automatically assigned)
-    const { error: licenseError } = await supabaseAdmin
-      .from('licenses')
+    const { error: licenseError } = await (supabaseAdmin
+      .from('licenses') as any)
       .insert({
         organization_id: organization.id,
         type: 'owner',
@@ -109,8 +112,8 @@ export async function handleCheckoutSessionCompleted(
     const subscriptionItemId = subscription.items.data[0]?.id
 
     // Create license record
-    const { error: licenseError } = await supabaseAdmin
-      .from('licenses')
+    const { error: licenseError } = await (supabaseAdmin
+      .from('licenses') as any)
       .insert({
         organization_id: organizationId,
         stripe_subscription_item_id: subscriptionItemId,
@@ -128,18 +131,19 @@ export async function handleCheckoutSessionCompleted(
 export async function handleSubscriptionUpdated(
   subscription: Stripe.Subscription
 ) {
+  const sub = subscription as any
   // Update subscription status in database
-  const { error } = await supabaseAdmin
-    .from('subscriptions')
+  const { error } = await (supabaseAdmin
+    .from('subscriptions') as any)
     .update({
-      status: subscription.status as any,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      trial_end: subscription.trial_end
-        ? new Date(subscription.trial_end * 1000).toISOString()
+      status: sub.status as any,
+      current_period_start: new Date((sub.current_period_start || 0) * 1000).toISOString(),
+      current_period_end: new Date((sub.current_period_end || 0) * 1000).toISOString(),
+      trial_end: sub.trial_end
+        ? new Date(sub.trial_end * 1000).toISOString()
         : null,
     })
-    .eq('stripe_subscription_id', subscription.id)
+    .eq('stripe_subscription_id', sub.id)
 
   if (error) {
     console.error('Failed to update subscription:', error)
@@ -149,14 +153,15 @@ export async function handleSubscriptionUpdated(
 export async function handleSubscriptionDeleted(
   subscription: Stripe.Subscription
 ) {
+  const sub = subscription as any
   // Mark subscription as cancelled
-  const { error } = await supabaseAdmin
-    .from('subscriptions')
+  const { error } = await (supabaseAdmin
+    .from('subscriptions') as any)
     .update({
       status: 'cancelled',
       cancelled_at: new Date().toISOString(),
     })
-    .eq('stripe_subscription_id', subscription.id)
+    .eq('stripe_subscription_id', sub.id)
 
   if (error) {
     console.error('Failed to cancel subscription:', error)
@@ -166,13 +171,14 @@ export async function handleSubscriptionDeleted(
 export async function handleInvoicePaymentFailed(
   invoice: Stripe.Invoice
 ) {
-  const subscriptionId = invoice.subscription as string
+  const inv = invoice as any
+  const subscriptionId = inv.subscription as string
 
   if (!subscriptionId) return
 
   // Update subscription status to past_due
-  const { error } = await supabaseAdmin
-    .from('subscriptions')
+  const { error } = await (supabaseAdmin
+    .from('subscriptions') as any)
     .update({
       status: 'past_due',
     })

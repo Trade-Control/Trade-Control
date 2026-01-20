@@ -5,33 +5,33 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAuth, requirePermissions } from '@/lib/auth/get-user'
 import { permissions } from '@/lib/auth/permissions'
 
-export async function getJobs() {
+export async function getJobs(): Promise<any[]> {
   const user = await requireAuth()
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('jobs')
+  const { data, error } = await (supabase
+    .from('jobs') as any)
     .select(`
       *,
       contact:contacts(id, name, company),
       created_by_user:profiles!jobs_created_by_fkey(first_name, last_name)
     `)
     .eq('organization_id', user.organizationId)
-    .order('created_at', { ascending: false })
+    .order('created_at', { ascending: false }) as any
 
   if (error) {
     throw new Error(error.message)
   }
 
-  return data
+  return (data || []) as any[]
 }
 
-export async function getJob(id: string) {
+export async function getJob(id: string): Promise<any> {
   const user = await requireAuth()
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('jobs')
+  const { data, error } = await (supabase
+    .from('jobs') as any)
     .select(`
       *,
       contact:contacts(id, name, company, email, phone, address, city, state, postcode),
@@ -39,13 +39,13 @@ export async function getJob(id: string) {
     `)
     .eq('id', id)
     .eq('organization_id', user.organizationId)
-    .single()
+    .single() as any
 
   if (error) {
     throw new Error(error.message)
   }
 
-  return data
+  return data as any
 }
 
 export async function createJob(formData: {
@@ -67,11 +67,11 @@ export async function createJob(formData: {
   const supabase = await createClient()
 
   // Get organization for job numbering
-  const { data: org } = await supabase
-    .from('organizations')
+  const { data: org } = await (supabase
+    .from('organizations') as any)
     .select('job_prefix, job_number_sequence')
     .eq('id', user.organizationId)
-    .single()
+    .single() as any
 
   if (!org) {
     throw new Error('Organization not found')
@@ -82,8 +82,8 @@ export async function createJob(formData: {
     : org.job_number_sequence.toString().padStart(6, '0')
 
   // Create job
-  const { data, error } = await supabase
-    .from('jobs')
+  const { data, error } = await (supabase
+    .from('jobs') as any)
     .insert({
       organization_id: user.organizationId,
       job_number: jobNumber,
@@ -105,13 +105,13 @@ export async function createJob(formData: {
   }
 
   // Increment job number sequence
-  await supabase
-    .from('organizations')
+  await (supabase
+    .from('organizations') as any)
     .update({ job_number_sequence: org.job_number_sequence + 1 })
     .eq('id', user.organizationId)
 
   // Log to audit trail
-  await supabase.from('audit_trail').insert({
+  await (supabase.from('audit_trail') as any).insert({
     organization_id: user.organizationId,
     user_id: user.id,
     action: 'create',
@@ -148,8 +148,8 @@ export async function updateJob(
 
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('jobs')
+  const { data, error } = await (supabase
+    .from('jobs') as any)
     .update(formData)
     .eq('id', id)
     .eq('organization_id', user.organizationId)
@@ -161,7 +161,7 @@ export async function updateJob(
   }
 
   // Log to audit trail
-  await supabase.from('audit_trail').insert({
+  await (supabase.from('audit_trail') as any).insert({
     organization_id: user.organizationId,
     user_id: user.id,
     action: 'update',
@@ -187,8 +187,8 @@ export async function deleteJob(id: string) {
 
   const supabase = await createClient()
 
-  const { error } = await supabase
-    .from('jobs')
+  const { error } = await (supabase
+    .from('jobs') as any)
     .delete()
     .eq('id', id)
     .eq('organization_id', user.organizationId)
@@ -198,7 +198,7 @@ export async function deleteJob(id: string) {
   }
 
   // Log to audit trail
-  await supabase.from('audit_trail').insert({
+  await (supabase.from('audit_trail') as any).insert({
     organization_id: user.organizationId,
     user_id: user.id,
     action: 'delete',
@@ -221,25 +221,25 @@ export async function assignFieldStaff(jobId: string, userId: string) {
   const supabase = await createClient()
 
   // Get current assigned jobs for the user
-  const { data: profile } = await supabase
-    .from('profiles')
+  const { data: profile } = await (supabase
+    .from('profiles') as any)
     .select('assigned_job_ids')
     .eq('id', userId)
-    .single()
+    .single() as any
 
   if (!profile) {
     throw new Error('User not found')
   }
 
-  const assignedJobs = profile.assigned_job_ids || []
+  const assignedJobs = ((profile as any).assigned_job_ids || []) as string[]
   
   if (!assignedJobs.includes(jobId)) {
     assignedJobs.push(jobId)
   }
 
   // Update profile with new assigned jobs
-  const { error } = await supabase
-    .from('profiles')
+  const { error } = await (supabase
+    .from('profiles') as any)
     .update({ assigned_job_ids: assignedJobs })
     .eq('id', userId)
 
@@ -248,7 +248,7 @@ export async function assignFieldStaff(jobId: string, userId: string) {
   }
 
   // Log to audit trail
-  await supabase.from('audit_trail').insert({
+  await (supabase.from('audit_trail') as any).insert({
     organization_id: user.organizationId,
     user_id: user.id,
     action: 'assign_field_staff',
@@ -271,21 +271,21 @@ export async function unassignFieldStaff(jobId: string, userId: string) {
   const supabase = await createClient()
 
   // Get current assigned jobs for the user
-  const { data: profile } = await supabase
-    .from('profiles')
+  const { data: profile } = await (supabase
+    .from('profiles') as any)
     .select('assigned_job_ids')
     .eq('id', userId)
-    .single()
+    .single() as any
 
   if (!profile) {
     throw new Error('User not found')
   }
 
-  const assignedJobs = (profile.assigned_job_ids || []).filter((id: string) => id !== jobId)
+  const assignedJobs = ((profile as any).assigned_job_ids || []).filter((id: string) => id !== jobId)
 
   // Update profile
-  const { error } = await supabase
-    .from('profiles')
+  const { error } = await (supabase
+    .from('profiles') as any)
     .update({ assigned_job_ids: assignedJobs })
     .eq('id', userId)
 
@@ -294,7 +294,7 @@ export async function unassignFieldStaff(jobId: string, userId: string) {
   }
 
   // Log to audit trail
-  await supabase.from('audit_trail').insert({
+  await (supabase.from('audit_trail') as any).insert({
     organization_id: user.organizationId,
     user_id: user.id,
     action: 'unassign_field_staff',

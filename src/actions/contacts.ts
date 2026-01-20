@@ -4,13 +4,14 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth, requirePermissions } from '@/lib/auth/get-user'
 import { permissions } from '@/lib/auth/permissions'
+import { Database } from '@/types/database'
 
-export async function getContacts(type?: 'customer' | 'supplier') {
+export async function getContacts(type?: 'customer' | 'supplier'): Promise<any[]> {
   const user = await requireAuth()
   const supabase = await createClient()
 
-  let query = supabase
-    .from('contacts')
+  let query = (supabase
+    .from('contacts') as any)
     .select('*')
     .eq('organization_id', user.organizationId)
     .order('name')
@@ -19,25 +20,25 @@ export async function getContacts(type?: 'customer' | 'supplier') {
     query = query.eq('type', type)
   }
 
-  const { data, error } = await query
+  const { data, error } = await query as any
 
   if (error) {
     throw new Error(error.message)
   }
 
-  return data
+  return (data || []) as any[]
 }
 
 export async function getContact(id: string) {
   const user = await requireAuth()
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('contacts')
+  const { data, error } = await (supabase
+    .from('contacts') as any)
     .select('*')
     .eq('id', id)
     .eq('organization_id', user.organizationId)
-    .single()
+    .single() as any
 
   if (error) {
     throw new Error(error.message)
@@ -65,19 +66,36 @@ export async function createContact(formData: {
     throw new Error('Unauthorized')
   }
 
+  if (!user.organizationId) {
+    throw new Error('Organization not found')
+  }
+
   const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('contacts')
     .insert({
       organization_id: user.organizationId,
-      ...formData,
-    })
+      type: formData.type,
+      name: formData.name,
+      company: formData.company,
+      email: formData.email,
+      phone: formData.phone,
+      address: formData.address,
+      city: formData.city,
+      state: formData.state,
+      postcode: formData.postcode,
+      abn: formData.abn,
+    } as any)
     .select()
-    .single()
+    .single() as any
 
   if (error) {
     throw new Error(error.message)
+  }
+
+  if (!data) {
+    throw new Error('Failed to create contact')
   }
 
   // Log to audit trail
@@ -88,7 +106,7 @@ export async function createContact(formData: {
     resource_type: 'contact',
     resource_id: data.id,
     details: { name: formData.name, type: formData.type },
-  })
+  } as any)
 
   revalidatePath('/contacts')
   revalidatePath('/dashboard')
@@ -120,8 +138,8 @@ export async function updateContact(
 
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('contacts')
+  const { data, error } = await (supabase
+    .from('contacts') as any)
     .update(formData)
     .eq('id', id)
     .eq('organization_id', user.organizationId)
@@ -140,7 +158,7 @@ export async function updateContact(
     resource_type: 'contact',
     resource_id: id,
     details: formData,
-  })
+  } as any)
 
   revalidatePath('/contacts')
   revalidatePath(`/contacts/${id}`)
@@ -175,7 +193,7 @@ export async function deleteContact(id: string) {
     action: 'delete',
     resource_type: 'contact',
     resource_id: id,
-  })
+  } as any)
 
   revalidatePath('/contacts')
 }

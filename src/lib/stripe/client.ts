@@ -1,13 +1,12 @@
 import Stripe from 'stripe'
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY is not set')
-}
-
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-12-18.acacia',
-  typescript: true,
-})
+// Only initialize Stripe if secret key is available (prevents build-time errors)
+export const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2024-12-18.acacia' as any,
+      typescript: true,
+    })
+  : null as any
 
 // Price IDs from environment
 export const STRIPE_PRICES = {
@@ -27,6 +26,9 @@ export async function createCheckoutSession(params: {
   trialPeriodDays?: number
   metadata?: Record<string, string>
 }) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured')
+  }
   const session = await stripe.checkout.sessions.create({
     customer: params.customerId,
     mode: 'subscription',
@@ -56,6 +58,9 @@ export async function createCustomer(params: {
   name: string
   metadata?: Record<string, string>
 }) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured')
+  }
   const customer = await stripe.customers.create({
     email: params.email,
     name: params.name,
@@ -71,6 +76,9 @@ export async function addSubscriptionItem(params: {
   quantity?: number
   prorationBehavior?: 'create_prorations' | 'none' | 'always_invoice'
 }) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured')
+  }
   const subscriptionItem = await stripe.subscriptionItems.create({
     subscription: params.subscriptionId,
     price: params.priceId,
@@ -85,6 +93,9 @@ export async function removeSubscriptionItem(params: {
   subscriptionItemId: string
   prorationBehavior?: 'create_prorations' | 'none' | 'always_invoice'
 }) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured')
+  }
   await stripe.subscriptionItems.del(params.subscriptionItemId, {
     proration_behavior: params.prorationBehavior || 'create_prorations',
   })
@@ -95,6 +106,9 @@ export async function updateSubscription(params: {
   priceId?: string
   prorationBehavior?: 'create_prorations' | 'none' | 'always_invoice'
 }) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured')
+  }
   const subscription = await stripe.subscriptions.update(params.subscriptionId, {
     items: params.priceId
       ? [
@@ -110,6 +124,9 @@ export async function updateSubscription(params: {
 }
 
 export async function cancelSubscription(subscriptionId: string) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured')
+  }
   const subscription = await stripe.subscriptions.update(subscriptionId, {
     cancel_at_period_end: true,
   })
@@ -118,6 +135,9 @@ export async function cancelSubscription(subscriptionId: string) {
 }
 
 export async function reactivateSubscription(subscriptionId: string) {
+  if (!stripe) {
+    throw new Error('Stripe is not configured')
+  }
   const subscription = await stripe.subscriptions.update(subscriptionId, {
     cancel_at_period_end: false,
   })

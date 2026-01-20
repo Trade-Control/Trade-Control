@@ -3,16 +3,16 @@ import { getCurrentUser } from '@/lib/auth/get-user'
 import { redirect } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
 
-async function getSubscriptionDetails(organizationId: string) {
+async function getSubscriptionDetails(organizationId: string): Promise<any> {
   const supabase = await createClient()
 
-  const { data: subscription } = await supabase
-    .from('subscriptions')
+  const { data: subscription } = await (supabase
+    .from('subscriptions') as any)
     .select('*')
     .eq('organization_id', organizationId)
-    .single()
+    .single() as any
 
-  return subscription
+  return subscription as any
 }
 
 export default async function SubscriptionManagePage() {
@@ -62,15 +62,15 @@ export default async function SubscriptionManagePage() {
           <div>
             <h2 className="text-lg font-medium text-gray-900">Current Plan</h2>
             <p className="mt-1 text-3xl font-bold text-primary">
-              {tierNames[subscription.tier as keyof typeof tierNames]}
+              {tierNames[(subscription.tier as any) as keyof typeof tierNames]}
             </p>
             <p className="mt-1 text-sm text-gray-500">
-              {tierPrices[subscription.tier as keyof typeof tierPrices]} AUD/month
+              {tierPrices[(subscription.tier as any) as keyof typeof tierPrices]} AUD/month
             </p>
           </div>
           <span
             className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-              statusColors[subscription.status as keyof typeof statusColors]
+              statusColors[(subscription.status as any) as keyof typeof statusColors]
             }`}
           >
             {subscription.status}
@@ -125,7 +125,7 @@ export default async function SubscriptionManagePage() {
                 </p>
                 <p className="text-lg font-bold text-primary mt-2">$49 AUD/month</p>
               </div>
-              {subscription.tier === 'operations' ? (
+              {(subscription.tier as any) === 'operations' ? (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                   Current Plan
                 </span>
@@ -150,7 +150,7 @@ export default async function SubscriptionManagePage() {
                 </p>
                 <p className="text-lg font-bold text-primary mt-2">$148 AUD/month</p>
               </div>
-              {subscription.tier === 'operations_pro_scale' ? (
+              {(subscription.tier as any) === 'operations_pro_scale' ? (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                   Current Plan
                 </span>
@@ -159,7 +159,7 @@ export default async function SubscriptionManagePage() {
                   disabled
                   className="px-4 py-2 border border-primary text-sm font-medium rounded-md text-primary hover:bg-blue-50"
                 >
-                  {subscription.tier === 'operations' ? 'Upgrade' : 'Change Plan'}
+                  {(subscription.tier as any) === 'operations' ? 'Upgrade' : 'Change Plan'}
                 </button>
               )}
             </div>
@@ -177,7 +177,7 @@ export default async function SubscriptionManagePage() {
                 </p>
                 <p className="text-lg font-bold text-primary mt-2">$248 AUD/month</p>
               </div>
-              {subscription.tier === 'operations_pro_unlimited' ? (
+              {(subscription.tier as any) === 'operations_pro_unlimited' ? (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                   Current Plan
                 </span>
@@ -186,7 +186,7 @@ export default async function SubscriptionManagePage() {
                   disabled
                   className="px-4 py-2 border border-primary text-sm font-medium rounded-md text-primary hover:bg-blue-50"
                 >
-                  {subscription.tier === 'operations' || subscription.tier === 'operations_pro_scale'
+                  {(subscription.tier as any) === 'operations' || (subscription.tier as any) === 'operations_pro_scale'
                     ? 'Upgrade'
                     : 'Change Plan'}
                 </button>

@@ -11,8 +11,8 @@ export async function getCurrentUser() {
   }
   
   // Get user profile with organization and subscription info
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
+  const { data: profile, error: profileError } = await (supabase
+    .from('profiles') as any)
     .select(`
       *,
       organization:organizations(
@@ -26,7 +26,7 @@ export async function getCurrentUser() {
       )
     `)
     .eq('id', user.id)
-    .single()
+    .single() as any
   
   if (profileError || !profile) {
     return null
@@ -35,13 +35,13 @@ export async function getCurrentUser() {
   return {
     id: user.id,
     email: user.email!,
-    firstName: profile.first_name,
-    lastName: profile.last_name,
-    role: profile.role,
-    organizationId: profile.organization_id,
-    assignedJobIds: profile.assigned_job_ids || [],
-    organization: profile.organization as any,
-    subscription: profile.subscription as any,
+    firstName: (profile as any).first_name,
+    lastName: (profile as any).last_name,
+    role: (profile as any).role,
+    organizationId: (profile as any).organization_id,
+    assignedJobIds: ((profile as any).assigned_job_ids || []) as string[],
+    organization: (profile as any).organization as any,
+    subscription: (profile as any).subscription as any,
   }
 }
 
