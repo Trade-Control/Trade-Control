@@ -1,7 +1,19 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { stripe } from '@/lib/stripe/client'
 import { handleCheckoutSessionCompleted } from '@/lib/stripe/webhooks'
+import { Database } from '@/types/database'
+
+function getSupabaseAdmin() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Supabase configuration is missing')
+  }
+  return createAdminClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  )
+}
 
 export async function POST(req: Request) {
   try {
@@ -51,10 +63,51 @@ export async function POST(req: Request) {
 
     // Use current user ID if session metadata doesn't have it (for existing users)
     const userId = session.metadata?.user_id || currentUser.id
+    const stripeCustomerId = session.customer as string
 
     console.log('Using user ID:', userId)
+    console.log('Stripe customer ID:', stripeCustomerId)
 
-    // Check if subscription already exists
+    // Use admin client to bypass RLS and check for subscription by Stripe customer ID
+    const supabaseAdmin = getSupabaseAdmin()
+    
+    const { data: existingSubByStripe, error: subError } = await (supabaseAdmin
+      .from('subscriptions') as any)
+      .select('organization_id, id, status, tier')
+      .eq('stripe_customer_id', stripeCustomerId)
+      .maybeSingle()
+
+    if (subError) {
+      console.error('Error checking subscription by Stripe customer ID:', subError)
+    }
+
+    if (existingSubByStripe) {
+      console.log('Found subscription by Stripe customer ID:', existingSubByStripe)
+      
+      // Link user profile to this organization if not already linked
+      const { data: profile } = await (supabaseAdmin
+        .from('profiles') as any)
+        .select('organization_id')
+        .eq('id', userId)
+        .single()
+
+      if (profile && profile.organization_id !== existingSubByStripe.organization_id) {
+        console.log('Linking user to correct organization:', existingSubByStripe.organization_id)
+        await (supabaseAdmin
+          .from('profiles') as any)
+          .update({ organization_id: existingSubByStripe.organization_id })
+          .eq('id', userId)
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Subscription already exists',
+        subscription: existingSubByStripe,
+        alreadyExists: true,
+      })
+    }
+
+    // Also check by organization_id (for cases where profile is already linked)
     const { data: profile } = await (supabase
       .from('profiles') as any)
       .select('organization_id')
@@ -62,7 +115,6 @@ export async function POST(req: Request) {
       .single()
 
     if (profile?.organization_id) {
-      // Check if subscription exists
       const { data: existingSubscription } = await (supabase
         .from('subscriptions') as any)
         .select('id, status, tier')
@@ -70,7 +122,7 @@ export async function POST(req: Request) {
         .maybeSingle()
 
       if (existingSubscription) {
-        console.log('Subscription already exists:', existingSubscription)
+        console.log('Subscription found by organization ID:', existingSubscription)
         return NextResponse.json({
           success: true,
           message: 'Subscription already exists',
