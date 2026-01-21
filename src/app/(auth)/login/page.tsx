@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { checkUserRedirect } from '@/actions/auth'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -31,50 +32,21 @@ export default function LoginPage() {
         return
       }
 
-      // Get user profile to check status
-      const { data: profile } = await (supabase
-        .from('profiles') as any)
-        .select('organization_id, role')
-        .eq('id', data.user.id)
-        .single() as any
-
-      if (!profile?.organization_id) {
-        // No organization, redirect to checkout flow
-        router.push('/auth/checkout')
+      // Use server action to check where to redirect
+      const redirectResult = await checkUserRedirect()
+      
+      if (redirectResult.error) {
+        setError(redirectResult.error)
+        setLoading(false)
         return
       }
 
-      // Check if organization has completed onboarding
-      const { data: org } = await (supabase
-        .from('organizations') as any)
-        .select('onboarding_completed')
-        .eq('id', profile.organization_id)
-        .single() as any
-
-      if (!org?.onboarding_completed) {
-        router.push('/onboarding')
+      if (redirectResult.redirect) {
+        router.push(redirectResult.redirect)
         return
       }
 
-      // Check subscription status
-      const { data: subscription } = await (supabase
-        .from('subscriptions') as any)
-        .select('status')
-        .eq('organization_id', profile.organization_id)
-        .single() as any
-
-      if (!subscription) {
-        // No subscription, redirect to checkout
-        router.push('/auth/checkout')
-        return
-      }
-
-      if (subscription.status === 'past_due' || subscription.status === 'cancelled') {
-        router.push('/subscription/expired')
-        return
-      }
-
-      // All good, redirect to dashboard
+      // Fallback to dashboard
       router.push('/dashboard')
     } catch (err) {
       setError('An unexpected error occurred')
