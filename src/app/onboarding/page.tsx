@@ -33,6 +33,33 @@ function OnboardingContent() {
         return
       }
 
+      // Check if returning from Stripe checkout
+      const sessionId = searchParams.get('session_id')
+      if (sessionId) {
+        console.log('Syncing subscription for session:', sessionId)
+        
+        // Sync subscription from Stripe
+        const syncResponse = await fetch('/api/stripe/sync-subscription', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ session_id: sessionId }),
+        })
+
+        const syncResult = await syncResponse.json()
+        
+        if (!syncResponse.ok || syncResult.error) {
+          console.error('Subscription sync error:', syncResult.error)
+          setError(syncResult.error || 'Failed to set up subscription. Please contact support.')
+          setVerifying(false)
+          return
+        }
+
+        console.log('Subscription synced successfully:', syncResult)
+      }
+
       // Use server action to ensure organization exists
       const response = await fetch('/api/organizations/ensure', {
         method: 'POST',

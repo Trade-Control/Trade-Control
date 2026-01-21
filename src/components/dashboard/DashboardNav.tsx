@@ -5,6 +5,22 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
+import {
+  DashboardIcon,
+  JobsIcon,
+  MyJobsIcon,
+  ContactsIcon,
+  QuotesIcon,
+  InvoicesIcon,
+  InventoryIcon,
+  ContractorsIcon,
+  TravelIcon,
+  ReportsIcon,
+  LicensesIcon,
+  SubscriptionIcon,
+  AuditIcon,
+  SettingsIcon,
+} from '@/components/icons/NavigationIcons'
 
 interface DashboardNavProps {
   user: {
@@ -22,23 +38,23 @@ export default function DashboardNav({ user }: DashboardNavProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: '📊', roles: ['owner', 'management', 'field_staff'] },
-    { name: 'Jobs', href: '/jobs', icon: '💼', roles: ['owner', 'management'] },
-    { name: 'My Jobs', href: '/my-jobs', icon: '📋', roles: ['field_staff'] },
-    { name: 'Contacts', href: '/contacts', icon: '👥', roles: ['owner', 'management'] },
-    { name: 'Quotes', href: '/quotes', icon: '📄', roles: ['owner', 'management'] },
-    { name: 'Invoices', href: '/invoices', icon: '🧾', roles: ['owner', 'management'] },
-    { name: 'Inventory', href: '/inventory', icon: '📦', roles: ['owner', 'management'] },
-    { name: 'Contractors', href: '/contractors', icon: '🔧', roles: ['owner', 'management'] },
-    { name: 'Travel', href: '/travel-tracking', icon: '🚗', roles: ['owner', 'management', 'field_staff'] },
-    { name: 'Reports', href: '/reports', icon: '📈', roles: ['owner', 'management', 'field_staff'] },
+    { name: 'Dashboard', href: '/dashboard', Icon: DashboardIcon, roles: ['owner', 'management', 'field_staff'] },
+    { name: 'Jobs', href: '/jobs', Icon: JobsIcon, roles: ['owner', 'management'] },
+    { name: 'My Jobs', href: '/my-jobs', Icon: MyJobsIcon, roles: ['field_staff'] },
+    { name: 'Contacts', href: '/contacts', Icon: ContactsIcon, roles: ['owner', 'management'] },
+    { name: 'Quotes', href: '/quotes', Icon: QuotesIcon, roles: ['owner', 'management'] },
+    { name: 'Invoices', href: '/invoices', Icon: InvoicesIcon, roles: ['owner', 'management'] },
+    { name: 'Inventory', href: '/inventory', Icon: InventoryIcon, roles: ['owner', 'management'] },
+    { name: 'Contractors', href: '/contractors', Icon: ContractorsIcon, roles: ['owner', 'management'] },
+    { name: 'Travel', href: '/travel-tracking', Icon: TravelIcon, roles: ['owner', 'management', 'field_staff'] },
+    { name: 'Reports', href: '/reports', Icon: ReportsIcon, roles: ['owner', 'management', 'field_staff'] },
   ]
 
   const ownerNav = [
-    { name: 'Licenses', href: '/licenses', icon: '🎫' },
-    { name: 'Subscription', href: '/subscription/manage', icon: '💳' },
-    { name: 'Audit Trail', href: '/audit', icon: '📜' },
-    { name: 'Settings', href: '/settings', icon: '⚙️' },
+    { name: 'Licenses', href: '/licenses', Icon: LicensesIcon },
+    { name: 'Subscription', href: '/subscription/manage', Icon: SubscriptionIcon },
+    { name: 'Audit Trail', href: '/audit', Icon: AuditIcon },
+    { name: 'Settings', href: '/settings', Icon: SettingsIcon },
   ]
 
   const filteredNav = navigation.filter((item) => item.roles.includes(user.role))
@@ -78,7 +94,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200">
+          <div className="flex items-center justify-start h-16 px-6 border-b border-gray-200">
             <Link href="/dashboard" className="flex items-center" onClick={() => setIsMobileMenuOpen(false)}>
               <Image src="/logo.png" alt="Trade Control" width={150} height={40} className="h-8 w-auto" />
             </Link>
@@ -89,6 +105,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
             <div className="space-y-1">
               {filteredNav.map((item) => {
                 const isActive = pathname === item.href
+                const Icon = item.Icon
                 return (
                   <Link
                     key={item.name}
@@ -100,7 +117,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
                         : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                     }`}
                   >
-                    <span className="mr-3 text-lg">{item.icon}</span>
+                    <Icon className="mr-3 w-5 h-5" />
                     {item.name}
                   </Link>
                 )
@@ -117,6 +134,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
                   <div className="space-y-1">
                     {ownerNav.map((item) => {
                       const isActive = pathname === item.href
+                      const Icon = item.Icon
                       return (
                         <Link
                           key={item.name}
@@ -128,7 +146,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
                               : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                           }`}
                         >
-                          <span className="mr-3 text-lg">{item.icon}</span>
+                          <Icon className="mr-3 w-5 h-5" />
                           {item.name}
                         </Link>
                       )

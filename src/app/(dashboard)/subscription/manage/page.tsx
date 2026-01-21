@@ -57,12 +57,9 @@ export default async function SubscriptionManagePage() {
           </p>
         </div>
 
-        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-8">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8">
           <div className="max-w-2xl mx-auto text-center">
-            <div className="mb-4">
-              <span className="text-6xl">⚠️</span>
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">
               No Active Subscription Found
             </h2>
             <p className="text-gray-600 mb-6">
@@ -115,19 +112,19 @@ export default async function SubscriptionManagePage() {
       </div>
 
       {/* Current Plan */}
-      <div className="bg-white shadow rounded-lg p-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-lg font-medium text-gray-900">Current Plan</h2>
-            <p className="mt-1 text-3xl font-bold text-primary">
+            <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-1">Current Plan</h2>
+            <p className="text-2xl font-semibold text-gray-900">
               {tierNames[(subscription.tier as any) as keyof typeof tierNames]}
             </p>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-600">
               {tierPrices[(subscription.tier as any) as keyof typeof tierPrices]} AUD/month
             </p>
           </div>
           <span
-            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+            className={`inline-flex items-center px-3 py-1 rounded-md text-xs font-medium ${
               statusColors[(subscription.status as any) as keyof typeof statusColors]
             }`}
           >
@@ -169,9 +166,9 @@ export default async function SubscriptionManagePage() {
       </div>
 
       {/* Available Plans */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Available Plans</h2>
-        <p className="text-sm text-gray-500 mb-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Available Plans</h2>
+        <p className="text-sm text-gray-600 mb-6">
           To upgrade or downgrade your plan, use the &quot;Manage Billing&quot; button above to access the Stripe Customer Portal.
         </p>
 
@@ -258,12 +255,12 @@ export default async function SubscriptionManagePage() {
       </div>
 
       {/* Billing Information */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Billing Information</h2>
-        <p className="text-sm text-gray-500 mb-2">
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Billing Information</h2>
+        <p className="text-sm text-gray-600 mb-2">
           Manage your payment methods, billing details, and subscription changes in the Stripe Customer Portal.
         </p>
-        <p className="text-xs text-gray-400 mb-4">
+        <p className="text-xs text-gray-500 mb-4">
           You can upgrade or downgrade your plan, update payment methods, and view invoices in the portal.
         </p>
         <ManageBillingButton />
@@ -271,9 +268,9 @@ export default async function SubscriptionManagePage() {
 
       {/* Cancel Subscription */}
       {subscription.status !== 'cancelled' && (
-        <div className="bg-white shadow rounded-lg p-6 border-l-4 border-red-500">
-          <h2 className="text-lg font-medium text-gray-900 mb-2">Cancel Subscription</h2>
-          <p className="text-sm text-gray-500 mb-4">
+        <div className="bg-white border border-red-200 rounded-lg p-6">
+          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-2">Cancel Subscription</h2>
+          <p className="text-sm text-gray-600 mb-4">
             Your access will continue until the end of your current billing period. Cancellation is managed through the Stripe Customer Portal.
           </p>
           <CancelSubscriptionButton />

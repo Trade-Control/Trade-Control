@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { ManagementLicenseIcon, FieldStaffLicenseIcon } from '@/components/icons/NavigationIcons'
 
 export default function PurchaseLicensePage() {
   const router = useRouter()
@@ -23,7 +24,7 @@ export default function PurchaseLicensePage() {
         'Assign contractors (if Operations Pro)',
         'Export reports',
       ],
-      icon: '👔',
+      Icon: ManagementLicenseIcon,
     },
     {
       id: 'field_staff',
@@ -39,7 +40,7 @@ export default function PurchaseLicensePage() {
         'Log travel for jobs',
         'View assigned job schedule',
       ],
-      icon: '🔨',
+      Icon: FieldStaffLicenseIcon,
     },
   ]
 
@@ -95,19 +96,23 @@ export default function PurchaseLicensePage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {licenseTypes.map((license) => (
-          <div
-            key={license.id}
-            className="bg-white shadow rounded-lg overflow-hidden border-2 border-gray-200 hover:border-primary transition-colors"
-          >
-            <div className="p-6">
-              <div className="flex items-center mb-4">
-                <span className="text-4xl mr-4">{license.icon}</span>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">{license.name}</h2>
-                  <p className="text-sm text-gray-500">{license.description}</p>
+        {licenseTypes.map((license) => {
+          const Icon = license.Icon
+          return (
+            <div
+              key={license.id}
+              className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-primary transition-colors"
+            >
+              <div className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center mr-4">
+                    <Icon className="w-7 h-7 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">{license.name}</h2>
+                    <p className="text-sm text-gray-500">{license.description}</p>
+                  </div>
                 </div>
-              </div>
 
               <div className="mb-6">
                 <span className="text-3xl font-bold text-primary">{license.price}</span>
@@ -138,20 +143,21 @@ export default function PurchaseLicensePage() {
                 </ul>
               </div>
 
-              <button
-                onClick={() => handlePurchase(license.id)}
-                disabled={loading !== null}
-                className="w-full px-4 py-3 bg-primary text-white rounded-md font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loading === license.id ? 'Loading...' : `Purchase ${license.name}`}
-              </button>
+                <button
+                  onClick={() => handlePurchase(license.id)}
+                  disabled={loading !== null}
+                  className="w-full px-4 py-2 bg-primary text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {loading === license.id ? 'Loading...' : `Purchase ${license.name}`}
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-2">How License Billing Works</h3>
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">How License Billing Works</h3>
         <ul className="space-y-2 text-sm text-gray-700">
           <li className="flex items-start">
             <span className="mr-2">•</span>

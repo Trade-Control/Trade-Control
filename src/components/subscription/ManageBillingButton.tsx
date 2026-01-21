@@ -37,7 +37,7 @@ export default function ManageBillingButton() {
     <button
       onClick={handleClick}
       disabled={loading}
-      className="mt-4 inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+      className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors"
     >
       {loading ? 'Loading...' : 'Manage Billing'}
     </button>
