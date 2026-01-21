@@ -3,6 +3,8 @@ import { getCurrentUser } from '@/lib/auth/get-user'
 import { redirect } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
+import ManageBillingButton from '@/components/subscription/ManageBillingButton'
+import CancelSubscriptionButton from '@/components/subscription/CancelSubscriptionButton'
 
 async function getSubscriptionDetails(organizationId: string): Promise<any> {
   const supabase = await createClient()
@@ -168,7 +170,10 @@ export default async function SubscriptionManagePage() {
 
       {/* Available Plans */}
       <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-6">Available Plans</h2>
+        <h2 className="text-lg font-medium text-gray-900 mb-4">Available Plans</h2>
+        <p className="text-sm text-gray-500 mb-6">
+          To upgrade or downgrade your plan, use the &quot;Manage Billing&quot; button above to access the Stripe Customer Portal.
+        </p>
 
         <div className="space-y-4">
           {/* Operations */}
@@ -255,15 +260,13 @@ export default async function SubscriptionManagePage() {
       {/* Billing Information */}
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-lg font-medium text-gray-900 mb-4">Billing Information</h2>
-        <p className="text-sm text-gray-500">
-          Manage your payment methods and billing details in the Stripe Customer Portal.
+        <p className="text-sm text-gray-500 mb-2">
+          Manage your payment methods, billing details, and subscription changes in the Stripe Customer Portal.
         </p>
-        <button
-          disabled
-          className="mt-4 inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-        >
-          Manage Billing
-        </button>
+        <p className="text-xs text-gray-400 mb-4">
+          You can upgrade or downgrade your plan, update payment methods, and view invoices in the portal.
+        </p>
+        <ManageBillingButton />
       </div>
 
       {/* Cancel Subscription */}
@@ -271,14 +274,9 @@ export default async function SubscriptionManagePage() {
         <div className="bg-white shadow rounded-lg p-6 border-l-4 border-red-500">
           <h2 className="text-lg font-medium text-gray-900 mb-2">Cancel Subscription</h2>
           <p className="text-sm text-gray-500 mb-4">
-            Your access will continue until the end of your current billing period.
+            Your access will continue until the end of your current billing period. Cancellation is managed through the Stripe Customer Portal.
           </p>
-          <button
-            disabled
-            className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
-          >
-            Cancel Subscription
-          </button>
+          <CancelSubscriptionButton />
         </div>
       )}
     </div>

@@ -1,16 +1,16 @@
-import { getCurrentUser } from '@/lib/auth/get-user'
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-export default async function PurchaseLicensePage() {
-  const user = await getCurrentUser()
-
-  if (!user || user.role !== 'owner') {
-    redirect('/dashboard')
-  }
+export default function PurchaseLicensePage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState<string | null>(null)
 
   const licenseTypes = [
     {
+      id: 'management',
       name: 'Management License',
       price: '$35 AUD',
       period: 'per month',
@@ -26,6 +26,7 @@ export default async function PurchaseLicensePage() {
       icon: '👔',
     },
     {
+      id: 'field_staff',
       name: 'Field Staff License',
       price: '$15 AUD',
       period: 'per month',
@@ -41,6 +42,38 @@ export default async function PurchaseLicensePage() {
       icon: '🔨',
     },
   ]
+
+  const handlePurchase = async (licenseType: string) => {
+    setLoading(licenseType)
+    try {
+      const response = await fetch('/api/stripe/create-license-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          license_type: licenseType,
+          quantity: 1,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.error) {
+        alert(data.error)
+        setLoading(null)
+        return
+      }
+
+      // Redirect to Stripe checkout
+      window.location.href = data.url
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Failed to start checkout process')
+      setLoading(null)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -60,7 +93,7 @@ export default async function PurchaseLicensePage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {licenseTypes.map((license) => (
           <div
-            key={license.name}
+            key={license.id}
             className="bg-white shadow rounded-lg overflow-hidden border-2 border-gray-200 hover:border-primary transition-colors"
           >
             <div className="p-6">
@@ -102,14 +135,12 @@ export default async function PurchaseLicensePage() {
               </div>
 
               <button
-                disabled
-                className="w-full px-4 py-3 bg-gray-300 text-gray-600 rounded-md font-medium cursor-not-allowed"
+                onClick={() => handlePurchase(license.id)}
+                disabled={loading !== null}
+                className="w-full px-4 py-3 bg-primary text-white rounded-md font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Stripe Integration Coming Soon
+                {loading === license.id ? 'Loading...' : `Purchase ${license.name}`}
               </button>
-              <p className="mt-2 text-xs text-gray-500 text-center">
-                License purchases will be available once Stripe integration is complete
-              </p>
             </div>
           </div>
         ))}
