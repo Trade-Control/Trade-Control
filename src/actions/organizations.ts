@@ -145,9 +145,85 @@ export async function ensureOrganization() {
       }
     }
 
-    // Create new organization (fallback if webhook hasn't fired yet)
-    // Use admin client to bypass RLS
-    console.log('Creating new organization for user:', userId)
+    // CRITICAL: Before creating fallback org, check if webhook created one with subscription
+    // This prevents race condition where user gets linked to empty org while subscription exists
+    console.log('No organization found yet. Checking for existing subscription by user email...')
+    
+    // Check if there's a subscription with Stripe customer matching user's email
+    const { data: existingSubscription, error: subLookupError } = await (supabaseAdmin
+      .from('subscriptions') as any)
+      .select('organization_id, id, status, stripe_customer_id')
+      .limit(1)
+      .maybeSingle()
+    
+    if (subLookupError) {
+      console.error('Error looking up subscription:', subLookupError)
+    }
+
+    // Also check if Stripe has a customer for this email (webhook might have created org)
+    let stripeCustomerId: string | null = null
+    try {
+      const stripe = await import('@/lib/stripe/client').then(m => m.stripe)
+      if (stripe) {
+        const customers = await stripe.customers.list({
+          email: authUser.email!,
+          limit: 1,
+        })
+        if (customers.data.length > 0) {
+          stripeCustomerId = customers.data[0].id
+          console.log('Found Stripe customer for email:', stripeCustomerId)
+        }
+      }
+    } catch (stripeError) {
+      console.error('Error checking Stripe customer:', stripeError)
+      // Continue without Stripe check if it fails
+    }
+
+    // If we found a Stripe customer ID, look for organization with that subscription
+    if (stripeCustomerId) {
+      const { data: subByStripeCustomer, error: subByStripeError } = await (supabaseAdmin
+        .from('subscriptions') as any)
+        .select('organization_id, id, status')
+        .eq('stripe_customer_id', stripeCustomerId)
+        .maybeSingle()
+      
+      if (subByStripeError) {
+        console.error('Error finding subscription by Stripe customer ID:', subByStripeError)
+      }
+
+      if (subByStripeCustomer?.organization_id) {
+        console.log('Found existing organization with subscription:', subByStripeCustomer.organization_id)
+        
+        // Link user to this organization instead of creating new one
+        const { error: linkError } = await (supabaseAdmin
+          .from('profiles') as any)
+          .update({ organization_id: subByStripeCustomer.organization_id })
+          .eq('id', userId)
+        
+        if (linkError) {
+          console.error('Failed to link profile to existing org:', linkError)
+          return { error: `Failed to link to organization: ${linkError.message}` }
+        }
+
+        // Get the organization details
+        const { data: foundOrg } = await (supabaseAdmin
+          .from('organizations') as any)
+          .select('id, onboarding_completed')
+          .eq('id', subByStripeCustomer.organization_id)
+          .single()
+        
+        console.log('Successfully linked user to organization with subscription')
+        return { 
+          success: true, 
+          organization_id: subByStripeCustomer.organization_id, 
+          onboarding_completed: foundOrg?.onboarding_completed || false 
+        }
+      }
+    }
+
+    // Only create fallback organization if no subscription exists in Stripe
+    // This should only happen for non-paying users or before checkout
+    console.log('No subscription found in Stripe. Creating fallback organization for user:', userId)
     const { data: newOrg, error: orgError } = await (supabaseAdmin
       .from('organizations') as any)
       .insert({
@@ -162,7 +238,7 @@ export async function ensureOrganization() {
       return { error: `Failed to create organization: ${orgError?.message || 'Unknown error'}` }
     }
 
-    console.log('Organization created:', newOrg.id)
+    console.log('Fallback organization created:', newOrg.id)
 
     // Update profile with new organization using admin client
     const { error: updateError } = await (supabaseAdmin
@@ -175,7 +251,7 @@ export async function ensureOrganization() {
       return { error: `Failed to link organization: ${updateError.message || 'Unknown error'}` }
     }
 
-    console.log('Profile updated with organization:', newOrg.id)
+    console.log('Profile updated with fallback organization:', newOrg.id)
     return { success: true, organization_id: newOrg.id, onboarding_completed: false }
   } catch (error: any) {
     console.error('ensureOrganization exception:', error)

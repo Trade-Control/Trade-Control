@@ -15,6 +15,11 @@ function getSupabaseAdmin() {
   )
 }
 
+// Helper function to wait/delay
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 export async function POST(req: Request) {
   try {
     const { session_id } = await req.json()
@@ -33,7 +38,9 @@ export async function POST(req: Request) {
       )
     }
 
-    console.log('Syncing subscription for session:', session_id)
+    console.log('=== SYNC SUBSCRIPTION REQUEST ===')
+    console.log('Session ID:', session_id)
+    console.log('Timestamp:', new Date().toISOString())
 
     // Get current user first
     const supabase = await createClient()
@@ -142,35 +149,84 @@ export async function POST(req: Request) {
     }
 
     // Subscription doesn't exist, manually process the checkout session
-    console.log('Processing checkout session manually...')
+    console.log('Processing checkout session manually (webhook might not have fired yet)...')
     await handleCheckoutSessionCompleted(session as any)
 
-    // Verify it was created
-    const { data: verifyProfile } = await (supabase
+    // Retry verification with exponential backoff (webhook might still be processing)
+    const maxRetries = 3
+    let retryDelay = 1000 // Start with 1 second
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`Verification attempt ${attempt}/${maxRetries}...`)
+      
+      // Wait before checking
+      if (attempt > 1) {
+        console.log(`Waiting ${retryDelay}ms before retry...`)
+        await delay(retryDelay)
+        retryDelay *= 2 // Exponential backoff
+      }
+      
+      // Verify it was created
+      const { data: verifyProfile } = await (supabase
+        .from('profiles') as any)
+        .select('organization_id')
+        .eq('id', userId)
+        .single()
+
+      if (verifyProfile?.organization_id) {
+        const { data: verifySubscription } = await (supabase
+          .from('subscriptions') as any)
+          .select('id, status, tier')
+          .eq('organization_id', verifyProfile.organization_id)
+          .maybeSingle()
+
+        if (verifySubscription) {
+          console.log('✓ Subscription verified successfully:', verifySubscription)
+          return NextResponse.json({
+            success: true,
+            message: 'Subscription created successfully',
+            subscription: verifySubscription,
+            attempts: attempt,
+          })
+        }
+      }
+      
+      console.log(`Attempt ${attempt} - subscription not found yet`)
+    }
+
+    // Final check using admin client (bypass RLS)
+    console.log('Final verification using admin client...')
+    const supabaseAdmin = getSupabaseAdmin()
+    const { data: adminProfile } = await (supabaseAdmin
       .from('profiles') as any)
       .select('organization_id')
       .eq('id', userId)
       .single()
 
-    if (verifyProfile?.organization_id) {
-      const { data: verifySubscription } = await (supabase
+    if (adminProfile?.organization_id) {
+      const { data: adminSubscription } = await (supabaseAdmin
         .from('subscriptions') as any)
         .select('id, status, tier')
-        .eq('organization_id', verifyProfile.organization_id)
-        .single()
+        .eq('organization_id', adminProfile.organization_id)
+        .maybeSingle()
 
-      if (verifySubscription) {
-        console.log('Subscription created successfully:', verifySubscription)
+      if (adminSubscription) {
+        console.log('✓ Subscription found via admin client:', adminSubscription)
         return NextResponse.json({
           success: true,
           message: 'Subscription created successfully',
-          subscription: verifySubscription,
+          subscription: adminSubscription,
+          verifiedViaAdmin: true,
         })
       }
     }
 
+    console.error('❌ Failed to verify subscription after all retries')
     return NextResponse.json(
-      { error: 'Failed to create subscription - please contact support' },
+      { 
+        error: 'Failed to create subscription after multiple attempts. Please contact support.',
+        details: 'Webhook processing may be delayed. Your payment was successful.',
+      },
       { status: 500 }
     )
   } catch (error: any) {

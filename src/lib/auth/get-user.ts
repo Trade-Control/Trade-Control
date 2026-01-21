@@ -25,7 +25,8 @@ export async function getCurrentUser() {
   // If user has organization_id, fetch organization and subscription
   let organization = null
   let subscription = null
-  let tier: SubscriptionTier = 'operations'
+  let tier: SubscriptionTier | null = null
+  let hasValidSubscription = false
 
   if (profile.organization_id) {
     const { data: orgData } = await (supabase
@@ -45,11 +46,32 @@ export async function getCurrentUser() {
     if (orgData) {
       organization = orgData
       subscription = orgData.subscription?.[0]
-      tier = (subscription?.tier || 'operations') as SubscriptionTier
+      
+      // Check if subscription is valid (active or trialing)
+      if (subscription && ['active', 'trialing'].includes(subscription.status)) {
+        tier = subscription.tier as SubscriptionTier
+        hasValidSubscription = true
+      } else if (subscription && subscription.status === 'past_due') {
+        // Past due subscriptions get limited access
+        tier = subscription.tier as SubscriptionTier
+        hasValidSubscription = false
+      } else {
+        // No valid subscription - default to operations tier with flag
+        tier = 'operations'
+        hasValidSubscription = false
+      }
+    } else {
+      // Organization exists but couldn't fetch it - default to operations
+      tier = 'operations'
+      hasValidSubscription = false
     }
+  } else {
+    // No organization - default to operations tier
+    tier = 'operations'
+    hasValidSubscription = false
   }
 
-  const permissions = getUserPermissions((profile.role || 'owner') as UserRole, tier)
+  const permissions = getUserPermissions((profile.role || 'owner') as UserRole, tier!)
   
   return {
     id: user.id,
@@ -61,6 +83,7 @@ export async function getCurrentUser() {
     assignedJobIds: (profile.assigned_job_ids || []) as string[],
     organization: organization as any,
     subscription: subscription as any,
+    hasValidSubscription,
     permissions,
   }
 }
