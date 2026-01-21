@@ -66,11 +66,15 @@ export default function PurchaseLicensePage() {
         return
       }
 
-      // Redirect to Stripe checkout
-      window.location.href = data.url
+      // Success - license added directly to subscription
+      if (data.success) {
+        alert(data.message || 'License purchased successfully!')
+        // Redirect to licenses page to see the new license
+        router.push('/licenses')
+      }
     } catch (error) {
       console.error('Error:', error)
-      alert('Failed to start checkout process')
+      alert('Failed to purchase license')
       setLoading(null)
     }
   }
@@ -151,7 +155,15 @@ export default function PurchaseLicensePage() {
         <ul className="space-y-2 text-sm text-gray-700">
           <li className="flex items-start">
             <span className="mr-2">•</span>
-            <span>Licenses are billed monthly and added to your subscription</span>
+            <span>Licenses are added to your subscription immediately</span>
+          </li>
+          <li className="flex items-start">
+            <span className="mr-2">•</span>
+            <span>During trial: Licenses added now will be charged when your trial ends</span>
+          </li>
+          <li className="flex items-start">
+            <span className="mr-2">•</span>
+            <span>After trial: Pro-rata billing applies for the remainder of the billing period</span>
           </li>
           <li className="flex items-start">
             <span className="mr-2">•</span>
@@ -160,10 +172,6 @@ export default function PurchaseLicensePage() {
           <li className="flex items-start">
             <span className="mr-2">•</span>
             <span>Unassigned licenses remain available for reassignment</span>
-          </li>
-          <li className="flex items-start">
-            <span className="mr-2">•</span>
-            <span>Pro-rata billing applies for mid-cycle additions or removals</span>
           </li>
           <li className="flex items-start">
             <span className="mr-2">•</span>

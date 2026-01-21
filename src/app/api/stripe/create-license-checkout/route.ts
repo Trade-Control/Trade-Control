@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/get-user'
 import { createClient } from '@/lib/supabase/server'
-import { stripe, STRIPE_PRICES } from '@/lib/stripe/client'
+import { stripe, STRIPE_PRICES, addSubscriptionItem } from '@/lib/stripe/client'
 
 export async function POST(req: Request) {
   try {
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     const supabase = await createClient()
     const { data: subscription, error: subError } = await (supabase
       .from('subscriptions') as any)
-      .select('stripe_customer_id, stripe_subscription_id')
+      .select('stripe_customer_id, stripe_subscription_id, status')
       .eq('organization_id', user.organization_id)
       .single()
 
@@ -46,34 +46,49 @@ export async function POST(req: Request) {
       ? STRIPE_PRICES.MANAGEMENT_LICENSE 
       : STRIPE_PRICES.FIELD_STAFF_LICENSE
 
-    const origin = req.headers.get('origin') || 'http://localhost:3000'
+    // Add license(s) to existing subscription as subscription item(s)
+    // Stripe automatically handles trial billing - items added during trial are billed when trial ends
+    const createdLicenses = []
+    
+    for (let i = 0; i < quantity; i++) {
+      // Add subscription item in Stripe
+      const subscriptionItem = await addSubscriptionItem({
+        subscriptionId: subscription.stripe_subscription_id,
+        priceId: priceId,
+        quantity: 1, // Each license is a separate item for easier management
+        prorationBehavior: 'create_prorations',
+      })
 
-    // Create a checkout session for adding license to existing subscription
-    const session = await stripe.checkout.sessions.create({
-      customer: subscription.stripe_customer_id,
-      mode: 'subscription',
-      line_items: [
-        {
-          price: priceId,
-          quantity: quantity,
-        },
-      ],
-      success_url: `${origin}/licenses?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/licenses/purchase`,
-      subscription_data: {
-        metadata: {
-          organization_id: user.organization_id!,
-          license_type: license_type,
-        },
-      },
-      metadata: {
-        organization_id: user.organization_id!,
-        license_type: license_type,
-        quantity: quantity.toString(),
-      },
+      // Create license record in database
+      const { data: license, error: licenseError } = await (supabase
+        .from('licenses') as any)
+        .insert({
+          organization_id: user.organization_id,
+          type: license_type,
+          status: 'active',
+          stripe_subscription_item_id: subscriptionItem.id,
+          // assigned_to: null (unassigned initially)
+        })
+        .select()
+        .single()
+
+      if (licenseError) {
+        console.error('Error creating license record:', licenseError)
+        // Continue with other licenses even if one fails
+      } else {
+        createdLicenses.push(license)
+      }
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      licenses: createdLicenses,
+      message: `Successfully added ${quantity} ${license_type} license(s). ${
+        subscription.status === 'trialing' 
+          ? 'You will be charged when your trial ends.' 
+          : 'Charges will appear on your next invoice.'
+      }`
     })
-
-    return NextResponse.json({ url: session.url })
   } catch (error: any) {
     console.error('Error creating license checkout session:', error)
     return NextResponse.json(
