@@ -42,8 +42,14 @@ function OnboardingContent() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        let errorData
+        try {
+          errorData = await response.json()
+        } catch (e) {
+          errorData = { error: `Server error (${response.status}). Please try again or contact support.` }
+        }
         console.error('API error:', response.status, errorData)
+        console.error('Full error response:', errorData)
         setError(errorData.error || `Server error (${response.status}). Please try again or contact support.`)
         setVerifying(false)
         return
@@ -53,6 +59,7 @@ function OnboardingContent() {
 
       if (result.error) {
         console.error('Organization ensure error:', result.error)
+        console.error('Full result:', result)
         setError(result.error)
         setVerifying(false)
         return
@@ -82,6 +89,13 @@ function OnboardingContent() {
     setLoading(true)
 
     try {
+      // Validate form data
+      if (!formData.name || formData.name.trim() === '') {
+        setError('Business name is required')
+        setLoading(false)
+        return
+      }
+
       // Use server action to update organization
       const response = await fetch('/api/organizations/update', {
         method: 'POST',
@@ -91,9 +105,25 @@ function OnboardingContent() {
         body: JSON.stringify(formData),
       })
 
+      if (!response.ok) {
+        let errorData
+        try {
+          errorData = await response.json()
+        } catch (e) {
+          errorData = { error: `Server error (${response.status}). Please try again.` }
+        }
+        console.error('Update API error:', response.status, errorData)
+        console.error('Full error response:', errorData)
+        setError(errorData.error || `Server error (${response.status}). Please try again.`)
+        setLoading(false)
+        return
+      }
+
       const result = await response.json()
 
       if (result.error) {
+        console.error('Update organization error:', result.error)
+        console.error('Full result:', result)
         setError(result.error)
         setLoading(false)
         return
@@ -103,7 +133,7 @@ function OnboardingContent() {
       router.push('/dashboard')
     } catch (err) {
       console.error('Submit error:', err)
-      setError('An unexpected error occurred')
+      setError('An unexpected error occurred. Please try again.')
       setLoading(false)
     }
   }

@@ -152,11 +152,54 @@ export async function updateOrganization(data: {
   phone?: string
   email?: string
 }) {
-  const user = await getCurrentUser()
-  if (!user?.organization_id) {
-    return { error: 'Unauthorized' }
-  }
+  try {
+    const user = await getCurrentUser()
+    
+    if (!user) {
+      console.error('updateOrganization: No user found')
+      return { error: 'Unauthorized - please log in' }
+    }
+    
+    if (!user.organization_id) {
+      console.error('updateOrganization: User has no organization_id', { 
+        userId: user.id, 
+        email: user.email 
+      })
+      // Try to ensure organization exists first
+      const ensureResult = await ensureOrganization()
+      if (ensureResult.error || !ensureResult.organization_id) {
+        return { error: 'No organization found. Please contact support.' }
+      }
+      // Retry with the new organization_id
+      const retryUser = await getCurrentUser()
+      if (!retryUser?.organization_id) {
+        return { error: 'Failed to create organization. Please try again.' }
+      }
+      // Continue with update using retryUser
+      return updateOrganizationWithOrgId(data, retryUser.organization_id)
+    }
 
+    return updateOrganizationWithOrgId(data, user.organization_id)
+  } catch (error: any) {
+    console.error('updateOrganization exception:', error)
+    console.error('Error stack:', error.stack)
+    return { error: `Unexpected error: ${error.message || error.toString()}` }
+  }
+}
+
+async function updateOrganizationWithOrgId(
+  data: {
+    name: string
+    abn?: string
+    address?: string
+    city?: string
+    state?: string
+    postcode?: string
+    phone?: string
+    email?: string
+  },
+  organizationId: string
+) {
   const supabase = await createClient()
 
   const { error } = await (supabase
@@ -172,7 +215,7 @@ export async function updateOrganization(data: {
       email: data.email || null,
       onboarding_completed: true,
     })
-    .eq('id', user.organization_id)
+    .eq('id', organizationId)
 
   if (error) {
     console.error('Error updating organization:', error)
