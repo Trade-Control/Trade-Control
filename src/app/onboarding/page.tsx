@@ -39,6 +39,7 @@ function OnboardingContent() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Ensure cookies are sent
       })
 
       if (!response.ok) {
@@ -102,6 +103,7 @@ function OnboardingContent() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Ensure cookies are sent
         body: JSON.stringify(formData),
       })
 

@@ -1,9 +1,24 @@
 import { ensureOrganization } from '@/actions/organizations'
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     console.log('Ensure organization API called')
+    
+    // Debug: Log cookie information
+    const cookieStore = await cookies()
+    const allCookies = cookieStore.getAll()
+    console.log('Available cookies:', allCookies.map(c => c.name))
+    
+    // Check for Supabase auth cookies
+    const authCookies = allCookies.filter(c => 
+      c.name.includes('supabase') || 
+      c.name.includes('sb-') ||
+      c.name.includes('auth')
+    )
+    console.log('Auth-related cookies found:', authCookies.length > 0 ? authCookies.map(c => c.name) : 'NONE')
+    
     const result = await ensureOrganization()
     
     if (result.error) {

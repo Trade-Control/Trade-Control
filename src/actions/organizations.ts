@@ -22,38 +22,80 @@ function getSupabaseAdmin() {
 
 export async function ensureOrganization() {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
-      console.error('ensureOrganization: No user found - getCurrentUser returned null')
+    // First check if we can get the auth user directly
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError) {
+      console.error('ensureOrganization: Auth error:', authError)
+      console.error('Auth error details:', JSON.stringify(authError, null, 2))
+      return { error: `Authentication error: ${authError.message}` }
+    }
+    
+    if (!authUser) {
+      console.error('ensureOrganization: No auth user found - cookies may not be set')
       return { error: 'Unauthorized - please log in' }
     }
-
-    if (!user.id) {
-      console.error('ensureOrganization: User has no ID', user)
-      return { error: 'Invalid user session' }
-    }
-
-    console.log('ensureOrganization: User found', { userId: user.id, email: user.email, hasOrgId: !!user.organization_id })
-
-    const supabase = await createClient()
-
-    // Check if user already has organization
-    const { data: profile, error: profileError } = await (supabase
+    
+    console.log('ensureOrganization: Auth user found', { userId: authUser.id, email: authUser.email })
+    
+    // Check if profile exists, create if it doesn't
+    const { data: existingProfile, error: profileCheckError } = await (supabase
       .from('profiles') as any)
-      .select('organization_id')
-      .eq('id', user.id)
+      .select('id, organization_id')
+      .eq('id', authUser.id)
       .single()
 
-    if (profileError) {
-      console.error('Error fetching profile:', profileError)
+    if (profileCheckError && profileCheckError.code !== 'PGRST116') {
+      console.error('ensureOrganization: Error checking profile:', profileCheckError)
     }
 
-    if (profile?.organization_id) {
+    let profile = existingProfile
+
+    // Create profile if it doesn't exist
+    if (!profile) {
+      console.log('ensureOrganization: Profile not found, creating profile for user:', authUser.id)
+      
+      // Use admin client to create profile (bypass RLS)
+      let supabaseAdmin
+      try {
+        supabaseAdmin = getSupabaseAdmin()
+      } catch (adminError: any) {
+        console.error('Failed to get admin client for profile creation:', adminError)
+        return { error: 'Server configuration error. Please contact support.' }
+      }
+      
+      const { data: newProfile, error: createProfileError } = await (supabaseAdmin
+        .from('profiles') as any)
+        .insert({
+          id: authUser.id,
+          email: authUser.email,
+          first_name: authUser.user_metadata?.first_name || null,
+          last_name: authUser.user_metadata?.last_name || null,
+          role: 'owner',
+        })
+        .select()
+        .single()
+
+      if (createProfileError || !newProfile) {
+        console.error('ensureOrganization: Failed to create profile:', createProfileError)
+        return { error: `Failed to create user profile: ${createProfileError?.message || 'Unknown error'}` }
+      }
+
+      profile = newProfile
+      console.log('ensureOrganization: Profile created:', profile.id)
+    }
+
+    const userId = authUser.id
+    const organizationId = profile.organization_id
+
+    // Check if user already has organization
+    if (organizationId) {
       // Verify organization exists
       const { data: org, error: orgError } = await (supabase
         .from('organizations') as any)
         .select('id, onboarding_completed')
-        .eq('id', profile.organization_id)
+        .eq('id', organizationId)
         .single()
 
       if (orgError) {
@@ -79,7 +121,7 @@ export async function ensureOrganization() {
     const { data: updatedProfile, error: updatedProfileError } = await (supabaseAdmin
       .from('profiles') as any)
       .select('organization_id')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single()
 
     if (updatedProfileError) {
@@ -105,7 +147,7 @@ export async function ensureOrganization() {
 
     // Create new organization (fallback if webhook hasn't fired yet)
     // Use admin client to bypass RLS
-    console.log('Creating new organization for user:', user.id)
+    console.log('Creating new organization for user:', userId)
     const { data: newOrg, error: orgError } = await (supabaseAdmin
       .from('organizations') as any)
       .insert({
@@ -126,7 +168,7 @@ export async function ensureOrganization() {
     const { error: updateError } = await (supabaseAdmin
       .from('profiles') as any)
       .update({ organization_id: newOrg.id })
-      .eq('id', user.id)
+      .eq('id', userId)
 
     if (updateError) {
       console.error('Failed to update profile:', updateError)
