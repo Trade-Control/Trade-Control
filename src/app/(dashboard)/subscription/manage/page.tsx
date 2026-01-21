@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/get-user'
 import { redirect } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
+import Link from 'next/link'
 
 async function getSubscriptionDetails(organizationId: string): Promise<any> {
   const supabase = await createClient()
@@ -63,12 +64,12 @@ export default async function SubscriptionManagePage() {
               No Active Subscription Found
             </h2>
             <p className="text-gray-600 mb-6">
-              We couldn't find an active subscription for your organization. This may be due to:
+              We couldn&apos;t find an active subscription for your organization. This may be due to:
             </p>
             <ul className="text-left max-w-md mx-auto space-y-2 mb-6 text-gray-700">
               <li className="flex items-start">
                 <span className="mr-2">•</span>
-                <span>Your subscription hasn't been set up yet</span>
+                <span>Your subscription hasn&apos;t been set up yet</span>
               </li>
               <li className="flex items-start">
                 <span className="mr-2">•</span>
@@ -76,7 +77,7 @@ export default async function SubscriptionManagePage() {
               </li>
               <li className="flex items-start">
                 <span className="mr-2">•</span>
-                <span>There's a temporary sync issue with our payment provider</span>
+                <span>There&apos;s a temporary sync issue with our payment provider</span>
               </li>
             </ul>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">

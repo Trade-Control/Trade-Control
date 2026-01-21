@@ -264,7 +264,7 @@ export default function SettingsPage() {
                   placeholder="JOB"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Optional prefix for job numbers (e.g., "JOB-001")
+                  Optional prefix for job numbers (e.g., &quot;JOB-001&quot;)
                 </p>
               </div>
 
