@@ -23,6 +23,20 @@ export async function POST(req: Request) {
 
     console.log('Syncing subscription for session:', session_id)
 
+    // Get current user first
+    const supabase = await createClient()
+    const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !currentUser) {
+      console.error('Auth error in sync:', authError)
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      )
+    }
+
+    console.log('Current user:', currentUser.id)
+
     // Fetch the checkout session from Stripe
     const session = await stripe.checkout.sessions.retrieve(session_id, {
       expand: ['subscription'],
@@ -35,17 +49,12 @@ export async function POST(req: Request) {
       )
     }
 
-    const userId = session.metadata?.user_id
+    // Use current user ID if session metadata doesn't have it (for existing users)
+    const userId = session.metadata?.user_id || currentUser.id
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Invalid session - no user_id in metadata' },
-        { status: 400 }
-      )
-    }
+    console.log('Using user ID:', userId)
 
     // Check if subscription already exists
-    const supabase = await createClient()
     const { data: profile } = await (supabase
       .from('profiles') as any)
       .select('organization_id')
@@ -56,9 +65,9 @@ export async function POST(req: Request) {
       // Check if subscription exists
       const { data: existingSubscription } = await (supabase
         .from('subscriptions') as any)
-        .select('id, status')
+        .select('id, status, tier')
         .eq('organization_id', profile.organization_id)
-        .single()
+        .maybeSingle()
 
       if (existingSubscription) {
         console.log('Subscription already exists:', existingSubscription)
@@ -66,8 +75,18 @@ export async function POST(req: Request) {
           success: true,
           message: 'Subscription already exists',
           subscription: existingSubscription,
+          alreadyExists: true,
         })
       }
+    }
+
+    // Only process if this is an initial subscription
+    if (session.metadata?.type !== 'initial_subscription') {
+      console.log('Not an initial subscription, skipping webhook processing')
+      return NextResponse.json({
+        success: true,
+        message: 'Session processed, no action needed',
+      })
     }
 
     // Subscription doesn't exist, manually process the checkout session

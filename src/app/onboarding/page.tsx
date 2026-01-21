@@ -50,14 +50,23 @@ function OnboardingContent() {
 
         const syncResult = await syncResponse.json()
         
-        if (!syncResponse.ok || syncResult.error) {
+        if (!syncResponse.ok) {
           console.error('Subscription sync error:', syncResult.error)
-          setError(syncResult.error || 'Failed to set up subscription. Please contact support.')
-          setVerifying(false)
-          return
+          // Only show error if it's not a "subscription already exists" case
+          if (!syncResult.alreadyExists && syncResponse.status !== 401) {
+            setError(syncResult.error || 'Failed to set up subscription. Please contact support.')
+            setVerifying(false)
+            return
+          }
         }
 
-        console.log('Subscription synced successfully:', syncResult)
+        console.log('Subscription sync result:', syncResult)
+        
+        // If user already has subscription and organization, redirect to dashboard
+        if (syncResult.alreadyExists) {
+          router.push('/dashboard')
+          return
+        }
       }
 
       // Use server action to ensure organization exists
