@@ -6,11 +6,9 @@ import { redirect } from 'next/navigation'
 export default async function ContractorsPage() {
   const user = await getCurrentUser()
   
-  if (!user?.permissions?.canManageContractors) {
-    redirect('/dashboard')
-  }
-
-  const contractors = await getContractors()
+  // Check if user has contractor management permissions
+  const canManageContractors = user?.permissions?.canManageContractors
+  const contractors = canManageContractors ? await getContractors() : []
 
   const statusColors: any = {
     compliant: 'bg-green-100 text-green-800',
@@ -44,24 +42,96 @@ export default async function ContractorsPage() {
           <h1 className="text-3xl font-bold">Contractors</h1>
           <p className="text-gray-600 mt-1">Manage contractors and track compliance</p>
         </div>
-        <div className="flex space-x-3">
-          <Link
-            href="/contractors/compliance"
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-          >
-            Compliance Dashboard
-          </Link>
-          <Link
-            href="/contractors/new"
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-blue-700"
-          >
-            Add Contractor
-          </Link>
-        </div>
+        {canManageContractors && (
+          <div className="flex space-x-3">
+            <Link
+              href="/contractors/compliance"
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              Compliance Dashboard
+            </Link>
+            <Link
+              href="/contractors/new"
+              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-blue-700"
+            >
+              Add Contractor
+            </Link>
+          </div>
+        )}
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
+      {/* Upgrade prompt for non-Pro users */}
+      {!canManageContractors && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-primary rounded-lg p-8">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="mb-4">
+              <span className="text-6xl">🔧</span>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              Contractor Management Requires Operations Pro
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Upgrade to Operations Pro Scale or Operations Pro Unlimited to unlock contractor management features including:
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left mb-6 max-w-2xl mx-auto">
+              <div className="flex items-start">
+                <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm text-gray-700">Add and manage contractors</span>
+              </div>
+              <div className="flex items-start">
+                <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm text-gray-700">Track compliance documents</span>
+              </div>
+              <div className="flex items-start">
+                <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm text-gray-700">Insurance & license expiry tracking</span>
+              </div>
+              <div className="flex items-start">
+                <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm text-gray-700">Token-based contractor access</span>
+              </div>
+              <div className="flex items-start">
+                <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm text-gray-700">Automated compliance reminders</span>
+              </div>
+              <div className="flex items-start">
+                <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm text-gray-700">Contractor submission reviews</span>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/subscription/manage"
+                className="inline-flex items-center justify-center px-6 py-3 bg-primary text-white rounded-md hover:bg-blue-700 font-medium"
+              >
+                Upgrade to Operations Pro
+              </Link>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
+              >
+                Back to Dashboard
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {canManageContractors && (
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -145,9 +215,10 @@ export default async function ContractorsPage() {
             )}
           </tbody>
         </table>
-      </div>
+        </div>
+      )}
 
-      {user.subscription?.tier === 'operations_pro_scale' && (
+      {canManageContractors && user.subscription?.tier === 'operations_pro_scale' && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <p className="text-sm text-yellow-800">
             <strong>Pro Scale Plan:</strong> You can add up to 50 contractors. Upgrade to Pro Unlimited for unlimited contractors.

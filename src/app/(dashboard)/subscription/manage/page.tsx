@@ -24,10 +24,6 @@ export default async function SubscriptionManagePage() {
 
   const subscription = await getSubscriptionDetails(user.organization_id!)
 
-  if (!subscription) {
-    redirect('/dashboard')
-  }
-
   const tierNames = {
     operations: 'Operations',
     operations_pro_scale: 'Operations Pro Scale',
@@ -45,6 +41,65 @@ export default async function SubscriptionManagePage() {
     active: 'bg-green-100 text-green-800',
     past_due: 'bg-red-100 text-red-800',
     cancelled: 'bg-gray-100 text-gray-800',
+  }
+
+  // Handle case where subscription is not found
+  if (!subscription) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Subscription Management</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Manage your Trade Control subscription and billing
+          </p>
+        </div>
+
+        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-8">
+          <div className="max-w-2xl mx-auto text-center">
+            <div className="mb-4">
+              <span className="text-6xl">⚠️</span>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              No Active Subscription Found
+            </h2>
+            <p className="text-gray-600 mb-6">
+              We couldn't find an active subscription for your organization. This may be due to:
+            </p>
+            <ul className="text-left max-w-md mx-auto space-y-2 mb-6 text-gray-700">
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
+                <span>Your subscription hasn't been set up yet</span>
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
+                <span>Your subscription has been cancelled</span>
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
+                <span>There's a temporary sync issue with our payment provider</span>
+              </li>
+            </ul>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/auth/checkout"
+                className="inline-flex items-center justify-center px-6 py-3 bg-primary text-white rounded-md hover:bg-blue-700 font-medium"
+              >
+                Set Up Subscription
+              </Link>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
+              >
+                Back to Dashboard
+              </Link>
+            </div>
+            <p className="mt-6 text-sm text-gray-500">
+              If you believe this is an error, please contact support.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
