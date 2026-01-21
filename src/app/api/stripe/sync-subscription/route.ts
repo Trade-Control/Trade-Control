@@ -196,7 +196,7 @@ export async function POST(req: Request) {
 
     // Final check using admin client (bypass RLS)
     console.log('Final verification using admin client...')
-    const supabaseAdmin = getSupabaseAdmin()
+    // Reuse supabaseAdmin from line 79
     const { data: adminProfile } = await (supabaseAdmin
       .from('profiles') as any)
       .select('organization_id')
